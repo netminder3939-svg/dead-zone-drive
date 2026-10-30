@@ -48,6 +48,12 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
+      // Fog of war: explored hex ids per member (no coordinates). Only you can add to your own list.
+      match /explored/{uid} {
+        allow read: if signedIn();
+        allow write: if signedIn() && request.auth.uid == uid && request.resource.data.keys().hasOnly(['ids']);
+      }
+
       match /territory/{hex} {
         allow read: if signedIn();
         allow create, update: if signedIn() && request.resource.data.by is string;

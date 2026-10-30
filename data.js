@@ -6,7 +6,7 @@ const RARITY = [
   {id:'epic',name:'Epic',color:'#c070ff',mult:2.1},
   {id:'legendary',name:'Legendary',color:'#ffb43c',mult:2.8},
 ];
-// Monster ids match <id>.png (see manifest.json)
+// Monster ids match assets/monsters/<id>.png (see manifest.json)
 const MONSTERS = {
   rad_rat:     {name:'Rad Rat',        hp:30, atk:5,  def:1, lvl:1, biome:'any',   drops:{scrap:3,food:2}},
   scrap_crawler:{name:'Scrap Crawler', hp:45, atk:7,  def:3, lvl:2, biome:'urban', drops:{scrap:6,parts:1}},

@@ -19,12 +19,16 @@ class LocalNet {
     if(!this.center) return;
     this.sims.forEach(s=>{s.ang+=0.3*(Math.random()-.4);s.lat+=0.00015*Math.cos(s.ang);s.lng+=0.0002*Math.sin(s.ang);});
     this._emit('players',this.sims.map(s=>({...s})));
+    // simulated teammates explore (shared fog reveal)
+    this.allyExp=this.allyExp||new Set(JSON.parse(localStorage.getItem('wl_allyexp')||'[]'));const add=[];
+    this.sims.forEach(s=>{const h=hexAt(s.lat,s.lng);hexRing(h.q,h.r,1).forEach(x=>{if(!this.allyExp.has(x.id)){this.allyExp.add(x.id);add.push(x.id);}});});
+    if(add.length){localStorage.setItem('wl_allyexp',JSON.stringify([...this.allyExp]));(this.cbs.exp||[]).forEach(f=>f(add));}
     let ch=false;
     for(const r of Object.values(this.raids)){
       if(r.done) continue;
       if(Date.now()>r.endsAt){r.done=true;r.won=false;ch=true;continue;}
       // simulated teammates join and hit
-      this.sims.forEach(s=>{ if(Math.random()<0.5){const d=Math.round(20+Math.random()*30);const p=r.participants[s.uid]||{name:s.name,dmg:0};p.dmg+=d;r.participants[s.uid]=p;r.hp=Math.max(0,r.hp-d);ch=true;}});
+      this.sims.forEach(s=>{ if(Math.random()<0.5){const d=Math.round(20+Math.random()*30);const p=r.participants[s.uid]||{name:s.name,dmg:0,max:120+Math.round(Math.random()*80)};p.hp=Math.max(0,(p.hp??p.max)-Math.round(Math.random()*18));p.dmg+=d;r.participants[s.uid]=p;r.hp=Math.max(0,r.hp-d);ch=true;}});
       if(r.hp<=0){r.hp=0;r.done=true;r.won=true;}
     }
     if(ch){this._save();this._emit('raids',this.raids);}
@@ -42,14 +46,16 @@ class LocalNet {
     a.act.unshift({text:`🌅 Daily reset: ${name}'s 25% auto-share sent ${tot} resources to the bank`,t:Date.now()});this._alSave();}
   async bankTx(uid,name,res,amt){const a=this._al(),bal=(a.bank[res]||0)+amt;if(bal<0)throw new Error('Bank only has '+(a.bank[res]||0));
     a.bank[res]=bal;a.log.unshift({member:name,uid,res,amt,bal,kind:amt>0?'deposit':'withdraw',t:Date.now()});a.act.unshift({text:`${name} ${amt>0?'deposited':'withdrew'} ${Math.abs(amt)} ${res}`,t:Date.now()});this._alSave();return bal;}
+  onExplored(f){(this.cbs.exp=this.cbs.exp||[]).push(f);f(JSON.parse(localStorage.getItem('wl_allyexp')||'[]'));}
+  shareExplored(){}
   onPlayers(f){this.cbs.players.push(f);}
   onRaids(f){this.cbs.raids.push(f);f(this.raids);}
   onTerritory(f){this.cbs.territory.push(f);f(this.terr);}
   updatePlayer(){}
   async claimHex(id,data){this.terr[id]=data;this._save();this._emit('territory',this.terr);}
   async createRaid(r){this.raids[r.id]=r;this._save();this._emit('raids',this.raids);}
-  async hitRaid(id,uid,name,dmg){const r=this.raids[id];if(!r||r.done)return;
-    const p=r.participants[uid]||{name,dmg:0};p.dmg+=dmg;r.participants[uid]=p;r.hp=Math.max(0,r.hp-dmg);
+  async hitRaid(id,uid,name,dmg,hp,max){const r=this.raids[id];if(!r||r.done)return;
+    const p=r.participants[uid]||{name,dmg:0};p.dmg+=dmg;if(hp!=null){p.hp=hp;p.max=max;}r.participants[uid]=p;r.hp=Math.max(0,r.hp-dmg);
     if(r.hp<=0){r.done=true;r.won=true;} this._save();this._emit('raids',this.raids);}
   // dev helper: a teammate "finds" a boss near you
   spawnTestBoss(lat,lng){
@@ -74,6 +80,9 @@ class FirebaseNet {
   onPlayers(f){this.fs.onSnapshot(this.col('players'),s=>{const a=[];s.forEach(d=>{const v=d.data();if(d.id!==this.uid&&Date.now()-v.t<15*60e3)a.push({uid:d.id,...v});});f(a);});}
   onRaids(f){this.fs.onSnapshot(this.col('raids'),s=>{const o={};s.forEach(d=>o[d.id]={id:d.id,...d.data()});f(o);});}
   onTerritory(f){this.fs.onSnapshot(this.col('territory'),s=>{const o={};s.forEach(d=>o[d.id]=d.data());f(o);});}
+  // Fog of war: each member's explored hex ids (170 m cells, never raw GPS) shared with the alliance.
+  onExplored(f){this.fs.onSnapshot(this.col('explored'),s=>{const a=[];s.forEach(d=>{if(d.id!==this.uid)a.push(...(d.data().ids||[]));});f(a);});}
+  shareExplored(ids){if(!ids.length)return;this.fs.setDoc(this.fs.doc(this.col('explored'),this.uid),{ids:this.fs.arrayUnion(...ids)},{merge:true}).catch(()=>{});}
   // Privacy: no GPS is written. Members doc = name, level, contribution stats, last active.
   updateMember(m){this.fs.setDoc(this.fs.doc(this.col('players'),this.uid),{...m,lastActive:this.fs.serverTimestamp()});}
   activity(text){this.fs.addDoc(this.col('activity'),{text,uid:this.uid,t:this.fs.serverTimestamp()});}
@@ -95,10 +104,10 @@ class FirebaseNet {
     this.activity(`${name} ${amt>0?'deposited':'withdrew'} ${Math.abs(amt)} ${res}`);return bal;}
   claimHex(id,data){return this.fs.setDoc(this.fs.doc(this.col('territory'),id),data);}
   createRaid(r){const {id,...rest}=r;return this.fs.setDoc(this.fs.doc(this.col('raids'),id),rest);}
-  async hitRaid(id,uid,name,dmg){
+  async hitRaid(id,uid,name,dmg,hp,max){
     const ref=this.fs.doc(this.col('raids'),id);
     await this.fs.runTransaction(this.db,async tx=>{const s=await tx.get(ref);if(!s.exists())return;const r=s.data();if(r.done||Date.now()>r.endsAt)return;
-      const p=(r.participants||{})[uid]||{name,dmg:0};p.dmg+=dmg;const hp=Math.max(0,r.hp-dmg);
+      const p=(r.participants||{})[uid]||{name,dmg:0};p.dmg+=dmg;if(hp!=null){p.hp=hp;p.max=max;}const hp=Math.max(0,r.hp-dmg);
       tx.update(ref,{hp,['participants.'+uid]:p,done:hp<=0,won:hp<=0});});
   }
   spawnTestBoss(){alert('Test boss is only for local demo mode.');}

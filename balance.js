@@ -55,3 +55,9 @@ const BAL={
     loot:{scrap:120,food:40,water:40,fuel:25,parts:15}, lootPerLevel:0.35,
   },
 };
+BAL.fog={pathRings:1,aroundPlayer:2,opacity:0.62};
+// ---- Fights, penalties, structures (Stage 1c)
+BAL.fight={maxRounds:40,lossCooldownMin:2,lossScrapPct:0.10,lossScrapMax:25,lossHpPct:0.25,scoutSims:150};
+BAL.enemy.guards=2; BAL.enemy.guardMult=0.3;
+BAL.tower.maxLevel=5; BAL.tower.powerPerLevel=0.5; BAL.tower.repairMult=0.5;
+BAL.ai.hpPerPower=3; BAL.ai.atkPerPower=0.3; BAL.ai.unitPower=50;

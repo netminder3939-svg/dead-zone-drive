@@ -1,5 +1,5 @@
 // Core game: state, map, GPS, spawns, landmarks, battle, raids, territory, quests.
-const G={pos:null,lastPos:null,dev:{walk:false,tp:false},mates:{},raids:{},terr:{},landmarks:[],layers:{}};
+const G={allyExp:new Set(),pos:null,lastPos:null,dev:{walk:false,tp:false},mates:{},raids:{},terr:{},landmarks:[],layers:{}};
 const P_DEFAULT=()=>({name:'',color:'#4ad7ff',lvl:1,xp:0,hp:100,res:{scrap:20,food:10,water:10,fuel:0,parts:0},
   inv:[],equip:{},sp:0,skills:{},stronghold:{level:1},contrib:{kills:0,badges:0,raids:0,hexes:0,deposited:0,withdrawn:0,km:0},cards:{},badges:{},killed:{},raidLoot:{},quests:null,stats:{kills:0,meters:0},uid:null});
 let P=Object.assign(P_DEFAULT(),JSON.parse(localStorage.getItem('wl_p')||'{}'));P.contrib=Object.assign(P_DEFAULT().contrib,P.contrib);
@@ -23,18 +23,20 @@ function questProg(type,n=1){if(!P.quests)return;P.quests.list.forEach(q=>{if(q.
 
 // ---------- map ----------
 const map=L.map('map',{zoomControl:false,attributionControl:true}).setView([47.8135,-116.8968],16);
-L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,maxNativeZoom:16,attribution:'Esri, OSM'}).addTo(map);
-L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,maxNativeZoom:16,opacity:.7}).addTo(map);
+// Free Esri World Street Map basemap (no key). A CSS filter gives it a dusty wasteland look while keeping streets readable.
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Tiles © Esri, OpenStreetMap'}).addTo(map);
+function setLod(){const z=map.getZoom(),c=map.getContainer();c.classList.remove('lod-far','lod-mid','lod-near','lod-close');c.classList.add(z<=14?'lod-far':z===15?'lod-mid':z===16?'lod-near':'lod-close');}
+map.on('zoomend',setLod);setLod();
 ['hex','terr','mons','lm','mates','raids'].forEach(k=>G.layers[k]=L.layerGroup().addTo(map));
 const meMarker=L.marker([0,0],{icon:L.divIcon({className:'',html:'<div class="me-dot"></div>',iconSize:[18,18]}),zIndexOffset:1000});
 const reachCircle=L.circle([0,0],{radius:120,color:'#4ad7ff',weight:1,opacity:.4,fillOpacity:.04,interactive:false});
 
 map.on('moveend',()=>drawWorld());
-map.on('click',e=>{if(G.dev.tp){G.jump=true;setPos(e.latlng.lat,e.latlng.lng);}});
+map.on('click',e=>{if(G.dev.tp){G.jump=true;setPos(e.latlng.lat,e.latlng.lng);}else if(P.world)UI.infoTile(hexAt(e.latlng.lat,e.latlng.lng).id);});
 
 function dayNight(){const h=new Date().getHours()+new Date().getMinutes()/60;let a=0,c='10,20,60';
-  if(h<5.5||h>=21)a=.38;else if(h<7)a=.38*(7-h)/1.5;else if(h>=19)a=.38*(h-19)/2;if(h>=17&&h<20){c='60,25,10';a=Math.max(a,.12);}
-  $('#tint').style.background=`rgba(${c},${a})`;G.night=h<6||h>=21;}
+  if(h<5.5||h>=21)a=.16;else if(h<7)a=.16*(7-h)/1.5;else if(h>=19)a=.16*(h-19)/2;if(h>=17&&h<20){c='120,60,20';a=Math.max(a,.07);}
+  $('#tint').style.background=`rgba(${c},${a})`;G.night=h<6||h>=21;document.body.classList.toggle('night',G.night);}
 setInterval(dayNight,60e3);dayNight();
 
 // ---------- position ----------
@@ -60,12 +62,12 @@ setInterval(()=>{const m=G.dev.drive?10:G.dev.walk?1:0;if(m&&G.pos){G.walkA=(G.w
 function biomeAt(lat,lng){let b='any',best=250;G.landmarks.forEach(l=>{const d=distM(lat,lng,l.lat,l.lng);if(d<best){best=d;b=LANDMARK_KINDS[l.kind].biome;}});return b;}
 function spawnMonsters(){if(!G.pos)return;const g=G.layers.mons;g.clearLayers();const win=Math.floor(Date.now()/600e3);
   const h=hexAt(...G.pos),ids=Object.keys(MONSTERS).filter(k=>!MONSTERS[k].boss&&!MONSTERS[k].fort);
-  hexRing(h.q,h.r,4).forEach(x=>{const key=x.id+'@'+win,rnd=seedRand(key);if(rnd()>(G.night?.42:.3)||P.killed[key])return;
+  hexRing(h.q,h.r,4).forEach(x=>{if(!isVis(x.id))return;const key=x.id+'@'+win,rnd=seedRand(key);if(rnd()>(G.night?.42:.3)||P.killed[key])return;
     const c=hexCenter(x.q,x.r),lat=c[0]+(rnd()-.5)*.0008,lng=c[1]+(rnd()-.5)*.0011,bio=biomeAt(lat,lng);
     let pool=ids.filter(k=>MONSTERS[k].biome===bio||MONSTERS[k].biome==='any');const mid=pool[Math.floor(rnd()*pool.length)];
     const lvl=Math.max(1,MONSTERS[mid].lvl+Math.floor(P.lvl*.7)+(G.night?1:0));
-    L.marker([lat,lng],{icon:L.divIcon({className:'mk',html:`<img src="${monImg(mid)}" onerror="this.src='${mid}.svg'">`,iconSize:[44,44]})})
-      .on('click',()=>{const d=distM(...G.pos,lat,lng);if(d>120&&!G.dev.any)return toast(`Too far (${Math.round(d)} m) — get within 120 m`);startBattle(mid,lvl,key);}).addTo(g);});}
+    L.marker([lat,lng],{icon:L.divIcon({className:'mk lodm',html:`<div class="ico mon"><img src="${monImg(mid)}" onerror="this.src='${mid}.svg'"><b class="lv">Lv${lvl}</b></div>`,iconSize:[0,0]})})
+      .on('click',()=>UI.infoMon(mid,lvl,key,lat,lng)).addTo(g);});}
 setInterval(spawnMonsters,60e3);
 let MANIFEST={monsters:{}};fetch('manifest.json').then(r=>r.json()).then(m=>{MANIFEST=m;spawnMonsters();}).catch(()=>{});
 function monImg(id){return `${id}.${MANIFEST.monsters[id]?.png?'png':'svg'}`;}
@@ -90,9 +92,9 @@ function fakeLandmarks(lat,lng){const r=seedRand(lat.toFixed(2)+lng.toFixed(2)),
   return Array.from({length:14},(_,i)=>{const k=ks[i%ks.length];return{id:'f'+i,kind:k,name:LANDMARK_KINDS[k].label+' #'+(i+1),lat:lat+(r()-.5)*.03,lng:lng+(r()-.5)*.045};});}
 function lairBoss(l){const r=seedRand(l.id+today());if(r()>.22)return null;return['boss_tank','boss_queen','boss_warden'][Math.floor(r()*3)];}
 function drawLandmarks(){const g=G.layers.lm;g.clearLayers();
-  G.landmarks.forEach(l=>{const K=LANDMARK_KINDS[l.kind],boss=lairBoss(l),v=P.badges[l.id];
-    L.marker([l.lat,l.lng],{icon:L.divIcon({className:'mk mk-lm'+(v?' visited':'')+(boss&&!raidFor(l.id)?' lair':''),html:K.icon,iconSize:[34,34]})})
-      .bindPopup(`<b>${l.name}</b><br>${K.label}${boss?'<br>☠️ Something big lurks here…':''}${v?'<br>🏅 Badge earned':''}`).addTo(g);});}
+  G.landmarks.forEach(l=>{if(P.world&&!isVis(hexAt(l.lat,l.lng).id))return;const K=LANDMARK_KINDS[l.kind],boss=lairBoss(l),v=P.badges[l.id];
+    L.marker([l.lat,l.lng],{icon:L.divIcon({className:'mk lodm',html:`<div class="ico lm${v?' visited':''}${boss&&!raidFor(l.id)?' lair':''}"><span>${K.icon}</span><b class="nm">${l.name}</b></div>`,iconSize:[0,0]})})
+      .on('click',()=>UI.infoLandmark(l)).addTo(g);});}
 function raidFor(lid){return Object.values(G.raids).find(r=>r.lmId===lid&&r.day===today());}
 function checkLandmarks(){G.landmarks.forEach(l=>{const d=distM(...G.pos,l.lat,l.lng);if(d>90)return;
   if(!P.badges[l.id]){P.badges[l.id]={name:l.name,kind:l.kind,t:Date.now()};questProg('visits');addXP(Math.round(30*(1+skillFx('explore')/100)));addRes({scrap:5,water:3},1+skillFx('explore')/100);P.contrib.badges++;allianceLog(`${P.name} earned the ${l.name} badge`);toast('🏅 Badge: '+l.name);drawLandmarks();save();}
@@ -113,8 +115,8 @@ setInterval(()=>{const m=stats().hp;if(P.hp<m){P.hp=Math.min(m,P.hp+2+skillFx('r
 // ---------- raids ----------
 function drawRaids(){const g=G.layers.raids;g.clearLayers();
   Object.values(G.raids).forEach(r=>{if(r.done||Date.now()>r.endsAt)return;
-    L.marker([r.lat,r.lng],{icon:L.divIcon({className:'mk mk-boss',html:`<img src="${monImg(r.bossId)}" onerror="this.src='${r.bossId}.svg'">`,iconSize:[60,60]}),zIndexOffset:500})
-      .on('click',()=>UI.raid(r.id)).addTo(g);});drawLandmarks();}
+    L.marker([r.lat,r.lng],{icon:L.divIcon({className:'mk mk-boss',html:`<div class="ico boss"><img src="${monImg(r.bossId)}" onerror="this.src='${r.bossId}.svg'"><b class="lv">RAID</b></div>`,iconSize:[0,0]}),zIndexOffset:500})
+      .on('click',()=>UI.infoRaid(r.id)).addTo(g);});drawLandmarks();}
 async function raidHit(id){const r=G.raids[id];if(!r||r.done)return null;const s=stats(),B=MONSTERS[r.bossId];
   let tot=0,crits=0;for(let i=0;i<3;i++){const x=simulateRound(s,B);tot+=x.dmg;if(x.crit)crits++;}
   await NET.hitRaid(id,P.uid,P.name,tot);if(!P.raidLoot[id+'_j']){P.raidLoot[id+'_j']=1;questProg('raids');P.contrib.raids++;allianceLog(`${P.name} joined the raid on ${B.name}`);}save();return{tot,crits};}
@@ -128,11 +130,11 @@ const NET=makeNet();
 async function boot(){
   ensureQuests();P.uid=await NET.init(P);save();
   $('#mode').textContent=NET.mode==='local'?'● LOCAL DEMO (offline)':'● LIVE · team '+NET.team;
-  W();NET.onTerritory(t=>{G.terr=t;drawWorld();UI.claimBtn();});
+  W();NET.onExplored&&NET.onExplored(ids=>{ids.forEach(i=>G.allyExp.add(i));clearTimeout(G._fogT);G._fogT=setTimeout(()=>{drawWorld();drawLandmarks();spawnMonsters();},400);});NET.onTerritory(t=>{G.terr=t;drawWorld();UI.claimBtn();});
   NET.onRaids(r=>{G.raids=r;drawRaids();UI.raidBanner();UI.refreshRaid();});
   // Privacy: teammates' GPS positions are never shared or shown. Only roster stats + last active.
   NET.onAlliance(a=>{G.al=a;if(UI.tab==='alliance')UI.render();});pushMember();setInterval(pushMember,60e3);
-  shTick();await runResets();catchUpAI();drawWorld();setInterval(()=>runResets(),60e3);
+  shTick();await runResets();catchUpAI();drawWorld();const un=(W().unseen||[]);if(un.length){const rep=W().reports.find(x=>x.t===un[0]);setTimeout(()=>UI.attackAlert(rep),800);}setInterval(()=>runResets(),60e3);
   UI.hud();startGPS();
 }
 

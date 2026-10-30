@@ -131,7 +131,7 @@ $('#btnDev').onclick=()=>{$('#devbar').classList.toggle('hidden');G.dev.any=true
 document.querySelectorAll('#devbar button').forEach(b=>b.onclick=()=>{const k=b.dataset.dev;
   if(k==='walk'||k==='drive'||k==='tp'){G.dev[k]=!G.dev[k];b.classList.toggle('on',G.dev[k]);toast(k==='tp'?'Tap the map to teleport':(k==='walk'?'Walk ':'Drive ')+(G.dev[k]?'on':'off'));}
   if(k==='daily'){W().lastReset=pacificDate(Date.now()-864e5);runResets().then(()=>UI.render());}
-  if(k==='ai'){const r=aiAttack(seedRand('dev'+Date.now()));toast(r?`⚔️ Raid: ${r.held.length} held, ${r.lost.length} lost`:'No tiles to attack');}
+  if(k==='ai'){const r=aiAttack(seedRand('dev'+Date.now()));if(!r)toast('No tiles to attack');else UI.attackAlert(W().reports[0]);}
   if(k==='finish'){devFinishBuilds();toast('Builds finished');}
   if(k==='boss'&&G.pos){NET.spawnTestBoss(...G.pos);toast('A teammate found a boss!');}
   if(k==='rath'){G.dev.tp=true;setPos(47.8135,-116.8968);map.setView(G.pos,16);}
@@ -144,4 +144,4 @@ if(!P.name){$('#onboard').classList.remove('hidden');$('#obTeam').value=localSto
   $('#obColors').onclick=e=>{if(!e.target.dataset.c)return;P.color=e.target.dataset.c;document.querySelectorAll('#obColors b').forEach(x=>x.classList.toggle('on',x.dataset.c===P.color));};
   $('#obGo').onclick=()=>{const n=$('#obName').value.trim();if(!n)return $('#obName').focus();P.name=n;localStorage.setItem('wl_team',$('#obTeam').value.trim()||window.DEFAULT_TEAM);
     P.inv.push({id:'starter',name:'Pipe Wrench',slot:'weapon',rarity:0,atk:6});P.equip.weapon='starter';save();$('#onboard').classList.add('hidden');boot();};}
-else boot();
+else window.addEventListener('DOMContentLoaded',boot);

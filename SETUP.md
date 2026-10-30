@@ -47,7 +47,7 @@ Add `?local` to the URL to force Local Demo even after Firebase is connected.
 - After changing `firestore.rules`, paste it into Firestore → Rules again and click **Publish**.
 
 ## Balance
-All the territory, income, defense and AI numbers are in `balance.js` (`balance.js` in the flat upload folder), each with a comment. Change a number there, upload, and refresh.
+All the territory, income, defense and AI numbers are in `js/balance.js` (`balance.js` in the flat upload folder), each with a comment. Change a number there, upload, and refresh.
 
 ## Notes
 - Free limits are around 50k reads and 20k writes a day, which is plenty for a family crew.
