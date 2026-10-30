@@ -54,6 +54,12 @@ service cloud.firestore {
         allow write: if signedIn() && request.auth.uid == uid && request.resource.data.keys().hasOnly(['ids']);
       }
 
+      // Tactical markers: anyone in the alliance can place or remove them (co-op).
+      match /markers/{id} {
+        allow read, delete: if signedIn();
+        allow create: if signedIn() && request.resource.data.uid == request.auth.uid && request.resource.data.hex is string;
+      }
+
       match /territory/{hex} {
         allow read: if signedIn();
         allow create, update: if signedIn() && request.resource.data.by is string;

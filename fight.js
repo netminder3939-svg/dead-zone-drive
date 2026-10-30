@@ -74,16 +74,17 @@ UI.infoRaid=function(id){const r=G.raids[id];if(!r)return;const B=MONSTERS[r.bos
 UI.infoTile=function(id){const t=tileInfo(id),own=P.tiles[id],o=G.terr[id],raider=!own&&(W().raider[id]||o?.ai);
   this.info({title:t.res?`${t.tier[0].toUpperCase()+t.tier.slice(1)} ${RESN2[t.res]} tile`:'Empty hex',sub:'Hex '+id,art:`<span class="bigemo">${t.res?RES[t.res]:'⬡'}</span>`,diff:t.res?[t.tier.toUpperCase(),BAL.tiles.tierColor[t.tier]]:null,
     body:`<div class="row"><div class="grow">${t.res?`Pays +${t.yield} ${RES[t.res]} at each daily reset (you keep 75%)`:'No resources, but still counts as territory'}<small>${own?'✅ Yours':raider?'🔴 Held by raiders: walk over it to take it back':o&&o.uid!==P.uid?'Held by '+o.by:'Unclaimed: walk or drive across it to claim'}</small></div></div>`,
-    buttons:own?[['🏗️ Build here',()=>UI.build()]]:[]});};
+    buttons:[...(own?[['🏗️ Build here',()=>UI.build()]]:[]),['📌 Mark',()=>UI.markPick(id)]]});};
 UI.infoStruct=function(kind,id){const w=W(),o=kind==='sh'?w.sh:w.towers[id];if(!o)return;const lvl=kind==='sh'?strongholdLevel():(o.level||1),down=o.state==='down',pct=Math.round(100*(o.hpPct??1));
   const power=kind==='sh'?BAL.stronghold.basePower+lvl*BAL.stronghold.powerPerLevel:towerPower(o),cost=c=>Object.entries(c).filter(([,v])=>v).map(([k,v])=>`<span class="${(P.res[k]||0)<v?'short':''}">${v}${RES[k]}</span>`).join(' ');
   const btn=[];
   if(down)btn.push([`🔧 Repair (${kind==='sh'?cost(shCostNow()):cost(towerRepairCost(o))})`,()=>{kind==='sh'?placeStronghold(o.hex):repairTower(id);UI.closeModal();},'fight']);
   else{if(pct<100)btn.push([`🩹 Patch up (${cost(patchCost(kind,o))})`,()=>{patchStruct(kind,id);UI.infoStruct(kind,id);}]);
+    if(kind==='sh'&&G.pos&&P.tiles[hexAt(...G.pos).id]&&hexAt(...G.pos).id!==o.hex)btn.push([`🚚 Relocate here (${cost(BAL.stronghold.relocateCost)})`,()=>{relocateStronghold();UI.closeModal();}]);
     if(kind==='sh')btn.push(['⬆️ Upgrade',()=>{UI.closeModal();UI.open('base');UI.sub.base='fort';UI.render();}]);
     else if(lvl<BAL.tower.maxLevel)btn.push([`⬆️ Upgrade (${cost(towerUpCost(o))})`,()=>{upgradeTower(id);UI.infoStruct(kind,id);}]);}
   this.info({title:kind==='sh'?`${P.name}'s Stronghold`:'Watchtower',sub:`Level ${lvl} · ${down?'💥 DESTROYED':o.state==='building'?'⏳ building '+fmtDur(o.buildEnd-Date.now()):'condition '+pct+'%'}`,
-    art:kind==='sh'?strongholdSVG(lvl):towerSVG(lvl),body:`<div class="row"><div class="grow">Defense power ${power} · range ${kind==='sh'?BAL.stronghold.radius:BAL.tower.radius} ring(s)<div class="prog"><i style="width:${down?0:pct}%"></i></div>${kind==='tower'?`<small>Upkeep ${Object.entries(BAL.tower.upkeep).map(([k,v])=>v+RES[k]).join(' ')}/day · ${o.online===false?'⚠️ offline':'online'}</small>`:''}</div></div>`,buttons:btn});};
+    art:kind==='sh'?strongholdSVG(lvl):towerSVG(lvl),body:`<div class="row"><div class="grow">Defense power <b>${power}</b> · protects <b>${kind==='sh'?BAL.stronghold.radius:towerRadius(o)} ring(s)</b> (${hexRing(0,0,kind==='sh'?BAL.stronghold.radius:towerRadius(o)).length} hexes)${kind==='tower'&&lvl<BAL.tower.maxLevel?`<small class="pos">Next level: power ${towerPower({level:lvl+1})} · ring ${towerRadiusAt(lvl+1)}${towerRadiusAt(lvl+1)>towerRadius(o)?' ⬆ bigger area!':''}</small>`:''}<small>Tiles outside every ring are taken by raiders with no fight.</small><div class="prog"><i style="width:${down?0:pct}%"></i></div>${kind==='tower'?`<small>Upkeep ${Object.entries(BAL.tower.upkeep).map(([k,v])=>v+RES[k]).join(' ')}/day · ${o.online===false?'⚠️ offline':'online'}</small>`:''}</div></div>`,buttons:btn});};
 
 // ---------- fights ----------
 function fightMutant(mid,lvl,key){if(cooldownLeft())return toast('Still recovering');const M=MONSTERS[mid],f=runFight([playerUnit()],mutantUnits(mid,lvl));P.hp=Math.max(1,f.A[0].hp);

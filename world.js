@@ -30,7 +30,7 @@ function expectedIncome(){const g=grossIncome(),u=towerUpkeep(),o={};for(const k
 function claimPath(prev,cur){const T=BAL.tiles,ids=new Set([hexAt(...cur).id]);
   if(prev){const d=distM(...prev,...cur);if(d<=T.maxGapM){const n=Math.ceil(d/T.pathStepM);for(let i=0;i<=n;i++){const f=i/n;ids.add(hexAt(prev[0]+(cur[0]-prev[0])*f,prev[1]+(cur[1]-prev[1])*f).id);}}}
   if(explore([...ids]))drawWorld();const fresh=[...ids].filter(id=>!P.tiles[id]);if(!fresh.length)return 0;
-  fresh.forEach(claimTile);addXP(fresh.length*T.claimXP);questProg('claims',fresh.length);
+  fresh.forEach(claimTile);buzz(fresh.length>3?[30,40,30]:30);if(G.drive)G.drive.claimed+=fresh.length;addXP(fresh.length*T.claimXP);questProg('claims',fresh.length);
   const rich=fresh.map(tileInfo).filter(t=>t.res);toast(`🚩 +${fresh.length} hex${fresh.length>1?'es':''}`+(rich.length?` (${rich.map(t=>RES[t.res]).join('')})`:''));
   save();drawWorld();UI.hud();return fresh.length;}
 function claimTile(id){W();const t=Date.now();P.tiles[id]={t};delete P.world.raider[id];P.contrib.hexes++;
@@ -69,7 +69,7 @@ function devFinishBuilds(){const w=W();if(w.sh&&w.sh.state==='building')w.sh.bui
 function report(text,win){W().reports.unshift({t:Date.now(),text,win});W().reports=W().reports.slice(0,80);}
 function defendersFor(id){const w=W(),out=[];const s=w.sh;
   if(s&&s.state==='up'&&hexDist(s.hex,id)<=BAL.stronghold.radius){const st=stats();out.push({kind:'sh',id:s.hex,power:BAL.stronghold.basePower+strongholdLevel()*BAL.stronghold.powerPerLevel+Math.round((st.atk+st.def)/2)});}
-  Object.entries(w.towers).forEach(([tid,t])=>{if(t.state==='up'&&t.online!==false&&hexDist(tid,id)<=BAL.tower.radius)out.push({kind:'tower',id:tid,power:towerPower(t)});});return out;}
+  Object.entries(w.towers).forEach(([tid,t])=>{if(t.state==='up'&&t.online!==false&&hexDist(tid,id)<=towerRadius(t))out.push({kind:'tower',id:tid,power:towerPower(t)});});return out;}
 // Each attacked tile: undefended = lost; defended = a real turn-based fight (raiders vs your structures), saved for replay.
 function aiAttack(rnd,forcedPower,when=Date.now()){const A=BAL.ai,ids=Object.keys(P.tiles).sort();if(!ids.length)return null;
   const power=forcedPower??Math.round(A.basePower+P.lvl*A.powerPerLevel+ids.length*A.powerPerTile*(0.7+rnd()*0.6));
@@ -129,7 +129,7 @@ function drawWorld(){const g=G.layers.hex;g.clearLayers();G.layers.terr.clearLay
     if(showRange&&!down)L.circle(ll,{radius:ring(BAL.stronghold.radius),color:'#d6a03a',weight:2,dashArray:'6 6',fillColor:'#d6a03a',fillOpacity:.06,interactive:false}).addTo(G.layers.terr);
     L.marker(ll,{icon:L.divIcon({className:'lodm',html:`<div class="ico st sh${down?' down':''}"><span class="emo">🏰</span><div class="art">${strongholdSVG(L_)}</div><b class="lv">${down?'RUINS':s.state==='building'?'⏳ building':'Lv'+L_}</b>${hpBar(down?0:s.hpPct??1)}<b class="nm">${P.name}'s Stronghold · range ${BAL.stronghold.radius}</b></div>`,iconSize:[0,0]}),zIndexOffset:400}).on('click',()=>UI.infoStruct('sh')).addTo(G.layers.terr);}
   Object.entries(P.world.towers).forEach(([id,t])=>{const ll=hexCenter(...idQR(id)),down=t.state==='down',lv=t.level||1;
-    if(showRange&&!down)L.circle(ll,{radius:ring(BAL.tower.radius),color:t.online===false?'#777':'#2a8fd6',weight:1.6,dashArray:'4 5',fillColor:'#2a8fd6',fillOpacity:.06,interactive:false}).addTo(G.layers.terr);
-    L.marker(ll,{icon:L.divIcon({className:'lodm',html:`<div class="ico st tw${down?' down':''}"><span class="emo">🗼</span><div class="art">${towerSVG(lv)}</div><b class="lv">${down?'RUINS':t.state==='building'?'⏳':'Lv'+lv}</b>${hpBar(down?0:t.hpPct??1)}<b class="nm">Tower · power ${towerPower(t)}</b></div>`,iconSize:[0,0]}),zIndexOffset:300}).on('click',()=>UI.infoStruct('tower',id)).addTo(G.layers.terr);});
+    if(showRange&&!down)L.circle(ll,{radius:ring(towerRadius(t)),color:t.online===false?'#777':'#2a8fd6',weight:1.6,dashArray:'4 5',fillColor:'#2a8fd6',fillOpacity:.06,interactive:false}).addTo(G.layers.terr);
+    L.marker(ll,{icon:L.divIcon({className:'lodm',html:`<div class="ico st tw${down?' down':''}"><span class="emo">🗼</span><div class="art">${towerSVG(lv)}</div><b class="lv">${down?'RUINS':t.state==='building'?'⏳':'Lv'+lv}</b>${hpBar(down?0:t.hpPct??1)}<b class="nm">Tower · power ${towerPower(t)} · ring ${towerRadius(t)}</b></div>`,iconSize:[0,0]}),zIndexOffset:300}).on('click',()=>UI.infoStruct('tower',id)).addTo(G.layers.terr);});
   nearbyEnemies().filter(e=>isVis(e.id)).forEach(e=>{const ll=hexCenter(...idQR(e.id)),es=enemyStats(e);
     L.marker(ll,{icon:L.divIcon({className:'lodm',html:`<div class="ico st enemy"><span class="emo">🏴</span><div class="art"><img src="${monImg('enemy_fort')}"></div><b class="lv">☠ Lv${es.L}</b>${hpBar(1)}<b class="nm">Raider Stronghold · tap for info</b></div>`,iconSize:[0,0]}),zIndexOffset:450}).on('click',()=>UI.infoFort(e.id)).addTo(G.layers.terr);});}

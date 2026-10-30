@@ -14,7 +14,7 @@ const UI={
   open(tab){this.tab=tab;this.badge(tab,false);$('#sheet').classList.remove('hidden');this.render();},
   close(){$('#sheet').classList.add('hidden');this.tab=null;},
   SUBS:{base:[['fort','🏰 Stronghold'],['terr','🗺️ Territory'],['reports','⚔️ Reports']],player:[['stats','📊 Stats'],['skills','🌳 Skills'],['gear','🗡️ Gear'],['quests','📜 Quests']],
-    alliance:[['over','Overview'],['members','Members'],['bank','Resources'],['act','Activity']],inv:[['res','Resources'],['items','Items'],['dex','Collection']]},
+    alliance:[['over','Overview'],['members','Members'],['board','Leaderboards'],['bank','Resources'],['act','Activity']],inv:[['res','Resources'],['items','Items'],['dex','Collection']]},
   sub:{},
   subnav(t){return`<div class="seg">${this.SUBS[t].map(([k,n])=>`<button class="${this.sub[t]===k?'on':''}" onclick="UI.sub['${t}']='${k}';UI.render()">${n}</button>`).join('')}</div>`;},
   render(){const b=$('#sheetBody'),t=this.tab;if(!t)return;this.hud();if(!this.sub[t])this.sub[t]=this.SUBS[t][0][0];const sub=this.sub[t];let h=this.subnav(t);
@@ -34,7 +34,7 @@ const UI={
       <h3>Next daily reset (midnight Pacific)</h3><table class="log2"><tr><th></th><th>Tiles</th><th>Alliance 25%</th><th>Upkeep</th><th>You get</th></tr>
       ${Object.keys(RES).map(k=>`<tr><td>${RES[k]}</td><td>${g[k]}</td><td>-${Math.round(g[k]*BAL.reset.allianceShare)}</td><td>${u[k]?'-'+u[k]:''}</td><td class="${e[k]>=0?'pos':'neg'}">${e[k]>=0?'+':''}${e[k]}</td></tr>`).join('')}</table>
       <h3>🏰 Map Stronghold</h3><div class="row"><div class="grow">${shTxt}<small>Defends hexes within ${BAL.stronghold.radius} rings · ${sh?'':'Cost: '+cost(shCostNow())}${sh&&sh.state==='down'?'Rebuild: '+cost(shCostNow()):''}</small></div>${sh&&sh.state!=='down'?`<button onclick="UI.go('${sh.hex}')">📍</button>`:''}</div>
-      <h3>🗼 Towers (${towers.filter(([,x])=>x.state!=='down').length}/${towerMax()})</h3><p class="tiny">Cost ${cost(BAL.tower.cost)} · upkeep ${Object.entries(BAL.tower.upkeep).map(([k,v])=>v+RES[k]).join(' ')}/day · defends ${BAL.tower.radius} ring</p>
+      <h3>🗼 Towers (${towers.filter(([,x])=>x.state!=='down').length}/${towerMax()})</h3><p class="tiny">Cost ${cost(BAL.tower.cost)} · upkeep ${Object.entries(BAL.tower.upkeep).map(([k,v])=>v+RES[k]).join(' ')}/day · ring ${BAL.tower.radius} at Lv1, +1 ring every ${BAL.tower.levelsPerRing} levels</p>
       ${towers.map(([id,x])=>`<div class="row"><div class="grow">🗼 ${id}<small>${x.state==='down'?'💥 destroyed':x.state==='building'?'⏳ '+fmtDur(x.buildEnd-Date.now()):x.online===false?'⚠️ offline (upkeep unpaid)':'✅ online'}</small></div><button onclick="UI.go('${id}')">📍</button></div>`).join('')}
       <button class="big" onclick="UI.close();UI.build()">🏗️ Build on my current hex</button>`;}
     if(t==='base'&&sub==='reports'){const r=W().reports;h+=`<h2>⚔️ Battle Reports</h2>${r.map(x=>`<div class="act ${x.win?'':'bad'}"><small>${when(x.t)}</small> ${x.text}</div>`).join('')||'<p class="tiny">Quiet so far. Raiders usually hit a few times a week once you hold '+BAL.ai.minTiles+'+ hexes.</p>'}`;}
@@ -59,7 +59,11 @@ const UI={
       h+=`<h2>🎒 Your Resources</h2>${Object.keys(RES).map(k=>`<div class="row"><span class="big-ico">${RES[k]}</span><div class="grow"><b>${RESN[k]}</b><small>${RESD[k]}</small></div><b class="num">${P.res[k]||0}</b></div>`).join('')}
       <p class="tiny">Your inventory is personal. Shared resources live in Alliance → Resources.</p>`;}
     if(t==='inv'&&sub==='items'){
-      h+=`<h2>🗡️ Items (${P.inv.length})</h2><p class="tiny">Salvage gives 🔩 Scrap, and Rare+ also gives ⚙️ Parts.</p>${[...P.inv].sort((a,b)=>b.rarity-a.rarity).map(g=>`<div class="row"><div class="grow">${gearLine(g)}<small>${g.slot}</small></div>
+      const fs=this.invSlot||'all',so=this.invSort||'rarity',pw=g=>(g.atk||0)*2+(g.def||0)*2+(g.hp||0)/5+(g.crit||0)+(g.agi||0)+(g.luck||0);
+      const list=P.inv.filter(g=>fs==='all'||g.slot===fs).sort((a,b)=>so==='rarity'?b.rarity-a.rarity:so==='power'?pw(b)-pw(a):a.name.localeCompare(b.name));
+      h+=`<h2>🗡️ Items (${P.inv.length})</h2><div class="seg">${['all','weapon','armor','trinket'].map(x=>`<button class="${fs===x?'on':''}" onclick="UI.invSlot='${x}';UI.render()">${x}</button>`).join('')}</div>
+      <div class="row"><small>Sort</small><select onchange="UI.invSort=this.value;UI.render()">${['rarity','power','name'].map(x=>`<option ${so===x?'selected':''}>${x}</option>`).join('')}</select><button onclick="UI.salvageCommons()">Salvage all Commons</button></div>
+      <p class="tiny">Salvage gives 🔩 Scrap, and Rare+ also gives ⚙️ Parts.</p>${list.map(g=>`<div class="row"><div class="grow">${gearLine(g)}<small>${g.slot}</small></div>
       ${P.equip[g.slot]===g.id?'<small>equipped</small>':`<button onclick="UI.salvage('${g.id}')">Salvage</button>`}</div>`).join('')||'<p class="tiny">Empty.</p>'}`;}
     if(t==='inv'&&sub==='dex'){const ids=Object.keys(MONSTERS);
       h+=`<h2>🃏 Collection</h2><h3>Mutant Cards (${Object.keys(P.cards).length}/${ids.length})</h3><div class="grid">${ids.map(id=>`<div class="tile ${P.cards[id]?'':'locked'}"><img src="${monImg(id)}" onerror="this.src='${id}.svg'"><br>${P.cards[id]?MONSTERS[id].name+' ×'+P.cards[id]:'???'}</div>`).join('')}</div>
@@ -69,6 +73,9 @@ const UI={
         h+=`<h2>🤝 ${localStorage.getItem('wl_team')||window.DEFAULT_TEAM}</h2><div class="stats"><div><b>${M.length}</b><small>Members</small></div><div><b>${Object.keys(G.terr).length}</b><small>Hexes held</small></div><div><b>${tot('hexes')}</b><small>Lifetime hexes</small></div><div><b>${tot('kills')}</b><small>Mutants</small></div><div><b>${tot('raids')}</b><small>Raid joins</small></div><div><b>${Object.values(A.bank).reduce((a,b)=>a+b,0)}</b><small>Bank total</small></div></div>
         <h3>☠️ Live raids</h3>${rs.map(r=>`<div class="row"><div class="grow"><b>${MONSTERS[r.bossId].name}</b><small>${r.place} · ${mins(r.endsAt)} left</small><div class="prog"><i style="width:${100*r.hp/r.maxHp}%;background:#e0573a"></i></div></div><button onclick="UI.raid('${r.id}')">Join</button></div>`).join('')||'<p class="tiny">No live raids. Bosses hide at glowing landmarks.</p>'}
         <h3>Latest</h3>${A.act.slice(0,4).map(actLine).join('')}`;}
+      if(sub==='board'){const cats=[['hexes','🗺️ Expansion (hexes claimed)'],['kills','☠️ Mutants defeated'],['deposited','🏦 Resources donated'],['raids','⚔️ Raid joins'],['badges','🏅 Landmarks visited'],['km','🚶 Exploration (km)']];
+        h+=`<h2>🏆 Leaderboards</h2><p class="tiny">All-time totals. Weekly MVP arrives with cloud saves.</p>${cats.map(([k,n])=>{const top=M.map(([,m])=>[m.name,(m.contrib||{})[k]||0,m.me]).sort((a,b)=>b[1]-a[1]).slice(0,3);
+          return`<h3>${n}</h3>${top.map((t,i)=>`<div class="row"><b>${['🥇','🥈','🥉'][i]}</b><div class="grow">${t[0]}${t[2]?' (you)':''}</div><b>${k==='km'?t[1].toFixed(1):t[1]}</b></div>`).join('')}`;}).join('')}`;}
       if(sub==='members'){h+=`<h2>👥 Members</h2><p class="tiny">Shows activity and contributions only. Locations are never shared.</p>
         ${M.sort((a,b)=>b[1].lvl-a[1].lvl).map(([,m])=>{const c=m.contrib||{};return`<div class="row"><i class="cdot" style="background:${m.color}"></i><div class="grow"><b>${m.name}${m.me?' (you)':''}</b> <small style="display:inline">Lv ${m.lvl} · 🏰 ${m.stronghold||1}</small>
           <small>☠️ ${c.kills||0} · 🗺️ ${c.hexes||0} hexes · ⚔️ ${c.raids||0} raids · 🏅 ${c.badges||0} · 🚶 ${(c.km||0).toFixed(1)} km</small><small>🏦 Gave ${c.deposited||0} · took ${c.withdrawn||0} · active ${ago(m.lastActive)}</small></div></div>`;}).join('')}`;}
@@ -81,6 +88,7 @@ const UI={
       if(sub==='act'){h+=`<h2>📣 Activity</h2>${A.act.map(actLine).join('')||'<p class="tiny">Nothing yet.</p>'}`;}}
     b.innerHTML=h;},
   equip(id){const g=P.inv.find(x=>x.id===id);P.equip[g.slot]=id;P.hp=Math.min(P.hp,stats().hp);save();this.render();},
+  salvageCommons(){const c=P.inv.filter(g=>g.rarity===0&&!Object.values(P.equip).includes(g.id));if(!c.length)return toast('No spare Commons');if(!confirm(`Salvage ${c.length} Common items?`))return;c.forEach(g=>{P.inv=P.inv.filter(x=>x!==g);addRes({scrap:5});});save();toast(`🔩 +${c.length*5} scrap`);this.render();},
   salvage(id){const g=P.inv.find(x=>x.id===id);P.inv=P.inv.filter(x=>x.id!==id);addRes({scrap:5*(g.rarity+1),parts:g.rarity>=2?g.rarity*2:0});save();toast('🔩 Salvaged');this.render();},
   claimQ(i){const q=P.quests.list[i];if(q.claimed)return;q.claimed=true;addRes(q.reward,1+skillFx('explore')/100);addXP(50);save();this.render();},
   go(id){const [q,r]=id.split('_').map(Number);map.setView(hexCenter(q,r),17);this.close();},

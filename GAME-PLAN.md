@@ -67,6 +67,57 @@ Files go in `assets/monsters/`. In `manifest.json`, set `"png": true` for that i
 - **Zoom detail:** zoomed out you see small icons. Zooming in adds level badges, then tower and fortress drawings with HP bars, names and defense ranges.
 - **Fog of war:** unexplored hexes stay hazy and hide tiles, mutants, forts and landmarks. Your path clears 1 ring on each side, the 2 rings around you always stay clear, and alliance members' explored hexes and territory are shared.
 
+## ✅ Requirements checklist (everything Jacob asked for)
+**Done** = works now in demo mode. **Partial** = some of it works, with the gap noted. **Not yet** = planned for a later stage.
+
+| Feature | Status | Notes |
+|---|---|---|
+| Hex map (~170 m hexes) | Done | Hex grid over a bright street map |
+| Real landmarks as lairs | Partial | Parks, schools, churches, water towers and malls come from OpenStreetMap. Practice landmarks are used when that free service is down. |
+| Day / night | Done | Subtle tint. Slightly more mutants at night. |
+| PvE bosses at landmarks | Done | About 22% of landmarks hide a boss each day |
+| Remote raids anyone can join | Done | Shared boss HP, a timer, each member's HP bar, loot split by damage |
+| Daily quests | Done | 3 a day, with a claim button |
+| Gear and weapons (5 rarities) | Done | Weapon, Armor and Trinket slots. Salvage gives Scrap and Parts. |
+| Monster cards / trophies | Done | Collection tab |
+| Base resources | Done | Scrap, Food, Water, Fuel, Parts |
+| Landmark badges | Done | Visit within 90 m |
+| Monster art slots for the artist | Done | Drop PNGs into the monster art folder and flip `png:true` in `manifest.json` |
+| Stats (ATK, DEF, HP, Crit, Agility, Luck) | Done | All of them affect fights |
+| Skill trees (Combat, Scavenger, Survivor) | Done | 1 point per level, reset costs 50 Scrap |
+| Stronghold (one exterior, levels, offline timers) | Done | The drawing grows with each level |
+| Stronghold placed on the map | Done | Expensive, 6-hour build |
+| Buildings can fall, cheaper rebuild | Done | Rebuild costs 40%. Towers repair at 50%. |
+| Stronghold relocation | Done | Costs resources, 7-day cooldown, keeps its level |
+| Towers with upkeep and a defense ring | Done | Upgrades raise power and ring size (+1 ring every 2 levels) |
+| Upkeep warning | Done | Status strip warns when tomorrow's upkeep can't be paid |
+| Territory resource tiles (Common, Rare, Epic) | Done | The same for everyone, based on the hex id |
+| GPS claiming (walk or drive, fills gaps) | Done | Includes a haptic buzz on claim |
+| Tiles stay yours until taken | Done | |
+| Daily reset income at midnight Pacific, green +gain | Done | Countdown in the status strip. Missed days catch up (max 7). |
+| 25% alliance auto-share | Done | Logged as auto-share |
+| AI raids a few times a week | Done | Unprotected tiles are lost with only a notice. Protected tiles get a battle and replay. |
+| Enemy AI strongholds | Done | Hard fights. Capturing one gives hexes and loot. |
+| Info card before every fight | Done | Win odds, Scout, rewards |
+| HP bars and fights you can lose | Done | Small penalty: some Scrap, low HP, 2-minute recovery |
+| Raid alert, replay and map flash | Done | Plus an inbox |
+| Level-of-detail zoom | Done | |
+| Game look, readable in sunlight | Done | Esri street map with a wasteland filter |
+| Fog of war, shared with the alliance | Done | 1 ring around your path, 2 around you |
+| Alliance bank (open, logged) | Done | |
+| Alliance roster and activity feed | Done | |
+| Leaderboards | Partial | All-time boards only. Weekly MVP needs cloud history. |
+| Tactical markers | Done | 5 types, shared, expire after 3 days |
+| Co-op territory | Partial | Everyone's tiles appear on the shared map. Joint alliance outposts come in Stage 2. |
+| Alliance research and projects | Not yet | Stage 2 |
+| Alliance operations tab | Not yet | Stage 2 |
+| AI factions (Raiders, Authority, Scavengers) owning territory | Partial | Raider attacks and forts exist. Faction expansion comes in Stage 2. |
+| Cloud saves / account recovery | Not yet | Stage 2. Progress is saved on each phone for now. |
+| Live Firebase multiplayer | Partial | Code and rules are written, but untested until the Firebase project exists |
+| Server-side anti-cheat and authoritative timers | Not yet | Stage 3 |
+| Discord / push alerts | Not yet | Stage 3 |
+| Home-screen app (PWA) | Done | Manifest, icon, offline fallback |
+
 ## Stages
 - **Stage 1: Character, Stronghold and alliance (done, v0.2).** Everything above runs free on Firebase Spark, and there's also a local demo mode.
 - **Stage 2: Outposts, territory and AI factions.**

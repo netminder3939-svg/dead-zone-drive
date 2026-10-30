@@ -5,7 +5,7 @@ const P_DEFAULT=()=>({name:'',color:'#4ad7ff',lvl:1,xp:0,hp:100,res:{scrap:20,fo
 let P=Object.assign(P_DEFAULT(),JSON.parse(localStorage.getItem('wl_p')||'{}'));P.contrib=Object.assign(P_DEFAULT().contrib,P.contrib);
 const save=()=>localStorage.setItem('wl_p',JSON.stringify(P));
 const $=s=>document.querySelector(s);
-function toast(t){const d=document.createElement('div');d.textContent=t;$('#toast').appendChild(d);setTimeout(()=>d.remove(),3600);}
+function toast(t){const T=$('#toast');while(T.children.length>=3)T.firstChild.remove();const d=document.createElement('div');d.textContent=t;T.appendChild(d);setTimeout(()=>d.remove(),3600);}
 
 // ---------- stats ----------
 function addRes(o,mult=1,boost=false){if(boost)mult*=1+skillFx('resb')/100;for(const k in o){const v=Math.round(o[k]*mult);P.res[k]=(P.res[k]||0)+v;if(k==='scrap')questProg('scrap',v);}}
@@ -60,12 +60,13 @@ setInterval(()=>{const m=G.dev.drive?10:G.dev.walk?1:0;if(m&&G.pos){G.walkA=(G.w
 
 // ---------- mutant spawns (deterministic per hex per 10 min, so everyone sees the same ones) ----------
 function biomeAt(lat,lng){let b='any',best=250;G.landmarks.forEach(l=>{const d=distM(lat,lng,l.lat,l.lng);if(d<best){best=d;b=LANDMARK_KINDS[l.kind].biome;}});return b;}
-function spawnMonsters(){if(!G.pos)return;const g=G.layers.mons;g.clearLayers();const win=Math.floor(Date.now()/600e3);
+function spawnMonsters(){if(!G.pos)return;const g=G.layers.mons;g.clearLayers();G.monList=[];const win=Math.floor(Date.now()/600e3);
   const h=hexAt(...G.pos),ids=Object.keys(MONSTERS).filter(k=>!MONSTERS[k].boss&&!MONSTERS[k].fort);
   hexRing(h.q,h.r,4).forEach(x=>{if(!isVis(x.id))return;const key=x.id+'@'+win,rnd=seedRand(key);if(rnd()>(G.night?.42:.3)||P.killed[key])return;
     const c=hexCenter(x.q,x.r),lat=c[0]+(rnd()-.5)*.0008,lng=c[1]+(rnd()-.5)*.0011,bio=biomeAt(lat,lng);
     let pool=ids.filter(k=>MONSTERS[k].biome===bio||MONSTERS[k].biome==='any');const mid=pool[Math.floor(rnd()*pool.length)];
     const lvl=Math.max(1,MONSTERS[mid].lvl+Math.floor(P.lvl*.7)+(G.night?1:0));
+    G.monList.push({mid,lvl,key,lat,lng});
     L.marker([lat,lng],{icon:L.divIcon({className:'mk lodm',html:`<div class="ico mon"><img src="${monImg(mid)}" onerror="this.src='${mid}.svg'"><b class="lv">Lv${lvl}</b></div>`,iconSize:[0,0]})})
       .on('click',()=>UI.infoMon(mid,lvl,key,lat,lng)).addTo(g);});}
 setInterval(spawnMonsters,60e3);
@@ -130,7 +131,7 @@ const NET=makeNet();
 async function boot(){
   ensureQuests();P.uid=await NET.init(P);save();
   $('#mode').textContent=NET.mode==='local'?'● LOCAL DEMO (offline)':'● LIVE · team '+NET.team;
-  W();NET.onExplored&&NET.onExplored(ids=>{ids.forEach(i=>G.allyExp.add(i));clearTimeout(G._fogT);G._fogT=setTimeout(()=>{drawWorld();drawLandmarks();spawnMonsters();},400);});NET.onTerritory(t=>{G.terr=t;drawWorld();UI.claimBtn();});
+  NET.onMarkers&&NET.onMarkers(m=>{G.markers=m;drawMarkers();});W();NET.onExplored&&NET.onExplored(ids=>{ids.forEach(i=>G.allyExp.add(i));clearTimeout(G._fogT);G._fogT=setTimeout(()=>{drawWorld();drawLandmarks();spawnMonsters();},400);});NET.onTerritory(t=>{G.terr=t;drawWorld();UI.claimBtn();});
   NET.onRaids(r=>{G.raids=r;drawRaids();UI.raidBanner();UI.refreshRaid();});
   // Privacy: teammates' GPS positions are never shared or shown. Only roster stats + last active.
   NET.onAlliance(a=>{G.al=a;if(UI.tab==='alliance')UI.render();});pushMember();setInterval(pushMember,60e3);

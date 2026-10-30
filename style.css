@@ -126,3 +126,20 @@ button.fight,.ibtns .fight{background:linear-gradient(#d8582f,#9a2e14);border:1p
 .dmg.dodge{color:#9fd8ff;font-size:16px}.c{color:#ff5a3a}
 .result{margin-top:8px;padding:10px;border-radius:10px;font-weight:700;text-align:center}.result.good{background:#1f3a1d;color:#bff5b0}.result.bad{background:#4a1a14;color:#ffc0b0}
 .flash{animation:flash 0.8s infinite}@keyframes flash{50%{fill-opacity:.1;stroke-opacity:.3}}
+/* ===== Stage 1d QoL ===== */
+#status{position:fixed;top:calc(env(safe-area-inset-top) + 84px);left:10px;z-index:600;display:flex;flex-direction:column;gap:4px;font-size:11px}
+#status span{background:#1c1813d9;color:#f2e6c8;border:1px solid #6b5a3a;border-radius:10px;padding:3px 8px;width:max-content}
+#status .warnchip{background:#5a1d12;border-color:#ff8a5a;color:#ffd0c0;pointer-events:auto;cursor:pointer;animation:pulse 2s infinite}
+#raidBanner{top:calc(env(safe-area-inset-top) + 130px)}
+#btnInbox{position:relative}#btnInbox[data-n]:not([data-n=""])::after{content:attr(data-n);position:absolute;top:-4px;right:-4px;background:#e33;color:#fff;font-size:10px;font-weight:800;border-radius:9px;padding:0 5px;min-width:16px;text-align:center}
+#btnNear{bottom:calc(env(safe-area-inset-bottom) + 196px)}#btnDrive{bottom:calc(env(safe-area-inset-bottom) + 254px)}
+#btnClaim{bottom:calc(env(safe-area-inset-bottom) + 138px)}#btnCenter{bottom:calc(env(safe-area-inset-bottom) + 80px)}
+#notice{position:fixed;left:10px;right:10px;bottom:calc(env(safe-area-inset-bottom) + 72px);z-index:880;background:linear-gradient(#3a1d14,#25120c);border:1px solid #ff8a5a;border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 6px 18px #000a;flex-wrap:wrap}
+#notice .ntext{flex:1 1 60%;font-size:14px}#notice .ntext small{color:#ffc0a8}#notice .nx{padding:4px 9px}
+#drivehud{position:fixed;left:10px;right:10px;bottom:calc(env(safe-area-inset-bottom) + 14px);z-index:880;background:#1c1813f0;border:2px solid #d6a03a;border-radius:16px;padding:12px}
+.dstats{display:flex;gap:8px;margin-bottom:10px}.dstats div{flex:1;text-align:center}.dstats b{font-size:30px;color:#ffd27a;display:block}.dstats small{color:var(--dim)}
+body.drive #tabs,body.drive .fab,body.drive #devbar,body.drive #sheet{display:none!important}body.drive #btnDrive{display:none}
+.ico.mark span{font-size:22px;background:#f2e6c8;border:2px solid #1c1813;border-radius:8px;padding:2px 4px;box-shadow:0 2px 4px #0008}
+.fullin{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:#0f1214;color:var(--txt);font-size:16px}
+#modal.peek{align-items:flex-end;background:#0004}#modal.peek #modalBody{max-height:52vh}
+.prevnote{color:#9fd8ff!important}

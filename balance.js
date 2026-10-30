@@ -61,3 +61,7 @@ BAL.fight={maxRounds:40,lossCooldownMin:2,lossScrapPct:0.10,lossScrapMax:25,loss
 BAL.enemy.guards=2; BAL.enemy.guardMult=0.3;
 BAL.tower.maxLevel=5; BAL.tower.powerPerLevel=0.5; BAL.tower.repairMult=0.5;
 BAL.ai.hpPerPower=3; BAL.ai.atkPerPower=0.3; BAL.ai.unitPower=50;
+// ---- Stage 1d
+BAL.tower.levelsPerRing=2;          // tower ring grows +1 every 2 levels (Lv1-2: 1 ring, Lv3-4: 2, Lv5: 3)
+BAL.stronghold.relocateCost={scrap:250,fuel:60,parts:20}; BAL.stronghold.relocateCooldownDays=7;
+BAL.markers={types:{target:['🎯','Target Zone'],outpost:['⛺','Outpost Site'],enemy:['⚠️','Contested / Enemy Zone'],hub:['📦','Resource Gathering Hub'],waypoint:['📍','Waypoint']},expireDays:3};

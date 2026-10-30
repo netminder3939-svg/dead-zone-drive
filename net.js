@@ -48,6 +48,10 @@ class LocalNet {
     a.bank[res]=bal;a.log.unshift({member:name,uid,res,amt,bal,kind:amt>0?'deposit':'withdraw',t:Date.now()});a.act.unshift({text:`${name} ${amt>0?'deposited':'withdrew'} ${Math.abs(amt)} ${res}`,t:Date.now()});this._alSave();return bal;}
   onExplored(f){(this.cbs.exp=this.cbs.exp||[]).push(f);f(JSON.parse(localStorage.getItem('wl_allyexp')||'[]'));}
   shareExplored(){}
+  onMarkers(f){this.cbs.mk=[f];f(JSON.parse(localStorage.getItem('wl_mk')||'{}'));}
+  _mk(fn){const m=JSON.parse(localStorage.getItem('wl_mk')||'{}');fn(m);localStorage.setItem('wl_mk',JSON.stringify(m));(this.cbs.mk||[]).forEach(f=>f(m));}
+  addMarker(d){this._mk(m=>m['m'+Date.now()]=d);}
+  delMarker(id){this._mk(m=>delete m[id]);}
   onPlayers(f){this.cbs.players.push(f);}
   onRaids(f){this.cbs.raids.push(f);f(this.raids);}
   onTerritory(f){this.cbs.territory.push(f);f(this.terr);}
@@ -83,6 +87,9 @@ class FirebaseNet {
   // Fog of war: each member's explored hex ids (170 m cells, never raw GPS) shared with the alliance.
   onExplored(f){this.fs.onSnapshot(this.col('explored'),s=>{const a=[];s.forEach(d=>{if(d.id!==this.uid)a.push(...(d.data().ids||[]));});f(a);});}
   shareExplored(ids){if(!ids.length)return;this.fs.setDoc(this.fs.doc(this.col('explored'),this.uid),{ids:this.fs.arrayUnion(...ids)},{merge:true}).catch(()=>{});}
+  onMarkers(f){this.fs.onSnapshot(this.col('markers'),s=>{const o={};s.forEach(d=>o[d.id]=d.data());f(o);});}
+  addMarker(d){this.fs.addDoc(this.col('markers'),d);}
+  delMarker(id){this.fs.deleteDoc(this.fs.doc(this.col('markers'),id));}
   // Privacy: no GPS is written. Members doc = name, level, contribution stats, last active.
   updateMember(m){this.fs.setDoc(this.fs.doc(this.col('players'),this.uid),{...m,lastActive:this.fs.serverTimestamp()});}
   activity(text){this.fs.addDoc(this.col('activity'),{text,uid:this.uid,t:this.fs.serverTimestamp()});}
