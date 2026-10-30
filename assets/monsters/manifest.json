@@ -1,0 +1,39 @@
+{
+ "_readme": "Drop <id>.png (512x512, transparent) into this folder and set \"png\": true. Placeholder SVGs are used until then.",
+ "monsters": {
+  "rad_rat": {
+   "png": false
+  },
+  "scrap_crawler": {
+   "png": false
+  },
+  "bog_leech": {
+   "png": false
+  },
+  "feral_hound": {
+   "png": false
+  },
+  "glow_moth": {
+   "png": false
+  },
+  "ghoul": {
+   "png": false
+  },
+  "boss_tank": {
+   "png": false
+  },
+  "boss_queen": {
+   "png": false
+  },
+  "boss_warden": {
+   "png": false
+  },
+  "enemy_fort": {
+   "png": false
+  },
+  "boss_crystal": {
+   "png": true,
+   "emblem": true
+  }
+ }
+}
