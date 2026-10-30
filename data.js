@@ -18,6 +18,7 @@ const MONSTERS = {
   // bosses
   boss_tank:   {name:'Rust Behemoth',  hp:7200,atk:28,def:10,lvl:10,boss:true, drops:{scrap:60,parts:12,fuel:10}},
   boss_queen:  {name:'Hive Queen',     hp:6000,atk:34,def:8, lvl:10,boss:true, drops:{food:50,water:40,parts:8}},
+  boss_crystal:{name:'Crystal Knight', hp:8000,atk:30,def:12,lvl:11,boss:true, drops:{scrap:70,parts:14,fuel:12}},
   boss_warden: {name:'The Warden',     hp:9000,atk:24,def:14,lvl:12,boss:true, drops:{scrap:80,fuel:20,parts:15}},
 };
 const GEAR_BASES = [

@@ -112,7 +112,7 @@ function defensePower(defs){return defs.reduce((a,d)=>a+structPower(d),0);}
 // Replay of the power check: one combined defense vs one raider band, mirror stats, so the replay always matches the result.
 function raidReplay(defs,dp,power){const A=BAL.ai,nm=defs.map(d=>structName(d)).join(' + ');
   const mk=(p,o)=>mkUnit({hp:Math.max(1,p*A.hpPerPower),atk:Math.max(1,p*A.atkPerPower),def:0,crit:0,agi:0,...o});
-  const f=runFight([mk(dp,{name:nm+` (power ${dp})`,svg:defs[0].kind==='sh'?strongholdSVG(strongholdLevel()):towerSVG(1)})],[mk(power,{name:`Raiders (power ${power})`,img:'raider.svg'})],400);
+  const f=runFight([mk(dp,{name:nm+` (power ${dp})`,svg:defs[0].kind==='sh'?strongholdSVG(strongholdLevel()):towerSVG(1)})],[mk(power,{name:`Raiders (power ${power})`,img:'assets/monsters/raider.svg'})],400);
   f.win=dp>=power;return f;}
 function loseTile(id){delete P.tiles[id];W().raider[id]=Date.now();NET.claimHex(id,{by:'Raiders',ai:true,color:'#e0573a',t:Date.now()});}
 function structOf(d){const w=W();return d.kind==='sh'?w.sh:d.kind==='op'?(w.outposts||{})[d.id]:w.towers[d.id];}
@@ -140,6 +140,9 @@ function captureEnemy(id){const e=enemyAt(id),s=enemyStats(e),w=W();w.enemyTaken
   const txt=`🏴 ${P.name} captured a Raider Stronghold (+${got.length} hexes)`;report(txt,true);allianceLog(txt);save();drawWorld();return{loot,gear:g,hexes:got.length};}
 
 // ---------- drawing (level of detail: CSS shows more detail as you zoom in) ----------
+// Alliance color: every member's claimed hexes (including your own) draw in one team color.
+const ALLY_PALETTE=['#4ad7ff','#8fd14f','#ffd24a','#c070ff','#ff7ab6','#ff8a3a'];
+function allianceColor(){const t=(typeof NET!=='undefined'&&NET.team)||localStorage.getItem('wl_team')||window.DEFAULT_TEAM||'crew';let h=0;for(const ch of String(t))h=(h*31+ch.charCodeAt(0))>>>0;return ALLY_PALETTE[h%ALLY_PALETTE.length];}
 const tileRenderer=L.canvas({padding:.3});
 const hpBar=p=>`<div class="hpb"><i style="width:${Math.round(100*p)}%;background:${p>.6?'#5fd068':p>.3?'#ffd24a':'#ff3b30'}"></i></div>`;
 function drawWorld(){const g=G.layers.hex;g.clearLayers();G.layers.terr.clearLayers();if(!P.world)W();const z=map.getZoom();if(z<13)return;
@@ -148,9 +151,10 @@ function drawWorld(){const g=G.layers.hex;g.clearLayers();G.layers.terr.clearLay
     if(!isVis(id)){L.polygon(hexPoly(x.q,x.r),{renderer:tileRenderer,interactive:false,stroke:false,fillColor:'#2b2620',fillOpacity:BAL.fog.opacity}).addTo(g);return;}
     let st={color:'#4a3a26',weight:.8,opacity:.28,fill:false};
     const LY=G.lay||{};
-    if(mine&&LY.mine!==false)st={color:P.color,weight:2,opacity:.85,fillColor:P.color,fillOpacity:.2};
+    const AC=allianceColor();
+    if(mine&&LY.mine!==false)st={color:AC,weight:2.2,opacity:.9,fillColor:AC,fillOpacity:.24};
     else if(raider&&LY.enemy!==false)st={color:'#d63a2a',weight:1.6,opacity:.8,fillColor:'#d63a2a',fillOpacity:.18};
-    else if(other&&other.uid!==P.uid&&LY.allies!==false)st={color:other.color||'#888',weight:1.2,opacity:.7,fillColor:other.color,fillOpacity:.14};
+    else if(other&&!other.ai&&LY.allies!==false)st={color:AC,weight:1.4,opacity:.75,fillColor:AC,fillOpacity:other.uid===P.uid?.24:.16};
     else if(t.res&&t.tier!=='common')st={color:BAL.tiles.tierColor[t.tier],weight:1.4,opacity:.7,fillColor:BAL.tiles.tierColor[t.tier],fillOpacity:t.tier==='epic'?.16:.08};
     L.polygon(hexPoly(x.q,x.r),{...st,renderer:tileRenderer,interactive:false}).addTo(g);
     if(icons&&t.res)L.marker(hexCenter(x.q,x.r),{icon:L.divIcon({className:'lodm',html:`<div class="ico rt rt-${t.tier}${mine?' own':''}"><span>${RES[t.res]}</span><b class="lv">+${t.yield}</b></div>`,iconSize:[0,0]}),interactive:false}).addTo(g);});

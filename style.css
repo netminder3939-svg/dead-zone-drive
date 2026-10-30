@@ -123,7 +123,7 @@ button.fight,.ibtns .fight{background:linear-gradient(#d8582f,#9a2e14);border:1p
 .unit .uname{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.unit .hpb{height:8px;background:#0009;border-radius:4px;overflow:hidden;border:1px solid #000}
 .unit .hpb i{display:block;height:100%;background:linear-gradient(#7fe07a,#3a9a34);transition:width .25s}.side.foe .hpb i,.unit.boss .hpb i{background:linear-gradient(#ff7a5a,#b0301a)}
 .unit .hpt{font-size:10px;color:var(--dim)}.unit.hit .uart{animation:shake .35s}.unit.ko{opacity:.35;filter:grayscale(1)}.unit.me .uname{color:#7fd0ff}.unit.boss{width:160px}.unit.boss .uart{height:110px}.unit.boss .uart img{max-width:110px;max-height:110px}
-.dmg.dodge{color:#9fd8ff;font-size:16px}.c{color:#ff5a3a}
+.c{color:#ff5a3a}
 .result{margin-top:8px;padding:10px;border-radius:10px;font-weight:700;text-align:center}.result.good{background:#1f3a1d;color:#bff5b0}.result.bad{background:#4a1a14;color:#ffc0b0}
 .flash{animation:flash 0.8s infinite}@keyframes flash{50%{fill-opacity:.1;stroke-opacity:.3}}
 /* ===== Stage 1d QoL ===== */
@@ -160,3 +160,12 @@ body.drive #tabs,body.drive .fab,body.drive #devbar,body.drive #sheet{display:no
 #laypop button{background:#1f1a14ee;border:2px solid #555;color:#ccc;border-radius:16px;padding:6px 12px;font-size:14px;opacity:.7}#laypop button.on{border-color:#d6a03a;color:#fff;opacity:1}
 table.roster td,table.roster th{padding:4px 3px;font-size:12px}
 .seg.chips button{flex:1}.tx .pos{color:#5fd068}.tx .neg{color:#ff6a5a}
+
+/* auto-fight damage meter */
+.meter{background:#16130f;border:1px solid #4a3f2e;border-radius:10px;padding:6px 8px;margin:8px 0;font-size:12px}.mhead{font-weight:800;margin-bottom:4px}
+.mside{margin-bottom:4px}.mside>b{font-size:11px;color:var(--dim)}.mrow{position:relative;padding:3px 6px;margin:2px 0;border-radius:6px;background:#0006;overflow:hidden}
+.mrow .mbar{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#c0582a88,#c0582a22);z-index:0}.mrow.me .mbar{background:linear-gradient(90deg,#2a8fd688,#2a8fd622)}
+.mrow>*:not(.mbar){position:relative;z-index:1}.mrow .mn{font-weight:700}.mrow .mv{float:right;font-weight:800}.mrow .mv em{color:var(--dim);font-style:normal;font-weight:600}.mrow small{display:block;color:var(--dim);font-size:10px}
+.dmg.heal{color:#6fe07a}
+.unit.boss{width:180px}.unit.boss .uart{height:180px}.unit.boss .uart img{max-width:180px;max-height:180px}
+.ico.boss.emb img{border-radius:50%;filter:drop-shadow(0 0 8px #9a7aff)}

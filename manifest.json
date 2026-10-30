@@ -30,6 +30,10 @@
   },
   "enemy_fort": {
    "png": false
+  },
+  "boss_crystal": {
+   "png": true,
+   "emblem": true
   }
  }
 }

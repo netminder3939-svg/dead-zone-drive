@@ -67,7 +67,7 @@ function factionCatchUp(quiet){if(!P.world||!P.uid)return;const B=BAL.factions,f
     if(ev.took.length)allianceLog(`${P.name}: ${ev.took.length} hex(es) lost to raider factions`);}
   save();drawWorld();UI.hud();}
 // --- fighting faction hexes (same deterministic engine)
-function factionUnits(id){const x=factionAt(id);if(!x)return[];const B=BAL.factions,g=B.garrison,s=factionStr(x.f),d=fdef(x.fid),art='raider.svg';
+function factionUnits(id){const x=factionAt(id);if(!x)return[];const B=BAL.factions,g=B.garrison,s=factionStr(x.f),d=fdef(x.fid),art='assets/monsters/raider.svg';
   if(x.home){const H=B.home,m=s*H.mult,u=[mkUnit({name:d.name+' Boss',img:art,hp:m*g.hp,atk:m*g.atk,def:m*g.def,crit:0,agi:g.agi})];
     for(let i=0;i<H.guards;i++)u.push(mkUnit({name:d.name+' Guard',img:art,hp:s*H.guardMult*g.hp*2,atk:s*g.atk*.8,def:s*g.def,crit:0,agi:g.agi+2}));
     // Siege: damage on the HQ carries over between attacks and heals 25%/day, so repeated attacks wear it down.
@@ -76,7 +76,7 @@ function factionUnits(id){const x=factionAt(id);if(!x)return[];const B=BAL.facti
   return[mkUnit({name:d.name+' Garrison',img:art,hp:m*g.hp,atk:m*g.atk,def:m*g.def,crit:0,agi:g.agi})];}
 UI.infoFaction=function(id){const x=factionAt(id),B=BAL.factions;if(!x)return;const d=fdef(x.fid),[lat,lng]=hexCenter(...idQR(id)),dist=G.pos?distM(...G.pos,lat,lng):1e9,far=dist>B.attackRangeM&&!G.dev.any;
   const p=predict(()=>[playerUnit()],()=>factionUnits(id)),D=diffBlock(p),units=factionUnits(id),n=Object.keys(x.f.tiles).length;
-  this.info({title:`${d.icon} ${d.name}${x.home?' · HOME BASE':''}`,sub:`Raider faction · tier ${x.f.tier||0} · ${n} hexes · ${Math.round(dist)} m away`,art:imgTag('raider.svg'),diff:D.d,
+  this.info({title:`${d.icon} ${d.name}${x.home?' · HOME BASE':''}`,sub:`Raider faction · tier ${x.f.tier||0} · ${n} hexes · ${Math.round(dist)} m away`,art:imgTag('assets/monsters/raider.svg'),diff:D.d,
     body:D.html+cdBlock()+`<div class="row"><div class="grow">${x.home?`Beat the home base to rout the whole faction: all ${n} hexes go free and they stay away ${B.respawnDays} days.`:'Win to retake this hex. Hexes with more faction neighbors are better guarded: hit the edges first.'}<small>Their attack power on your border: <b>${factionAttack(x.f)}</b>. Your defense there must be at least that to hold.</small></div></div>`+
       units.map(u=>`<div class="row"><div class="grow">🔍 <b>${u.name}</b><small>${statLine(u)}</small></div></div>`).join(''),
     buttons:[['⚔️ Attack',()=>fightFaction(id),'fight',far||cooldownLeft()>0]]});if(far)toast(`Get within ${B.attackRangeM} m to attack (${Math.round(dist)} m)`);};

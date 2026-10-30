@@ -67,11 +67,12 @@ function spawnMonsters(){if(!G.pos)return;const g=G.layers.mons;g.clearLayers();
     let pool=ids.filter(k=>MONSTERS[k].biome===bio||MONSTERS[k].biome==='any');const mid=pool[Math.floor(rnd()*pool.length)];
     const lvl=Math.max(1,MONSTERS[mid].lvl+Math.floor(P.lvl*BAL.progress.mutantLevelPerPlayerLevel)+(G.night?1:0));
     G.monList.push({mid,lvl,key,lat,lng});
-    L.marker([lat,lng],{icon:L.divIcon({className:'mk lodm',html:`<div class="ico mon"><img src="${monImg(mid)}" onerror="this.src='${mid}.svg'"><b class="lv">Lv${lvl}</b></div>`,iconSize:[0,0]})})
+    L.marker([lat,lng],{icon:L.divIcon({className:'mk lodm',html:`<div class="ico mon"><img src="${monImg(mid)}" onerror="this.src='assets/monsters/${mid}.svg'"><b class="lv">Lv${lvl}</b></div>`,iconSize:[0,0]})})
       .on('click',()=>UI.infoMon(mid,lvl,key,lat,lng)).addTo(g);});}
 setInterval(spawnMonsters,60e3);
-let MANIFEST={monsters:{}};fetch('manifest.json').then(r=>r.json()).then(m=>{MANIFEST=m;spawnMonsters();}).catch(()=>{});
-function monImg(id){return `${id}.${MANIFEST.monsters[id]?.png?'png':'svg'}`;}
+let MANIFEST={monsters:{}};fetch('assets/monsters/manifest.json').then(r=>r.json()).then(m=>{MANIFEST=m;spawnMonsters();}).catch(()=>{});
+function bossMapImg(id){return MANIFEST.monsters[id]?.emblem?`assets/monsters/${id}_emblem.png`:monImg(id);}
+function monImg(id){return `assets/monsters/${id}.${MANIFEST.monsters[id]?.png?'png':'svg'}`;}
 
 // ---------- landmarks from OpenStreetMap (Overpass, free) ----------
 async function loadLandmarks(lat,lng){G.lmCenter=[lat,lng];const ck='wl_lm_'+lat.toFixed(2)+'_'+lng.toFixed(2);
@@ -91,7 +92,7 @@ async function overpass(q){
   throw new Error('overpass down');}
 function fakeLandmarks(lat,lng){const r=seedRand(lat.toFixed(2)+lng.toFixed(2)),ks=Object.keys(LANDMARK_KINDS);
   return Array.from({length:14},(_,i)=>{const k=ks[i%ks.length];return{id:'f'+i,kind:k,name:LANDMARK_KINDS[k].label+' #'+(i+1),lat:lat+(r()-.5)*.03,lng:lng+(r()-.5)*.045};});}
-function lairBoss(l){const r=seedRand(l.id+today());if(r()>.22)return null;return['boss_tank','boss_queen','boss_warden'][Math.floor(r()*3)];}
+function lairBoss(l){const r=seedRand(l.id+today());if(r()>.22)return null;return['boss_crystal','boss_queen','boss_warden'][Math.floor(r()*3)];}
 function drawLandmarks(){const g=G.layers.lm;g.clearLayers();
   G.landmarks.forEach(l=>{if(P.world&&!isVis(hexAt(l.lat,l.lng).id))return;const K=LANDMARK_KINDS[l.kind],boss=lairBoss(l),v=P.badges[l.id];
     L.marker([l.lat,l.lng],{icon:L.divIcon({className:'mk lodm',html:`<div class="ico lm${v?' visited':''}${boss&&!raidFor(l.id)?' lair':''}"><span>${K.icon}</span><b class="nm">${l.name}</b></div>`,iconSize:[0,0]})})
@@ -116,7 +117,7 @@ setInterval(()=>{const m=stats().hp;if(P.hp<m){P.hp=Math.min(m,P.hp+2+skillFx('r
 // ---------- raids ----------
 function drawRaids(){const g=G.layers.raids;g.clearLayers();
   Object.values(G.raids).forEach(r=>{if(r.done||Date.now()>r.endsAt)return;
-    L.marker([r.lat,r.lng],{icon:L.divIcon({className:'mk mk-boss',html:`<div class="ico boss"><img src="${monImg(r.bossId)}" onerror="this.src='${r.bossId}.svg'"><b class="lv">RAID</b></div>`,iconSize:[0,0]}),zIndexOffset:500})
+    L.marker([r.lat,r.lng],{icon:L.divIcon({className:'mk mk-boss',html:`<div class="ico boss${MANIFEST.monsters[r.bossId]?.emblem?' emb':''}"><img src="${bossMapImg(r.bossId)}" onerror="this.src='assets/monsters/${r.bossId}.svg'"><b class="lv">RAID</b></div>`,iconSize:[0,0]}),zIndexOffset:500})
       .on('click',()=>UI.infoRaid(r.id)).addTo(g);});drawLandmarks();}
 async function raidHit(id){const r=G.raids[id];if(!r||r.done)return null;const s=stats(),B=MONSTERS[r.bossId];
   let tot=0,crits=0;for(let i=0;i<3;i++){const x=simulateRound(s,B);tot+=x.dmg;if(x.crit)crits++;}

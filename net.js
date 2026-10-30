@@ -65,12 +65,12 @@ class LocalNet {
   updatePlayer(){}
   async claimHex(id,data){this.terr[id]=data;this._save();this._emit('territory',this.terr);}
   async createRaid(r){this.raids[r.id]=r;this._save();this._emit('raids',this.raids);}
-  async hitRaid(id,uid,name,dmg,hp,max){const r=this.raids[id];if(!r||r.done)return;
-    const p=r.participants[uid]||{name,dmg:0};p.dmg+=dmg;if(hp!=null){p.hp=hp;p.max=max;}r.participants[uid]=p;r.hp=Math.max(0,r.hp-dmg);
+  async hitRaid(id,uid,name,dmg,hp,max,taken,heal){const r=this.raids[id];if(!r||r.done)return;
+    const p=r.participants[uid]||{name,dmg:0};p.dmg+=dmg;p.fights=(p.fights||0)+1;p.taken=(p.taken||0)+(taken||0);p.heal=(p.heal||0)+(heal||0);if(hp!=null){p.hp=hp;p.max=max;}r.participants[uid]=p;r.hp=Math.max(0,r.hp-dmg);
     if(r.hp<=0){r.done=true;r.won=true;} this._save();this._emit('raids',this.raids);}
   // dev helper: a teammate "finds" a boss near you
   spawnTestBoss(lat,lng){
-    const ids=['boss_tank','boss_queen','boss_warden'];const b=ids[Math.floor(Math.random()*3)];
+    const ids=['boss_crystal','boss_queen','boss_warden'];const b=ids[Math.floor(Math.random()*3)];
     const s=this.sims[Math.floor(Math.random()*3)];
     this.createRaid({id:'r'+Date.now(),bossId:b,lat:lat+0.006,lng:lng-0.004,place:'Found by '+s.name,
       hp:MONSTERS[b].hp,maxHp:MONSTERS[b].hp,endsAt:Date.now()+10*60e3,finder:s.name,participants:{},done:false});
@@ -129,13 +129,13 @@ class FirebaseNet {
   async loadProfile(uid){const fs=this.fs,d=await fs.getDoc(fs.doc(this.col('saves'),uid));return d.exists()?d.data():null;}
   claimHex(id,data){return this.fs.setDoc(this.fs.doc(this.col('territory'),id),data);}
   createRaid(r){const {id,...rest}=r;return this.fs.setDoc(this.fs.doc(this.col('raids'),id),rest);}
-  async hitRaid(id,uid,name,dmg,hp,max){
+  async hitRaid(id,uid,name,dmg,hp,max,taken,heal){
     const ref=this.fs.doc(this.col('raids'),id);
     await this.fs.runTransaction(this.db,async tx=>{const s=await tx.get(ref);if(!s.exists())return;const r=s.data();if(r.done||Date.now()>r.endsAt)return;
-      const p=(r.participants||{})[uid]||{name,dmg:0};p.dmg+=dmg;if(hp!=null){p.hp=hp;p.max=max;}const left=Math.max(0,r.hp-dmg);
+      const p=(r.participants||{})[uid]||{name,dmg:0};p.dmg+=dmg;p.fights=(p.fights||0)+1;p.taken=(p.taken||0)+(taken||0);p.heal=(p.heal||0)+(heal||0);if(hp!=null){p.hp=hp;p.max=max;}const left=Math.max(0,r.hp-dmg);
       tx.update(ref,{hp:left,['participants.'+uid]:p,done:left<=0,won:left<=0});});
   }
-  spawnTestBoss(){alert('Test boss is only for local demo mode.');}
+  spawnTestBoss(){if(typeof spawnTestBossNear==='function')return spawnTestBossNear();}
 }
 
 function makeNet(){

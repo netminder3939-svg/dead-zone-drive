@@ -66,7 +66,7 @@ const UI={
       <p class="tiny">Salvage gives 🔩 Scrap, and Rare+ also gives ⚙️ Parts.</p>${list.map(g=>`<div class="row"><div class="grow">${gearLine(g)}<small>${g.slot}</small></div>
       ${P.equip[g.slot]===g.id?'<small>equipped</small>':`<button onclick="UI.salvage('${g.id}')">Salvage</button>`}</div>`).join('')||'<p class="tiny">Empty.</p>'}`;}
     if(t==='inv'&&sub==='dex'){const ids=Object.keys(MONSTERS);
-      h+=`<h2>🃏 Collection</h2><h3>Mutant Cards (${Object.keys(P.cards).length}/${ids.length})</h3><div class="grid">${ids.map(id=>`<div class="tile ${P.cards[id]?'':'locked'}"><img src="${monImg(id)}" onerror="this.src='${id}.svg'"><br>${P.cards[id]?MONSTERS[id].name+' ×'+P.cards[id]:'???'}</div>`).join('')}</div>
+      h+=`<h2>🃏 Collection</h2><h3>Mutant Cards (${Object.keys(P.cards).length}/${ids.length})</h3><div class="grid">${ids.map(id=>`<div class="tile ${P.cards[id]?'':'locked'}"><img src="${monImg(id)}" onerror="this.src='assets/monsters/${id}.svg'"><br>${P.cards[id]?MONSTERS[id].name+' ×'+P.cards[id]:'???'}</div>`).join('')}</div>
       <h3>Landmark Badges (${Object.keys(P.badges).length})</h3>${Object.values(P.badges).map(x=>`<div class="row">${LANDMARK_KINDS[x.kind].icon}<div class="grow">${x.name}<small>${new Date(x.t).toLocaleDateString()}</small></div></div>`).join('')||'<p class="tiny">Visit parks, schools, water towers… to earn badges.</p>'}`;}
     if(t==='alliance'){const A=G.al||{bank:{},log:[],act:[],members:{}},M=Object.entries(A.members);
       if(sub==='over'){const tot=k=>M.reduce((a,[,m])=>a+((m.contrib||{})[k]||0),0),rs=Object.values(G.raids).filter(r=>!r.done&&Date.now()<r.endsAt);
@@ -95,7 +95,7 @@ const UI={
   modal(html){$('#modalBody').innerHTML=html;$('#modal').classList.remove('hidden');},
   closeModal(){$('#modal').classList.add('hidden');this.raidOpen=null;this.hud();this.render();},
   battle(M,mid,lvl,foe,key){const s=stats();let mhp=P.hp,fhp=foe.hp;
-    this.modal(`<h2>${M.name} <small style="color:var(--acc)">Lv${lvl}</small></h2><div class="arena" id="arena"><img class="mon" id="mon" src="${monImg(mid)}" onerror="this.src='${mid}.svg'"></div>
+    this.modal(`<h2>${M.name} <small style="color:var(--acc)">Lv${lvl}</small></h2><div class="arena" id="arena"><img class="mon" id="mon" src="${monImg(mid)}" onerror="this.src='assets/monsters/${mid}.svg'"></div>
       <div class="hpline"><span>You ❤️ <b id="bme">${mhp}</b></span><span>${M.name} ❤️ <b id="bfoe">${fhp}</b></span></div><div class="log" id="blog">Auto-battle starting…</div><button class="big" id="bdone" disabled>Fighting…</button>`);
     const log=t=>{const l=$('#blog');l.innerHTML=t+'<br>'+l.innerHTML;};
     const iv=setInterval(()=>{const a=simulateRound(s,foe);fhp=Math.max(0,fhp-a.dmg);pop(a.dmg,a.crit);$('#mon').classList.remove('hit');void $('#mon').offsetWidth;$('#mon').classList.add('hit');
@@ -108,7 +108,7 @@ const UI={
       save();log('<b style="color:var(--txt)">'+msg+'</b>');const d=$('#bdone');d.disabled=false;d.textContent='Continue';d.onclick=()=>this.closeModal();};},
   raid(id){this.raidOpen=id;const r=G.raids[id];if(!r)return;
     if(r.won&&r.participants?.[P.uid]&&!P.raidLoot[id]){const g=raidClaim(id);this.modal(`<h2>💀 ${MONSTERS[r.bossId].name} defeated!</h2><p>Shared loot split by damage.</p><div class="row">${g?gearLine(g):''}</div><button class="big" onclick="UI.closeModal()">Nice</button>`);return;}
-    this.modal(`<h2>☠️ RAID: ${MONSTERS[r.bossId].name}</h2><p class="tiny">${r.place} · found by ${r.finder}</p><div class="arena" id="arena"><img class="mon boss" id="mon" src="${monImg(r.bossId)}" onerror="this.src='${r.bossId}.svg'"></div>
+    this.modal(`<h2>☠️ RAID: ${MONSTERS[r.bossId].name}</h2><p class="tiny">${r.place} · found by ${r.finder}</p><div class="arena" id="arena"><img class="mon boss" id="mon" src="${monImg(r.bossId)}" onerror="this.src='assets/monsters/${r.bossId}.svg'"></div>
       <div class="prog" style="height:12px"><i id="rhp" style="background:#e0573a"></i></div><div class="hpline"><span id="rhpt"></span><span id="rtime"></span></div>
       <div id="rparts" class="log"></div><button class="big" id="rhit">⚔️ Attack (auto 3 rounds)</button><button style="width:100%;margin-top:6px" onclick="UI.closeModal()">Leave</button>`);
     $('#rhit').onclick=async()=>{const btn=$('#rhit');btn.disabled=true;const x=await raidHit(id);if(x){pop(x.tot,x.crits>0);$('#mon').classList.remove('hit');void $('#mon').offsetWidth;$('#mon').classList.add('hit');}
@@ -141,7 +141,7 @@ document.querySelectorAll('#devbar button').forEach(b=>b.onclick=()=>{const k=b.
   if(k==='daily'){W().lastReset=pacificDate(Date.now()-864e5);runResets().then(()=>UI.render());}
   if(k==='ai'){const r=aiAttack(seedRand('dev'+Date.now()));if(!r)toast('No tiles to attack');else UI.attackAlert(W().reports[0]);}
   if(k==='finish'){devFinishBuilds();toast('Builds finished');}
-  if(k==='boss'&&G.pos){NET.spawnTestBoss(...G.pos);toast('A teammate found a boss!');}
+  if(k==='boss'){spawnTestBossNear();}
   if(k==='rath'){G.dev.tp=true;setPos(47.8135,-116.8968);map.setView(G.pos,16);}
   if(k==='reset'&&confirm('Wipe all local progress?')){localStorage.clear();location.reload();}});
 
