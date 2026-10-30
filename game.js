@@ -65,7 +65,7 @@ function spawnMonsters(){if(!G.pos)return;const g=G.layers.mons;g.clearLayers();
   hexRing(h.q,h.r,BAL.spawn.rings).forEach(x=>{if(!isVis(x.id))return;const key=x.id+'@'+win,rnd=seedRand(key);if(rnd()>(G.night?BAL.spawn.nightChance:BAL.spawn.dayChance)||P.killed[key])return;
     const c=hexCenter(x.q,x.r),lat=c[0]+(rnd()-.5)*.0008,lng=c[1]+(rnd()-.5)*.0011,bio=biomeAt(lat,lng);
     let pool=ids.filter(k=>MONSTERS[k].biome===bio||MONSTERS[k].biome==='any');const mid=pool[Math.floor(rnd()*pool.length)];
-    const lvl=Math.max(1,MONSTERS[mid].lvl+Math.floor(P.lvl*.7)+(G.night?1:0));
+    const lvl=Math.max(1,MONSTERS[mid].lvl+Math.floor(P.lvl*BAL.progress.mutantLevelPerPlayerLevel)+(G.night?1:0));
     G.monList.push({mid,lvl,key,lat,lng});
     L.marker([lat,lng],{icon:L.divIcon({className:'mk lodm',html:`<div class="ico mon"><img src="${monImg(mid)}" onerror="this.src='${mid}.svg'"><b class="lv">Lv${lvl}</b></div>`,iconSize:[0,0]})})
       .on('click',()=>UI.infoMon(mid,lvl,key,lat,lng)).addTo(g);});}
@@ -104,7 +104,7 @@ function checkLandmarks(){G.landmarks.forEach(l=>{const d=distM(...G.pos,l.lat,l
       endsAt:Date.now()+30*60e3,finder:P.name,participants:{},done:false});toast('☠️ BOSS FOUND! Raid started for the crew');allianceLog(`☠️ ${P.name} found ${MONSTERS[b].name} at ${l.name}`);}});}
 
 // ---------- battle (auto) ----------
-function startBattle(mid,lvl,key){const M=MONSTERS[mid],sc=1+(lvl-M.lvl)*.15,foe={hp:Math.round(M.hp*sc),atk:Math.round(M.atk*sc),def:Math.round(M.def*sc),crit:5};
+function startBattle(mid,lvl,key){const M=MONSTERS[mid],sc=1+(lvl-M.lvl)*BAL.progress.mutantScalePerLevel,foe={hp:Math.round(M.hp*sc),atk:Math.round(M.atk*sc),def:Math.round(M.def*sc),crit:5};
   if(P.hp<10)return toast('Too hurt — rest a bit (HP regenerates)');
   UI.battle(M,mid,lvl,foe,key);}
 function battleWin(mid,lvl,key){if(key.startsWith('fort:'))return{fort:captureEnemy(key.slice(5))};P.killed[key]=1;P.stats.kills++;questProg('kills');addXP(15+lvl*5);
@@ -131,7 +131,7 @@ const NET=makeNet();
 async function boot(){
   ensureQuests();P.uid=await NET.init(P);save();
   $('#mode').textContent=NET.mode==='local'?'● LOCAL DEMO (offline)':'● LIVE · team '+NET.team;
-  NET.onMarkers&&NET.onMarkers(m=>{G.markers=m;drawMarkers();});W();NET.onExplored&&NET.onExplored(ids=>{ids.forEach(i=>G.allyExp.add(i));clearTimeout(G._fogT);G._fogT=setTimeout(()=>{drawWorld();drawLandmarks();spawnMonsters();},400);});NET.onTerritory(t=>{G.terr=t;drawWorld();UI.claimBtn();});
+  NET.onMarkers&&NET.onMarkers(m=>{G.markers=m;drawMarkers();});W();NET.onExplored&&NET.onExplored(ids=>{ids.forEach(i=>G.allyExp.add(i));clearTimeout(G._fogT);G._fogT=setTimeout(()=>{drawWorld();drawLandmarks();spawnMonsters();},400);});NET.onTerritory(t=>{G.terr=Object.fromEntries(Object.entries(t).filter(([,v])=>v&&!v.released));drawWorld();UI.claimBtn();});
   NET.onRaids(r=>{G.raids=r;drawRaids();UI.raidBanner();UI.refreshRaid();});
   // Privacy: teammates' GPS positions are never shared or shown. Only roster stats + last active.
   NET.onAlliance(a=>{G.al=a;if(UI.tab==='alliance')UI.render();});pushMember();setInterval(pushMember,60e3);

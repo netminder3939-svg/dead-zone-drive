@@ -1,7 +1,7 @@
 // UI: HUD, sheets (gear, quests, raids, base, collection), battle + raid modals, onboarding, dev tools.
 const UI={
   hud(){const s=stats();$('#pname').textContent=P.name;$('#plvl').textContent='Lv'+P.lvl;
-    $('#hpbar').style.width=(100*P.hp/s.hp)+'%';$('#xpbar').style.width=(100*P.xp/(P.lvl*100))+'%';
+    $('#hpbar').style.width=(100*P.hp/s.hp)+'%';$('#xpbar').style.width=(100*P.xp/(xpNeed(P.lvl)))+'%';
     const inc=P.world?expectedIncome():{};$('#res').innerHTML=Object.keys(RES).map(k=>`<span>${RES[k]} ${P.res[k]||0}${inc[k]?` <em class="${inc[k]>0?'inc':'dec'}">${inc[k]>0?'+':''}${inc[k]}</em>`:''}</span>`).join('');},
   badge(tab,on){const b=document.querySelector(`[data-tab=${tab}]`);b.querySelector('.dot')?.remove();if(on)b.insertAdjacentHTML('beforeend','<i class="dot"></i>');},
   claimBtn(){if(!G.pos||!P.world)return;$('#btnClaim').style.opacity=P.tiles[hexAt(...G.pos).id]?1:.45;},
@@ -39,15 +39,15 @@ const UI={
       <button class="big" onclick="UI.close();UI.build()">🏗️ Build on my current hex</button>`;}
     if(t==='base'&&sub==='reports'){const r=W().reports;h+=`<h2>⚔️ Battle Reports</h2>${r.map(x=>`<div class="act ${x.win?'':'bad'}"><small>${when(x.t)}</small> ${x.text}</div>`).join('')||'<p class="tiny">Quiet so far. Raiders usually hit a few times a week once you hold '+BAL.ai.minTiles+'+ hexes.</p>'}`;}
     if(t==='player'&&sub==='stats'){const s=stats();
-      h+=`<h2>${P.name} <small class="lv">Lv ${P.lvl}</small></h2><div class="prog"><i style="width:${100*P.xp/(P.lvl*100)}%;background:var(--acc)"></i></div><p class="tiny">${P.xp}/${P.lvl*100} XP · ${P.sp||0} skill point(s) to spend</p>
+      h+=`<h2>${P.name} <small class="lv">Lv ${P.lvl}</small></h2><div class="prog"><i style="width:${100*P.xp/(xpNeed(P.lvl))}%;background:var(--acc)"></i></div><p class="tiny">${P.xp}/${xpNeed(P.lvl)} XP · ${P.sp||0} skill point(s) to spend</p>
       <div class="stats">${Object.entries(STAT_INFO).map(([k,[i,n]])=>`<div><b>${i} ${k==='hp'?P.hp+'/'+s.hp:s[k]}</b><small>${n}</small></div>`).join('')}</div>
-      <p class="tiny">💨 Agility = dodge chance + chance of a 1.5× strike. 🍀 Luck = more and rarer gear. 💥 Critical = chance of a 1.8× hit.</p>
+      <p class="tiny">Fights have no luck: same stats, same result. 💨 Agility = act first + shave up to 25% off hits taken. 💥 Critical = +1% damage on every hit per point. 🍀 Luck = more and rarer gear.</p>
       <h3>Record</h3><div class="row"><div class="grow">☠️ ${P.stats.kills} mutants · 🚶 ${(P.stats.meters/1000).toFixed(1)} km · 🏅 ${Object.keys(P.badges).length} badges · ⚔️ ${P.contrib.raids} raids</div></div>`;}
     if(t==='player'&&sub==='skills'){
       h+=`<h2>🌳 Skills <small class="lv">${P.sp||0} point${P.sp==1?'':'s'}</small></h2><p class="tiny">Earn 1 point per level. Max ${SKILL_MAX} ranks each.</p>
       ${Object.entries(SKILLS).map(([tk,T])=>`<h3>${T.icon} ${T.name}</h3>${Object.entries(T.list).map(([id,S])=>{const r=(P.skills||{})[id]||0;
         return`<div class="row"><div class="grow"><b>${S.name}</b> <span class="pips">${'●'.repeat(r)}${'○'.repeat(SKILL_MAX-r)}</span><small>${S.desc}</small></div><button ${!(P.sp>0)||r>=SKILL_MAX?'disabled':''} onclick="spendSkill('${id}');UI.render()">+</button></div>`;}).join('')}`).join('')}
-      <button style="width:100%;margin-top:8px" onclick="if(confirm('Reset all skills for 50 scrap?')){respecSkills();UI.render()}">Reset skills (50 🔩)</button>`;}
+      <button style="width:100%;margin-top:8px" onclick="if(confirm('Reset all skills for '+respecCost()+' scrap?')){respecSkills();UI.render()}">Reset skills (${respecCost()} 🔩)</button>`;}
     if(t==='player'&&sub==='gear'){
       h+=`<h2>🗡️ Equipped</h2>${['weapon','armor','trinket'].map(sl=>{const g=P.inv.find(x=>x.id===P.equip[sl]);return`<div class="row"><div class="grow"><small>${sl}</small>${g?gearLine(g):'— empty —'}</div></div>`;}).join('')}
       <h3>Swap in</h3>${P.inv.filter(g=>P.equip[g.slot]!==g.id).sort((a,b)=>b.rarity-a.rarity).map(g=>`<div class="row"><div class="grow">${gearLine(g)}<small>${g.slot}</small></div><button onclick="UI.equip('${g.id}')">Equip</button></div>`).join('')||'<p class="tiny">Beat mutants to find gear.</p>'}`;}

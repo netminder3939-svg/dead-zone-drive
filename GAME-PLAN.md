@@ -29,7 +29,7 @@ The world ended and mutants took over the Inland Northwest. You and your crew wa
 | Collecting | Mutant cards (with counts), landmark badges, and gear rarities |
 
 ## Art list for the artist
-Files go in `assets/monsters/`. In `manifest.json`, set `"png": true` for that id. That's all the artist has to do.
+Files go in ``. In `manifest.json`, set `"png": true` for that id. That's all the artist has to do.
 - **Monsters and bosses:** PNG, **512×512**, transparent background, facing left or the front, with a little padding around the edges. The game adds the bob, glow, and hit-shake.
   - Regular: `rad_rat`, `scrap_crawler`, `bog_leech`, `feral_hound`, `glow_moth`, `ghoul`
   - Bosses: `boss_tank` (Rust Behemoth), `boss_queen` (Hive Queen), `boss_warden` (The Warden)
@@ -56,7 +56,7 @@ Files go in `assets/monsters/`. In `manifest.json`, set `"png": true` for that i
 - **Towers:** cost resources plus daily upkeep, and defend 1 ring. The limit is 1 + Stronghold level. A tower goes offline if its upkeep can't be paid.
 - **AI raiders:** about 3 attacks a week, worked out from timestamps when you open the app (only once you hold 10+ hexes). An undefended tile is lost. A defended tile triggers an auto-battle, and if the defense loses, the towers or Stronghold involved can be destroyed. Results go to Base → Reports and the alliance activity feed.
 - **Enemy Raider Strongholds:** fixed spots on the map. They're hard auto-battles, and taking one gives its hex and the ring around it, plus loot and gear.
-- **All the numbers** are in `js/balance.js`.
+- **All the numbers** are in `balance.js`.
 
 ## Stage 1c (built): readable map, info cards, real fights, fog
 - **Tap = info, never a fight.** Every map object opens a card first with its level, your odds (Easy, Fair, Even, Hard or Deadly, from 150 simulated fights against your current HP and gear), rewards, and buttons: Fight, Scout, Close, or Upgrade, Repair and Patch for your own buildings.
@@ -133,6 +133,25 @@ Files go in `assets/monsters/`. In `manifest.json`, set `"png": true` for that i
 - The Stronghold card shows hexes in the ring, how many are resource tiles, and the daily gain per resource in green (after the 25% alliance share), plus the level where the next ring unlocks.
 - The ring is also the Stronghold's defense area. Its hexes are visible through the existing structure-reveal rule (`BAL.fog.structuresReveal`); nothing else was revealed.
 - You can switch it off with `BAL.stronghold.areaIncome = false`.
+
+## Stage 1g: Fair math, no luck in fights, slower pacing (Oct 30)
+- **Every fight is decided by math, not dice.** Same HP, stats and gear always give the same result.
+  - Damage per hit = (Attack × (1 + Critical%) − 0.6 × enemy Defense), then the enemy's Agility shaves off up to 25%. Minimum 1.
+  - Turn order: higher Agility goes first; ties go to the attacker. Each fighter hits the living enemy with the lowest HP.
+  - Info cards show the exact predicted result (WIN/LOSS, number of turns, HP you end with, or enemy HP left), from the same function the Fight button runs.
+- **Raider attacks are a power check.** Raid power = 40 + 10 × your level + 0.4 × your tiles (tiles count up to 600). If the total power of the defenders covering the hex (Stronghold + towers, scaled by condition) is at least the raid power, the hex is held. If defense is under 60% of raid power, the defenders are destroyed; otherwise they are left at 20% condition. The replay shows the two powers fighting and always matches the result.
+- Which tiles get attacked and when, loot and spawns are still random (seeded).
+- **Balance changes:**
+  - Tile income halved: 2 / 5 / 12 per day (common / rare / epic). Claiming gives 1 XP. Max 40 new hexes claimed per day (more are still revealed).
+  - Level-up needs 100 × level^1.5 XP (Lv2 283, Lv5 1,118, Lv10 3,162).
+  - Stronghold upgrades cost about 4× more (scrap 160 × L^1.7, food/water 60 × L^1.4, fuel 20 × L^1.3 from Lv3, parts 4 × L^1.6 from Lv2).
+  - Mutants: level = type level + your level; stats grow 20% per level.
+  - Enemy forts: HP 140 + 75/level, attack 12 + 5/level, defense 6 + 3/level; fort level = base 1–4 + your level ÷ 4. Lowest fort is first beatable around player level 5; top forts around level 14–15.
+  - Stronghold base power 50 (+30 per level, + your stats). Tower power 70 (+50% per level).
+  - Bosses have 3× HP (Behemoth 7,200, Queen 6,000, Warden 9,000).
+  - Tower upkeep 3 food, 3 water, 1 fuel per day. Skill reset costs 50 scrap × level.
+  - **Relocation fix:** hexes that only came from the Stronghold ring are now marked; when the Stronghold moves, the old ring's hexes you never drove over are released. Driving over a ring hex makes it permanently yours. Relocation costs 250 scrap, 60 fuel, 60 parts. (Ring hexes claimed before this update aren't marked, so they stay.)
+- Balance simulator (not shipped): `sim/sim.js`, results in `sim/report.txt`.
 
 ## Stages
 - **Stage 1: Character, Stronghold and alliance (done, v0.2).** Everything above runs free on Firebase Spark, and there's also a local demo mode.

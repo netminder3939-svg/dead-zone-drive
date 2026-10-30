@@ -6,13 +6,15 @@ function playerUnit(){const s=stats();return mkUnit({name:P.name,emoji:'🧍',co
 function runFight(A0,B0,maxRounds=BAL.fight.maxRounds){
   const A=A0.map(u=>({...u,side:'A'})),B=B0.map(u=>({...u,side:'B'})),all=[...A,...B],ev=[];let r=0;
   while(r<maxRounds&&A.some(u=>u.hp>0)&&B.some(u=>u.hp>0)){r++;
-    const order=all.filter(u=>u.hp>0).map(u=>[u,(u.agi||0)+Math.random()*6]).sort((x,y)=>y[1]-x[1]).map(x=>x[0]);
+    // Fixed order: higher agility first; ties: attacker side, then line-up order. Target = living foe with lowest HP.
+    const order=all.filter(u=>u.hp>0).map((u,i)=>[u,(u.agi||0)*1000+(u.side==='A'?500:0)-i]).sort((x,y)=>y[1]-x[1]).map(x=>x[0]);
     for(const u of order){if(u.hp<=0)continue;const foes=(u.side==='A'?B:A).filter(x=>x.hp>0);if(!foes.length)break;
-      const t=foes[Math.floor(Math.random()*foes.length)],x=simulateRound(u,t);t.hp=Math.max(0,t.hp-x.dmg);
+      const t=foes.reduce((m,x)=>x.hp<m.hp?x:m),x=simulateRound(u,t);t.hp=Math.max(0,t.hp-x.dmg);
       ev.push({r,a:u.uid,t:t.uid,dmg:x.dmg,crit:x.crit,dodge:!!x.dodge,hp:t.hp});}}
   return{startA:A0,startB:B0,A,B,events:ev,win:B.every(u=>u.hp<=0)};}
-function winChance(mkA,mkB,n=BAL.fight.scoutSims){let w=0;for(let i=0;i<n;i++)if(runFight(mkA(),mkB()).win)w++;return w/n;}
-function diffLabel(p){return p>=.85?['Easy','#5fd068']:p>=.6?['Fair','#b5d84a']:p>=.4?['Even','#ffd24a']:p>=.15?['Hard','#ff8a3a']:['Deadly','#ff3b30'];}
+// Prediction = the exact same fight the button will run (no randomness), so it is always right.
+function predict(mkA,mkB){const f=runFight(mkA(),mkB()),me=f.A[0],mx=f.startA[0].max;return{win:f.win,rounds:Math.max(0,...f.events.map(e=>e.r)),hpLeft:me.hp,hpMax:mx,hpPct:me.hp/mx,foeLeft:f.B.reduce((a,u)=>a+u.hp,0),foeMax:f.startB.reduce((a,u)=>a+u.max,0)};}
+function diffLabel(p){return !p.win?(p.foeLeft/p.foeMax<.35?['Close loss','#ff8a3a']:['You lose','#ff3b30']):p.hpPct>=.7?['Easy win','#5fd068']:p.hpPct>=.4?['Win','#b5d84a']:['Narrow win','#ffd24a'];}
 function cooldownLeft(){return Math.max(0,(P.cooldownUntil||0)-Date.now());}
 function lossPenalty(){const F=BAL.fight,lost=Math.min(F.lossScrapMax,Math.floor((P.res.scrap||0)*F.lossScrapPct));P.res.scrap-=lost;
   P.cooldownUntil=Date.now()+F.lossCooldownMin*60e3;P.hp=Math.max(1,Math.round(stats().hp*F.lossHpPct));save();return lost;}
@@ -20,7 +22,7 @@ const imgTag=(src,cls='')=>`<img class="${cls}" src="${src}" onerror="this.style
 function unitArt(u){return u.img?imgTag(u.img):u.svg?u.svg:`<span class="uemo" style="${u.color?'background:'+u.color:''}">${u.emoji||'❔'}</span>`;}
 
 // ---------- enemy builders ----------
-function mutantUnits(mid,lvl){const M=MONSTERS[mid],sc=1+(lvl-M.lvl)*.15;
+function mutantUnits(mid,lvl){const M=MONSTERS[mid],sc=1+(lvl-M.lvl)*BAL.progress.mutantScalePerLevel;
   return[mkUnit({name:M.name,img:monImg(mid),hp:M.hp*sc,atk:M.atk*sc,def:M.def*sc,crit:5,agi:2+Math.floor(lvl/2)})];}
 function fortUnits(id){const e=enemyAt(id),s=enemyStats(e),E=BAL.enemy,u=[mkUnit({name:'Raider Stronghold',img:monImg('enemy_fort'),hp:s.hp,atk:s.atk,def:s.def,crit:s.crit,agi:1,fort:true})];
   for(let i=0;i<E.guards;i++)u.push(mkUnit({name:'Raider Guard',img:'raider.svg',hp:s.hp*E.guardMult,atk:s.atk*.7,def:s.def*.6,crit:8,agi:6}));return u;}
@@ -50,16 +52,16 @@ UI._cb=[];
 UI.info=function(o){this._cb=[];const btns=(o.buttons||[]).map(b=>{this._cb.push(b[1]);return`<button class="${b[2]||''}" ${b[3]?'disabled':''} onclick="UI._cb[${this._cb.length-1}]()">${b[0]}</button>`;}).join('');
   this.modal(`<div class="icard"><div class="ihead"><div class="iart">${o.art||''}</div><div><h2>${o.title}</h2>${o.sub?`<div class="tiny">${o.sub}</div>`:''}${o.diff?`<span class="diff" style="background:${o.diff[1]}">${o.diff[0]}</span>`:''}</div></div>
     ${o.body||''}<div class="ibtns">${btns}<button onclick="UI.closeModal()">Close</button></div></div>`);};
-function diffBlock(p){const d=diffLabel(p);return{d,html:`<div class="row"><div class="grow">Your odds: <b style="color:${d[1]}">${d[0]}</b> · about ${Math.round(p*100)}% win chance<small>Based on your current HP ${P.hp}/${stats().hp}, stats and gear.</small></div></div>`};}
+function diffBlock(p){const d=diffLabel(p);return{d,html:`<div class="row"><div class="grow">Predicted: <b style="color:${d[1]}">${p.win?'WIN':'LOSS'}</b> in ${p.rounds} turn${p.rounds===1?'':'s'} · ${p.win?`you end with ${p.hpLeft}/${p.hpMax} HP`:`enemy keeps ${p.foeLeft}/${p.foeMax} HP`}<small>Exact result, no luck involved: same HP, stats and gear always give this outcome.</small></div></div>`};}
 const statLine=u=>`❤️ ${u.max} · ⚔️ ${u.atk} · 🛡️ ${u.def} · 💨 ${u.agi}`;
 function cdBlock(){const c=cooldownLeft();return c?`<div class="row warn">🩹 Recovering from a defeat: ${fmtDur(c)} until you can fight</div>`:'';}
 
-UI.infoMon=function(mid,lvl,key,lat,lng){const M=MONSTERS[mid],d=distM(...G.pos,lat,lng),far=d>120&&!G.dev.any,p=winChance(()=>[playerUnit()],()=>mutantUnits(mid,lvl)),D=diffBlock(p);
+UI.infoMon=function(mid,lvl,key,lat,lng){const M=MONSTERS[mid],d=distM(...G.pos,lat,lng),far=d>120&&!G.dev.any,p=predict(()=>[playerUnit()],()=>mutantUnits(mid,lvl)),D=diffBlock(p);
   const sc=()=>this.info({title:M.name,sub:`Level ${lvl} mutant · ${Math.round(d)} m away`,art:imgTag(monImg(mid)),diff:D.d,body:D.html+cdBlock()+`<div class="row"><div class="grow">Drops: ${Object.entries(M.drops).map(([k,v])=>v+RES[k]).join(' ')} · card · maybe gear</div></div>`+(this._scout?`<div class="row"><div class="grow">🔍 ${statLine(mutantUnits(mid,lvl)[0])}</div></div>`:''),
     buttons:[['⚔️ Fight',()=>fightMutant(mid,lvl,key),'fight',far||cooldownLeft()>0],['🔍 Scout',()=>{this._scout=true;sc();this._scout=false;}]]});
   sc();if(far)toast(`Get within 120 m to fight (${Math.round(d)} m)`);};
 UI.infoFort=function(id){const e=enemyAt(id),s=enemyStats(e),[lat,lng]=hexCenter(...idQR(id)),d=distM(...G.pos,lat,lng),far=d>BAL.enemy.attackRangeM&&!G.dev.any;
-  const p=winChance(()=>[playerUnit()],()=>fortUnits(id),80),D=diffBlock(p),loot=Object.entries(BAL.enemy.loot).map(([k,v])=>Math.round(v*(1+s.L*BAL.enemy.lootPerLevel))+RES[k]).join(' ');
+  const p=predict(()=>[playerUnit()],()=>fortUnits(id)),D=diffBlock(p),loot=Object.entries(BAL.enemy.loot).map(([k,v])=>Math.round(v*(1+s.L*BAL.enemy.lootPerLevel))+RES[k]).join(' ');
   const draw=sc=>this.info({title:'Raider Stronghold',sub:`Enemy fort · Level ${s.L} · ${Math.round(d)} m away · ${BAL.enemy.guards} guards`,art:imgTag(monImg('enemy_fort')),diff:D.d,
     body:D.html+cdBlock()+`<div class="row"><div class="grow">Capture reward: hex + ring (${hexRing(0,0,BAL.enemy.claimRings).length} hexes) · ${loot} · Rare+ gear</div></div>`+(sc?fortUnits(id).map(u=>`<div class="row"><div class="grow">🔍 <b>${u.name}</b><small>${statLine(u)}</small></div></div>`).join(''):''),
     buttons:[['⚔️ Attack',()=>fightFort(id),'fight',far||cooldownLeft()>0],['🔍 Scout',()=>draw(true)]]});draw(false);};

@@ -81,7 +81,10 @@ UI.infoMarker=function(id){const m=G.markers[id],T=BAL.markers.types[m.type];thi
 function relocateStronghold(){const w=W(),s=w.sh,id=hexAt(...G.pos).id,S=BAL.stronghold;if(!s||s.state!=='up')return toast('Stronghold must be standing');
   if(!P.tiles[id])return toast('Stand on a hex you own');if(id===s.hex)return toast('Already here');
   const cd=(s.relocAt||0)+S.relocateCooldownDays*864e5-Date.now();if(cd>0)return toast('Relocation cooldown: '+fmtDur(cd));
-  if(!canPay(S.relocateCost))return toast('Not enough resources');pay(S.relocateCost);s.hex=id;s.relocAt=Date.now();save();drawWorld();allianceLog(`🚚 ${P.name} relocated their Stronghold`);toast('🚚 Stronghold moved (level kept)');}
+  if(!canPay(S.relocateCost))return toast('Not enough resources');pay(S.relocateCost);const dropped=releaseAreaHexes(id);s.hex=id;s.relocAt=Date.now();save();shClaimArea();drawWorld();allianceLog(`🚚 ${P.name} relocated their Stronghold`);toast(`🚚 Stronghold moved (level kept)${dropped?` · ${dropped} old area hexes released`:''}`);}
+// Stage 1g fix: hexes you only got from the old Stronghold ring (never driven) are released when it moves.
+function releaseAreaHexes(newHex){const[q,r]=idQR(newHex),keep=new Set(hexRing(q,r,shRadius()).map(x=>x.id));let n=0;
+  for(const id of Object.keys(P.tiles))if(P.tiles[id].area&&!keep.has(id)){delete P.tiles[id];NET.claimHex(id,{by:'',released:true,t:Date.now()});n++;}return n;}
 
 // ---------- PWA ----------
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(()=>{});

@@ -23,7 +23,7 @@ function shRadius(){return BAL.stronghold.radius+Math.floor((strongholdLevel()-1
 function shAreaIds(){const s=P.world&&P.world.sh;if(!s||s.state!=='up')return[];const [q,r]=idQR(s.hex);return hexRing(q,r,shRadius()).map(x=>x.id);}
 // Claims every hex in the Stronghold ring so its tiles count toward daily income (owned tiles are never counted twice).
 function shClaimArea(){if(!BAL.stronghold.areaIncome)return 0;const ids=shAreaIds().filter(id=>!P.tiles[id]&&!(enemyAt(id)&&!W().enemyTaken[id]));
-  ids.forEach(claimTile);if(ids.length){save();if(typeof drawWorld==='function')drawWorld();}return ids.length;}
+  ids.forEach(id=>{claimTile(id);P.tiles[id].area=true;});if(ids.length){save();if(typeof drawWorld==='function')drawWorld();}return ids.length;}
 function shAreaInfo(){const ids=shAreaIds(),inc={scrap:0,food:0,water:0,fuel:0,parts:0};let res=0;
   ids.forEach(id=>{const t=tileInfo(id);if(t.res){res++;inc[t.res]+=t.yield;}});const mine={};for(const k in inc)mine[k]=inc[k]-Math.round(inc[k]*BAL.reset.allianceShare);return{hexes:ids.length,res,gross:inc,mine};}
 setInterval(()=>{if(P.world&&shAreaIds().some(id=>!P.tiles[id]))shClaimArea();},5000);
@@ -40,9 +40,14 @@ function towerUpkeep(){const u={scrap:0,food:0,water:0,fuel:0,parts:0},n=Object.
 function expectedIncome(){const g=grossIncome(),u=towerUpkeep(),o={};for(const k in g){const share=Math.round(g[k]*BAL.reset.allianceShare);o[k]=g[k]-share-u[k];}return o;}
 
 // ---------- claiming by GPS path ----------
+// Stage 1g: daily claim cap. Past the cap, hexes are still revealed but not claimed.
+function claimsToday(){const d=today();if(!P.claimDay||P.claimDay.d!==d)P.claimDay={d,n:0};return P.claimDay;}
 function claimPath(prev,cur){const T=BAL.tiles,ids=new Set([hexAt(...cur).id]);
   // Only the single hex you're standing in is claimed/revealed. No path fill-in, no neighbors.
-  if(explore([...ids]))drawWorld();const fresh=[...ids].filter(id=>!P.tiles[id]);if(!fresh.length)return 0;
+  if(explore([...ids]))drawWorld();ids.forEach(id=>{if(P.tiles[id]&&P.tiles[id].area){P.tiles[id].area=false;}});// driving over a Stronghold-area hex makes it truly yours
+  let fresh=[...ids].filter(id=>!P.tiles[id]);if(!fresh.length)return 0;
+  const cd=claimsToday(),room=Math.max(0,T.dailyClaimCap-cd.n);if(!room){if(!G._capT||Date.now()-G._capT>600e3){G._capT=Date.now();toast(`Daily claim limit reached (${T.dailyClaimCap}). Hexes are still revealed; claim more after reset.`);}return 0;}
+  fresh=fresh.slice(0,room);cd.n+=fresh.length;
   fresh.forEach(claimTile);buzz(fresh.length>3?[30,40,30]:30);if(G.drive)G.drive.claimed+=fresh.length;addXP(fresh.length*T.claimXP);questProg('claims',fresh.length);
   const rich=fresh.map(tileInfo).filter(t=>t.res);toast(`🚩 +${fresh.length} hex${fresh.length>1?'es':''}`+(rich.length?` (${rich.map(t=>RES[t.res]).join('')})`:''));
   save();drawWorld();UI.hud();return fresh.length;}
@@ -85,21 +90,30 @@ function defendersFor(id){const w=W(),out=[];const s=w.sh;
   Object.entries(w.towers).forEach(([tid,t])=>{if(t.state==='up'&&t.online!==false&&hexDist(tid,id)<=towerRadius(t))out.push({kind:'tower',id:tid,power:towerPower(t)});});return out;}
 // Each attacked tile: undefended = lost; defended = a real turn-based fight (raiders vs your structures), saved for replay.
 function aiAttack(rnd,forcedPower,when=Date.now()){const A=BAL.ai,ids=Object.keys(P.tiles).sort();if(!ids.length)return null;
-  const power=forcedPower??Math.round(A.basePower+P.lvl*A.powerPerLevel+ids.length*A.powerPerTile*(0.7+rnd()*0.6));
+  const power=forcedPower??raidPower(ids.length);
   const n=Math.min(ids.length,A.targetsMin+Math.floor(rnd()*(A.targetsMax-A.targetsMin+1)));const targets=[];let guard=0;
   while(targets.length<n&&guard++<200){const id=ids[Math.floor(rnd()*ids.length)];if(!targets.includes(id))targets.push(id);}
   const res={power,lost:[],held:[],destroyed:[]},fights=[];
+  // condition is read once per raid, so several targets in one raid don't stack damage
+  const snap={};const pct=d=>{const k=d.kind+d.id;if(!(k in snap)){const o=d.kind==='sh'?W().sh:W().towers[d.id];snap[k]=o&&o.hpPct!=null?o.hpPct:1;}return snap[k];};
   targets.forEach(id=>{const defs=defendersFor(id).filter(d=>{const o=d.kind==='sh'?W().sh:W().towers[d.id];return o&&o.state==='up';});
     if(!defs.length){loseTile(id);res.lost.push(id);fights.push({tile:id,f:null});return;}
-    const f=runFight(defs.map(defenderUnit),raiderUnits(power)),fr={tile:id,f,destroyed:[]};
-    f.A.forEach(u=>{const d=u.ref,o=d.kind==='sh'?W().sh:W().towers[d.id];if(o)o.hpPct=Math.max(0,u.hp/u.max);});
-    if(f.win){res.held.push(id);addRes(BAL.ai.winLoot);}
-    else{loseTile(id);res.lost.push(id);defs.forEach(d=>{if(rnd()<A.structureLossChance){destroy(d);const nm=d.kind==='sh'?'Stronghold':'Tower';res.destroyed.push(nm);fr.destroyed.push(nm);}});}
-    f.A.forEach(u=>delete u.ref);f.startA.forEach(u=>delete u.ref);fights.push(fr);});
+    // Deterministic: total defense power (scaled by condition) vs raid power. Defense wins ties.
+    const dp=defs.reduce((a,d)=>a+Math.round(d.power*pct(d)),0),win=dp>=power,f=raidReplay(defs,dp,power),fr={tile:id,f,destroyed:[],dp};
+    if(win){const left=(dp-power*0.5)/dp;defs.forEach(d=>{const o=d.kind==='sh'?W().sh:W().towers[d.id];if(o)o.hpPct=Math.max(.1,Math.min(o.hpPct??1,pct(d)*left));});res.held.push(id);addRes(BAL.ai.winLoot);}
+    else{loseTile(id);res.lost.push(id);const wreck=dp<power*A.destroyBelow;defs.forEach(d=>{const o=d.kind==='sh'?W().sh:W().towers[d.id];if(wreck){destroy(d);const nm=d.kind==='sh'?'Stronghold':'Tower';res.destroyed.push(nm);fr.destroyed.push(nm);}else if(o)o.hpPct=.2;});}fights.push(fr);});
   const txt=`⚔️ Raiders attacked (power ${power}): ${res.held.length} held, ${res.lost.length} lost`+(res.destroyed.length?`, destroyed: ${res.destroyed.join(', ')}`:'');
   const w=W();w.reports.unshift({t:when,text:txt,win:res.lost.length===0,detail:res,fights});
   w.reports.forEach((r,i)=>{if(i>=5)delete r.fights;});w.unseen=[when,...(w.unseen||[])].slice(0,5);
   allianceLog(`${P.name}: ${txt}`);save();drawWorld();UI.hud();return res;}
+function raidPower(nTiles){const A=BAL.ai;return Math.round(A.basePower+P.lvl*A.powerPerLevel+Math.min(nTiles,A.maxTilesCounted)*A.powerPerTile);}
+function structPower(d){const o=d.kind==='sh'?W().sh:W().towers[d.id];return Math.round(d.power*(o&&o.hpPct!=null?o.hpPct:1));}
+function defensePower(defs){return defs.reduce((a,d)=>a+structPower(d),0);}
+// Replay of the power check: one combined defense vs one raider band, mirror stats, so the replay always matches the result.
+function raidReplay(defs,dp,power){const A=BAL.ai,nm=defs.map(d=>d.kind==='sh'?'Stronghold':'Tower').join(' + ');
+  const mk=(p,o)=>mkUnit({hp:Math.max(1,p*A.hpPerPower),atk:Math.max(1,p*A.atkPerPower),def:0,crit:0,agi:0,...o});
+  const f=runFight([mk(dp,{name:nm+` (power ${dp})`,svg:defs[0].kind==='sh'?strongholdSVG(strongholdLevel()):towerSVG(1)})],[mk(power,{name:`Raiders (power ${power})`,img:'raider.svg'})],400);
+  f.win=dp>=power;return f;}
 function loseTile(id){delete P.tiles[id];W().raider[id]=Date.now();NET.claimHex(id,{by:'Raiders',ai:true,color:'#e0573a',t:Date.now()});}
 function destroy(d){const w=W();if(d.kind==='sh'){w.sh.state='down';w.sh.hpPct=0;allianceLog(`💥 ${P.name}'s Stronghold was destroyed by raiders`);}else if(w.towers[d.id]){w.towers[d.id].state='down';w.towers[d.id].hpPct=0;}}
 function catchUpAI(){const w=W(),A=BAL.ai,win=A.windowHours*3600e3,now=Date.now();
@@ -110,7 +124,7 @@ function catchUpAI(){const w=W(),A=BAL.ai,win=A.windowHours*3600e3,now=Date.now(
 
 // ---------- enemy AI strongholds ----------
 function enemyAt(id){const r=seedRand('enemy:'+id);if(r()>=BAL.enemy.chancePerHex)return null;return{id,level:1+Math.floor(r()*4)};}
-function enemyStats(e){const E=BAL.enemy,L=e.level+Math.floor(P.lvl/4);return{L,hp:E.hpBase+E.hpPerLevel*L,atk:E.atkBase+E.atkPerLevel*L,def:E.defBase+E.defPerLevel*L,crit:8,agi:4};}
+function enemyStats(e){const E=BAL.enemy,L=e.level+Math.floor(P.lvl/BAL.progress.fortLevelDiv);return{L,hp:E.hpBase+E.hpPerLevel*L,atk:E.atkBase+E.atkPerLevel*L,def:E.defBase+E.defPerLevel*L,crit:8,agi:4};}
 function nearbyEnemies(){if(!G.pos)return[];const h=hexAt(...G.pos);return hexRing(h.q,h.r,BAL.enemy.scanRings).map(x=>enemyAt(x.id)).filter(e=>e&&!W().enemyTaken[e.id]&&!P.tiles[e.id]);}
 function attackEnemy(id){return UI.infoFort(id);}
 function _oldAttackEnemy(id){const e=enemyAt(id);if(!e)return;const [lat,lng]=hexCenter(...idQR(id)),d=distM(...G.pos,lat,lng);

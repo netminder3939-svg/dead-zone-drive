@@ -16,9 +16,9 @@ const MONSTERS = {
   ghoul:       {name:'Wasteland Ghoul',hp:80, atk:12, def:5, lvl:4, biome:'urban', drops:{scrap:6,food:3,parts:1}},
   enemy_fort:  {name:'Raider Stronghold',hp:800,atk:30,def:12,lvl:5,fort:true,drops:{}},
   // bosses
-  boss_tank:   {name:'Rust Behemoth',  hp:2400,atk:28,def:10,lvl:10,boss:true, drops:{scrap:60,parts:12,fuel:10}},
-  boss_queen:  {name:'Hive Queen',     hp:2000,atk:34,def:8, lvl:10,boss:true, drops:{food:50,water:40,parts:8}},
-  boss_warden: {name:'The Warden',     hp:3000,atk:24,def:14,lvl:12,boss:true, drops:{scrap:80,fuel:20,parts:15}},
+  boss_tank:   {name:'Rust Behemoth',  hp:7200,atk:28,def:10,lvl:10,boss:true, drops:{scrap:60,parts:12,fuel:10}},
+  boss_queen:  {name:'Hive Queen',     hp:6000,atk:34,def:8, lvl:10,boss:true, drops:{food:50,water:40,parts:8}},
+  boss_warden: {name:'The Warden',     hp:9000,atk:24,def:14,lvl:12,boss:true, drops:{scrap:80,fuel:20,parts:15}},
 };
 const GEAR_BASES = [
   {slot:'weapon',name:'Pipe Wrench',atk:6},{slot:'weapon',name:'Nail Bat',atk:8,crit:3},
