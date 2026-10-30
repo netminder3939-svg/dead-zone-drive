@@ -70,7 +70,7 @@ class LocalNet {
     if(r.hp<=0){r.done=true;r.won=true;} this._save();this._emit('raids',this.raids);}
   // dev helper: a teammate "finds" a boss near you
   spawnTestBoss(lat,lng){
-    const ids=['boss_tank','boss_queen','boss_warden'];const b=ids[Math.floor(Math.random()*3)];
+    const ids=['boss_crystal','boss_queen','boss_warden'];const b=ids[Math.floor(Math.random()*3)];
     const s=this.sims[Math.floor(Math.random()*3)];
     this.createRaid({id:'r'+Date.now(),bossId:b,lat:lat+0.006,lng:lng-0.004,place:'Found by '+s.name,
       hp:MONSTERS[b].hp,maxHp:MONSTERS[b].hp,endsAt:Date.now()+10*60e3,finder:s.name,participants:{},done:false});

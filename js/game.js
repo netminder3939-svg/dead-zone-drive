@@ -92,7 +92,7 @@ async function overpass(q){
   throw new Error('overpass down');}
 function fakeLandmarks(lat,lng){const r=seedRand(lat.toFixed(2)+lng.toFixed(2)),ks=Object.keys(LANDMARK_KINDS);
   return Array.from({length:14},(_,i)=>{const k=ks[i%ks.length];return{id:'f'+i,kind:k,name:LANDMARK_KINDS[k].label+' #'+(i+1),lat:lat+(r()-.5)*.03,lng:lng+(r()-.5)*.045};});}
-function lairBoss(l){const r=seedRand(l.id+today());if(r()>.22)return null;return['boss_tank','boss_queen','boss_warden'][Math.floor(r()*3)];}
+function lairBoss(l){const r=seedRand(l.id+today());if(r()>.22)return null;return['boss_crystal','boss_queen','boss_warden'][Math.floor(r()*3)];}
 function drawLandmarks(){const g=G.layers.lm;g.clearLayers();
   G.landmarks.forEach(l=>{if(P.world&&!isVis(hexAt(l.lat,l.lng).id))return;const K=LANDMARK_KINDS[l.kind],boss=lairBoss(l),v=P.badges[l.id];
     L.marker([l.lat,l.lng],{icon:L.divIcon({className:'mk lodm',html:`<div class="ico lm${v?' visited':''}${boss&&!raidFor(l.id)?' lair':''}"><span>${K.icon}</span><b class="nm">${l.name}</b></div>`,iconSize:[0,0]})})

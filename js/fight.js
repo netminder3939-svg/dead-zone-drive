@@ -167,12 +167,15 @@ async function raidAttack(id){const r=G.raids[id];if(!r||r.done)return;if(P.hp<=
   UI.replay({title:`☠️ Raid: ${B.name}`,sub:r.place,f,good:!ko,result:(f.win?`💀 ${B.name} is down! You landed the final blow.`:`You dealt <b>${dmg}</b> damage to ${B.name}.`)+(ko?` You were knocked out and need ${BAL.fight.lossCooldownMin} min to recover.`:''),
     buttons:[['⬅️ Back to raid',()=>UI.raid(id),'big']],autostart:true});}
 
-// ---------- test boss: ?testboss spawns the Crystal Knight one hex next to you ----------
-function spawnTestBossNear(){if(!G.pos)return false;const h=hexAt(...G.pos),[lat,lng]=hexCenter(h.q+1,h.r),id='test_crystal_'+today(),r=G.raids[id];
-  if(r&&!r.done&&Date.now()<r.endsAt)return true;const B=MONSTERS.boss_crystal;
-  NET.createRaid({id,bossId:'boss_crystal',lat,lng,place:'Test spawn (next hex)',hp:B.hp,maxHp:B.hp,endsAt:Date.now()+120*60e3,finder:'Test',participants:{},done:false,day:today()});
-  toast('☠️ Test boss spawned next to you');return true;}
-if(new URLSearchParams(location.search).has('testboss')){const tb=setInterval(()=>{if(typeof NET!=='undefined'&&G.pos&&P.name&&spawnTestBossNear())clearInterval(tb);},1500);}
+// ---------- Test boss button: spawns the Crystal Knight one hex next to you (local + live) ----------
+function spawnTestBossNear(){try{if(!G.pos||typeof NET==='undefined'){toast('Waiting for GPS…');return false;}
+  const h=hexAt(...G.pos),[lat,lng]=hexCenter(h.q+1,h.r),id='test_crystal_'+today(),old=G.raids[id];
+  if(old&&!old.done&&Date.now()<old.endsAt){map.setView([old.lat,old.lng],17);toast('Crystal Knight is already up next to you');return true;}
+  const B=MONSTERS.boss_crystal,id2=old?id+'_'+Date.now().toString(36):id;
+  const r={id:id2,bossId:'boss_crystal',lat,lng,place:'Next hex',hp:B.hp,maxHp:B.hp,endsAt:Date.now()+120*60e3,finder:P.name||'Test',participants:{},done:false,day:today()};
+  G.raids[id2]=r;drawRaids();if(UI.raidBanner)UI.raidBanner();
+  Promise.resolve(NET.createRaid(r)).catch(e=>{console.warn('createRaid',e);toast('Boss shown on your map only (sync failed)');});
+  toast('☠️ Crystal Knight spawned next to you');return true;}catch(e){console.warn('testboss',e);toast('Could not spawn boss');return false;}}
 
 // ---------- tower art ----------
 function towerSVG(l){let s='';const h=60+l*14,y=150-h;for(let i=0;i<l;i++)s+=`<rect x="44" y="${y+22+i*(h-30)/l}" width="32" height="3" fill="#8a7a60"/>`;
