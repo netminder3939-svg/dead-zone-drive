@@ -29,7 +29,7 @@ The world ended and mutants took over the Inland Northwest. You and your crew wa
 | Collecting | Mutant cards (with counts), landmark badges, and gear rarities |
 
 ## Art list for the artist
-Files go in ``. In `manifest.json`, set `"png": true` for that id. That's all the artist has to do.
+Files go in `assets/monsters/`. In `manifest.json`, set `"png": true` for that id. That's all the artist has to do.
 - **Monsters and bosses:** PNG, **512×512**, transparent background, facing left or the front, with a little padding around the edges. The game adds the bob, glow, and hit-shake.
   - Regular: `rad_rat`, `scrap_crawler`, `bog_leech`, `feral_hound`, `glow_moth`, `ghoul`
   - Bosses: `boss_tank` (Rust Behemoth), `boss_queen` (Hive Queen), `boss_warden` (The Warden)
@@ -56,7 +56,7 @@ Files go in ``. In `manifest.json`, set `"png": true` for that id. That's all th
 - **Towers:** cost resources plus daily upkeep, and defend 1 ring. The limit is 1 + Stronghold level. A tower goes offline if its upkeep can't be paid.
 - **AI raiders:** about 3 attacks a week, worked out from timestamps when you open the app (only once you hold 10+ hexes). An undefended tile is lost. A defended tile triggers an auto-battle, and if the defense loses, the towers or Stronghold involved can be destroyed. Results go to Base → Reports and the alliance activity feed.
 - **Enemy Raider Strongholds:** fixed spots on the map. They're hard auto-battles, and taking one gives its hex and the ring around it, plus loot and gear.
-- **All the numbers** are in `balance.js`.
+- **All the numbers** are in `js/balance.js`.
 
 ## Stage 1c (built): readable map, info cards, real fights, fog
 - **Tap = info, never a fight.** Every map object opens a card first with its level, your odds (Easy, Fair, Even, Hard or Deadly, from 150 simulated fights against your current HP and gear), rewards, and buttons: Fight, Scout, Close, or Upgrade, Repair and Patch for your own buildings.
@@ -215,3 +215,12 @@ Files go in ``. In `manifest.json`, set `"png": true` for that id. That's all th
 - **v0.3:** real art in, gear crafting from parts, base upgrades (more ring size, storage), more mutants per area.
 - **v0.4:** weekly world boss, team achievements, seasonal events (Halloween mutants), leaderboards inside the crew.
 - **v1.0:** polish, sounds, tutorial, optional push alerts, and balance from a month of real play.
+
+## Stage 2e: Auto-fight, damage meter, Crystal Knight test boss
+- **Auto-fight everywhere** (monsters, forts, raider garrisons, defense replays, boss raids). Fight screen opens paused: ▶️ Auto fight plays it round by round, ⏭️ Skip to result jumps to the end. No more repeated Attack taps.
+- **Fully deterministic.** No dodge/crit rolls; leftover DODGE/CRIT labels removed. Turn order = agility, target = lowest-HP foe, damage = `hitDamage()`.
+- **HP bars** for every member on both sides.
+- **Damage meter** (live + on result): per member damage dealt, damage per round, damage taken, healing, DPS share %, sorted. Raids also show a team meter (total dmg, share %, fights, taken) saved on the raid doc.
+- **Boss raids:** one tap = one full automatic fight (you vs boss until someone drops or 40-round cap). The raid screen predicts exactly how much damage your next fight deals.
+- **Skill trees / class paths hook:** `UNIT_MODS` (global list) and `unit.mods` (per member) in fight.js. Each is `fn(unit) -> {atk,def,hp,agi,crit,heal}` flat bonuses, applied in `mkUnit()` before every fight and prediction. A `heal` stat already works: a healer heals the lowest ally under 60% HP instead of attacking. Future paths (Tank / Striker / Medic) only need to push modifiers.
+- **Crystal Knight** (`boss_crystal`): full transparent art on the raid screen, round emblem on the map. `?testboss` spawns it one hex east of you (tap = info card first, then Join raid).
