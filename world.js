@@ -8,10 +8,14 @@ const pacificDate=(t=Date.now())=>new Intl.DateTimeFormat('en-CA',{timeZone:BAL.
 const RESN2={scrap:'Scrap',food:'Food',water:'Water',fuel:'Fuel',parts:'Parts'};
 
 // ---------- fog of war ----------
-// Visible = hexes you explored (1 ring around your path) + allies' explored hexes + any territory + 2 rings around you.
+// Visible = hexes you stood in + allies' explored hexes + any territory + your standing towers/stronghold rings (see BAL.fog).
 
 function isVis(id){if(P.explored&&P.explored[id])return true;if(G.allyExp.has(id)||G.terr[id]||P.tiles[id])return true;
-  if(G.pos&&hexDist(hexAt(...G.pos).id,id)<=BAL.fog.aroundPlayer)return true;return false;}
+  if(G.pos&&hexDist(hexAt(...G.pos).id,id)<=BAL.fog.aroundPlayer)return true;
+  // explicit rule: your standing stronghold/towers reveal their own defense ring
+  if(BAL.fog.structuresReveal&&P.world){const s=P.world.sh;if(s&&s.state==='up'&&hexDist(s.hex,id)<=BAL.stronghold.radius)return true;
+    for(const [tid,t] of Object.entries(P.world.towers))if(t.state==='up'&&hexDist(tid,id)<=towerRadius(t))return true;}
+  return false;}
 function explore(ids){P.explored=P.explored||{};const fresh=[];ids.forEach(id=>{const [q,r]=idQR(id);hexRing(q,r,BAL.fog.pathRings).forEach(x=>{if(!P.explored[x.id]){P.explored[x.id]=1;fresh.push(x.id);}});});
   if(fresh.length&&NET.shareExplored)NET.shareExplored(fresh);return fresh.length;}
 // ---------- resource tiles ----------
@@ -28,7 +32,7 @@ function expectedIncome(){const g=grossIncome(),u=towerUpkeep(),o={};for(const k
 
 // ---------- claiming by GPS path ----------
 function claimPath(prev,cur){const T=BAL.tiles,ids=new Set([hexAt(...cur).id]);
-  if(prev){const d=distM(...prev,...cur);if(d<=T.maxGapM){const n=Math.ceil(d/T.pathStepM);for(let i=0;i<=n;i++){const f=i/n;ids.add(hexAt(prev[0]+(cur[0]-prev[0])*f,prev[1]+(cur[1]-prev[1])*f).id);}}}
+  // Only the single hex you're standing in is claimed/revealed. No path fill-in, no neighbors.
   if(explore([...ids]))drawWorld();const fresh=[...ids].filter(id=>!P.tiles[id]);if(!fresh.length)return 0;
   fresh.forEach(claimTile);buzz(fresh.length>3?[30,40,30]:30);if(G.drive)G.drive.claimed+=fresh.length;addXP(fresh.length*T.claimXP);questProg('claims',fresh.length);
   const rich=fresh.map(tileInfo).filter(t=>t.res);toast(`🚩 +${fresh.length} hex${fresh.length>1?'es':''}`+(rich.length?` (${rich.map(t=>RES[t.res]).join('')})`:''));

@@ -62,7 +62,7 @@ setInterval(()=>{const m=G.dev.drive?10:G.dev.walk?1:0;if(m&&G.pos){G.walkA=(G.w
 function biomeAt(lat,lng){let b='any',best=250;G.landmarks.forEach(l=>{const d=distM(lat,lng,l.lat,l.lng);if(d<best){best=d;b=LANDMARK_KINDS[l.kind].biome;}});return b;}
 function spawnMonsters(){if(!G.pos)return;const g=G.layers.mons;g.clearLayers();G.monList=[];const win=Math.floor(Date.now()/600e3);
   const h=hexAt(...G.pos),ids=Object.keys(MONSTERS).filter(k=>!MONSTERS[k].boss&&!MONSTERS[k].fort);
-  hexRing(h.q,h.r,4).forEach(x=>{if(!isVis(x.id))return;const key=x.id+'@'+win,rnd=seedRand(key);if(rnd()>(G.night?.42:.3)||P.killed[key])return;
+  hexRing(h.q,h.r,BAL.spawn.rings).forEach(x=>{if(!isVis(x.id))return;const key=x.id+'@'+win,rnd=seedRand(key);if(rnd()>(G.night?BAL.spawn.nightChance:BAL.spawn.dayChance)||P.killed[key])return;
     const c=hexCenter(x.q,x.r),lat=c[0]+(rnd()-.5)*.0008,lng=c[1]+(rnd()-.5)*.0011,bio=biomeAt(lat,lng);
     let pool=ids.filter(k=>MONSTERS[k].biome===bio||MONSTERS[k].biome==='any');const mid=pool[Math.floor(rnd()*pool.length)];
     const lvl=Math.max(1,MONSTERS[mid].lvl+Math.floor(P.lvl*.7)+(G.night?1:0));

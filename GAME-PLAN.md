@@ -49,7 +49,7 @@ Files go in `assets/monsters/`. In `manifest.json`, set `"png": true` for that i
 - **Main menu:** Map · Base · Player · Alliance · Inventory.
 
 ## Territory update (Stage 1b, built)
-- **Claim by moving:** with the app open, every hex you walk or drive across becomes yours. When driving fast, the game fills in all the hexes between GPS readings. Tiles stay yours until raiders take them.
+- **Claim by moving:** with the app open, every hex you walk or drive across becomes yours. (Changed in 1e: only the hex you are standing in is claimed; no fill-in.) Tiles stay yours until raiders take them.
 - **Resource tiles:** each hex is fixed by its id, so everyone sees the same map. About 55% are empty. The rest hold one resource (Scrap, Food, Water, Fuel or Parts) at Common (gray), Rare (gold) or Epic (purple, about 4%).
 - **Daily income at midnight Pacific:** each owned tile pays out. 25% automatically goes to the Alliance Bank, logged as "auto-share." The top bar shows your expected gain in green next to each resource. If you miss days, up to 7 are paid when you next open the app.
 - **Stronghold on the map:** placed on a hex you own. It's expensive and takes a 6-hour build, and it defends 2 rings of hexes. If raiders destroy it, rebuilding costs 40% and takes 2 hours.
@@ -65,7 +65,7 @@ Files go in `assets/monsters/`. In `manifest.json`, set `"png": true` for that i
 - **Raids:** each member gets their own HP bar and damage total, and you can be knocked out.
 - **Map:** a bright, free Esri street map with a dusty filter, a softer hex look, a game-style top bar and buttons, and subtle day and night.
 - **Zoom detail:** zoomed out you see small icons. Zooming in adds level badges, then tower and fortress drawings with HP bars, names and defense ranges.
-- **Fog of war:** unexplored hexes stay hazy and hide tiles, mutants, forts and landmarks. Your path clears 1 ring on each side, the 2 rings around you always stay clear, and alliance members' explored hexes and territory are shared.
+- **Fog of war:** unexplored hexes stay hazy and hide tiles, mutants, forts and landmarks. (Changed in 1e: only hexes you stand in are revealed.) Alliance members' explored hexes and territory are shared.
 
 ## ✅ Requirements checklist (everything Jacob asked for)
 **Done** = works now in demo mode. **Partial** = some of it works, with the gap noted. **Not yet** = planned for a later stage.
@@ -92,7 +92,7 @@ Files go in `assets/monsters/`. In `manifest.json`, set `"png": true` for that i
 | Towers with upkeep and a defense ring | Done | Upgrades raise power and ring size (+1 ring every 2 levels) |
 | Upkeep warning | Done | Status strip warns when tomorrow's upkeep can't be paid |
 | Territory resource tiles (Common, Rare, Epic) | Done | The same for everyone, based on the hex id |
-| GPS claiming (walk or drive, fills gaps) | Done | Includes a haptic buzz on claim |
+| GPS claiming (walk or drive) | Done | Claims only the single hex you are standing in, with a haptic buzz |
 | Tiles stay yours until taken | Done | |
 | Daily reset income at midnight Pacific, green +gain | Done | Countdown in the status strip. Missed days catch up (max 7). |
 | 25% alliance auto-share | Done | Logged as auto-share |
@@ -103,7 +103,7 @@ Files go in `assets/monsters/`. In `manifest.json`, set `"png": true` for that i
 | Raid alert, replay and map flash | Done | Plus an inbox |
 | Level-of-detail zoom | Done | |
 | Game look, readable in sunlight | Done | Esri street map with a wasteland filter |
-| Fog of war, shared with the alliance | Done | 1 ring around your path, 2 around you |
+| Fog of war, shared with the alliance | Done | Reveals only the hex you're in, plus the rings of your standing towers and Stronghold |
 | Alliance bank (open, logged) | Done | |
 | Alliance roster and activity feed | Done | |
 | Leaderboards | Partial | All-time boards only. Weekly MVP needs cloud history. |
@@ -117,6 +117,10 @@ Files go in `assets/monsters/`. In `manifest.json`, set `"png": true` for that i
 | Server-side anti-cheat and authoritative timers | Not yet | Stage 3 |
 | Discord / push alerts | Not yet | Stage 3 |
 | Home-screen app (PWA) | Done | Manifest, icon, offline fallback |
+
+## Stage 1e tuning (Oct 30)
+- **Fewer mutants:** the chance a nearby hex has a mutant went from 30% to 9% by day and from 42% to 13% at night. That's about a third as many: roughly 5–6 on screen instead of about 18 in the 61 hexes around you. Bosses and lairs are unchanged. Tune it with `BAL.spawn` in balance.js.
+- **One hex at a time:** moving claims and reveals only the hex you're in. There's no fill-in between GPS readings and no neighbor reveals. Your standing towers and Stronghold still reveal their own rings (`BAL.fog.structuresReveal`).
 
 ## Stages
 - **Stage 1: Character, Stronghold and alliance (done, v0.2).** Everything above runs free on Firebase Spark, and there's also a local demo mode.

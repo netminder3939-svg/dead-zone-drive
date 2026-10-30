@@ -21,7 +21,7 @@ class LocalNet {
     this._emit('players',this.sims.map(s=>({...s})));
     // simulated teammates explore (shared fog reveal)
     this.allyExp=this.allyExp||new Set(JSON.parse(localStorage.getItem('wl_allyexp')||'[]'));const add=[];
-    this.sims.forEach(s=>{const h=hexAt(s.lat,s.lng);hexRing(h.q,h.r,1).forEach(x=>{if(!this.allyExp.has(x.id)){this.allyExp.add(x.id);add.push(x.id);}});});
+    this.sims.forEach(s=>{const h=hexAt(s.lat,s.lng);if(!this.allyExp.has(h.id)){this.allyExp.add(h.id);add.push(h.id);}});
     if(add.length){localStorage.setItem('wl_allyexp',JSON.stringify([...this.allyExp]));(this.cbs.exp||[]).forEach(f=>f(add));}
     let ch=false;
     for(const r of Object.values(this.raids)){

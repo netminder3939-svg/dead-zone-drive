@@ -12,8 +12,6 @@ const BAL={
     resMult:{scrap:1,food:1,water:1,fuel:0.7,parts:0.5},     // rarer resources pay less
     tierColor:{common:'#9aa4a8',rare:'#ffb43c',epic:'#d070ff'},
     claimXP:2,                                               // XP per newly claimed hex
-    pathStepM:40,                                            // when GPS jumps (driving), sample the path every N meters
-    maxGapM:3000,                                            // bigger GPS jumps than this are treated as glitches (no fill)
   },
   // ---- Daily reset (midnight Pacific)
   reset:{timeZone:'America/Los_Angeles',allianceShare:0.25,maxMissedDays:7},
@@ -55,7 +53,10 @@ const BAL={
     loot:{scrap:120,food:40,water:40,fuel:25,parts:15}, lootPerLevel:0.35,
   },
 };
-BAL.fog={pathRings:1,aroundPlayer:2,opacity:0.62};
+// Fog: moving reveals ONLY the hex you're in (0 = no neighbors). Standing towers/stronghold reveal their ring.
+BAL.fog={pathRings:0,aroundPlayer:0,structuresReveal:true,opacity:0.62};
+// Mutant spawns: chance a visible hex near you holds a mutant (was 0.30 day / 0.42 night).
+BAL.spawn={dayChance:0.09,nightChance:0.13,rings:4};
 // ---- Fights, penalties, structures (Stage 1c)
 BAL.fight={maxRounds:40,lossCooldownMin:2,lossScrapPct:0.10,lossScrapMax:25,lossHpPct:0.25,scoutSims:150};
 BAL.enemy.guards=2; BAL.enemy.guardMult=0.3;
