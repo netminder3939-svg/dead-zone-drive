@@ -35,9 +35,9 @@ h2{margin:4px 0 10px;font-size:19px;letter-spacing:.5px}h3{margin:14px 0 6px;fon
 #modal{position:fixed;inset:0;z-index:950;background:#000b;display:flex;align-items:center;justify-content:center;padding:16px}
 #modalBody{background:#161a1c;border:1px solid var(--line);border-radius:16px;width:100%;max-width:420px;padding:16px;max-height:90vh;overflow:auto}
 .arena{position:relative;height:200px;display:flex;align-items:center;justify-content:center;background:radial-gradient(#2b2f22,#111 70%);border-radius:12px;overflow:hidden}
-.mon{width:170px;height:170px;object-fit:contain;animation:bob 2.6s ease-in-out infinite;filter:drop-shadow(0 0 10px var(--glow,#8fd14f88))}
+.arena .mon{width:170px;height:170px;object-fit:contain;animation:bob 2.6s ease-in-out infinite;filter:drop-shadow(0 0 10px var(--glow,#8fd14f88))}
 .mon.boss{width:200px;height:200px;--glow:#ff5a3a99}
-.mon.hit{animation:shake .35s,bob 2.6s ease-in-out infinite}.mon.dead{animation:die .8s forwards}
+.arena .mon.hit{animation:shake .35s,bob 2.6s ease-in-out infinite}.arena .mon.dead{animation:die .8s forwards}
 @keyframes bob{50%{transform:translateY(-8px)}}@keyframes shake{0%,100%{translate:0}20%{translate:-9px}40%{translate:8px}60%{translate:-6px}80%{translate:4px}}
 @keyframes die{to{opacity:0;transform:scale(.6) rotate(12deg);filter:grayscale(1)}}
 .dmg{position:absolute;font-weight:800;font-size:22px;color:#ffd24a;text-shadow:0 2px 3px #000;animation:float 1s forwards;pointer-events:none}.dmg.crit{color:#ff5a3a;font-size:28px}.dmg.me{color:#ff6b6b}
@@ -45,7 +45,7 @@ h2{margin:4px 0 10px;font-size:19px;letter-spacing:.5px}h3{margin:14px 0 6px;fon
 .hpline{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);margin-top:8px}
 .log{font-size:12px;color:var(--dim);height:64px;overflow:hidden;margin:8px 0}
 .mk{font-size:24px;text-align:center;line-height:34px;filter:drop-shadow(0 2px 2px #000)}
-.mk img{width:44px;height:44px;animation:bob 2.6s infinite}
+.mk img{width:44px;height:44px}
 .mk-boss img{width:60px;height:60px;filter:drop-shadow(0 0 8px #ff4a2a)}
 .mk-lm{background:#1b2023dd;border:2px solid #555;border-radius:50%;width:34px!important;height:34px!important;font-size:18px}
 .mk-lm.visited{border-color:var(--acc)}.mk-lm.lair{border-color:#e0573a;box-shadow:0 0 12px #e0573a}
@@ -92,8 +92,8 @@ button.fight,.ibtns .fight{background:linear-gradient(#d8582f,#9a2e14);border:1p
 .ico .lv{font-size:10px;font-weight:800;background:#1c1813e6;color:#ffd27a;border:1px solid #6b5a3a;padding:0 5px;border-radius:7px;margin-top:-6px;white-space:nowrap}
 .ico .nm{font-size:10px;font-weight:700;color:#1c1813;background:#f2e6c8e6;padding:1px 5px;border-radius:6px;margin-top:2px;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis}
 .ico .hpb{width:54px;height:6px;margin-top:2px;background:#0008;border-radius:3px;overflow:hidden;border:1px solid #0009}.ico .hpb i{display:block;height:100%}
-.ico.mon img{width:30px;height:30px;animation:bob 2.6s infinite;filter:drop-shadow(0 2px 2px #000a) drop-shadow(0 0 4px #8fd14f)}
-.ico.boss img{width:48px;height:48px;animation:bob 2.6s infinite;filter:drop-shadow(0 0 8px #ff4a2a)}
+.ico.mon img{width:30px;height:30px;filter:drop-shadow(0 2px 2px #000a) drop-shadow(0 0 4px #8fd14f)}
+.ico.boss img{width:48px;height:48px;filter:drop-shadow(0 0 8px #ff4a2a)}
 .ico.lm span{width:26px;height:26px;border-radius:50%;background:#f2e6c8;border:2px solid #6b5a3a;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 4px #0008}
 .ico.lm.visited span{border-color:#d6a03a}.ico.lm.lair span{border-color:#e0573a;box-shadow:0 0 12px #e0573a}
 .ico.rt{display:none}.ico.rt span{width:20px;height:20px;border-radius:50%;background:#f2e6c8ee;border:2px solid #9aa4a8;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 1px 3px #0008}
