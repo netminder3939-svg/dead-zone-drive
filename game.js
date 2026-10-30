@@ -29,17 +29,8 @@ L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_D
 const meMarker=L.marker([0,0],{icon:L.divIcon({className:'',html:'<div class="me-dot"></div>',iconSize:[18,18]}),zIndexOffset:1000});
 const reachCircle=L.circle([0,0],{radius:120,color:'#4ad7ff',weight:1,opacity:.4,fillOpacity:.04,interactive:false});
 
-function drawHexes(){const g=G.layers.hex;g.clearLayers();if(map.getZoom()<14)return;
-  const c=map.getCenter(),h=hexAt(c.lat,c.lng),n=map.getZoom()>=16?7:12;
-  hexRing(h.q,h.r,n).forEach(x=>{if(G.terr[x.id])return;L.polygon(hexPoly(x.q,x.r),{color:'#d6a03a',weight:.8,opacity:.38,fill:false,interactive:false}).addTo(g);});}
-function drawTerritory(){const g=G.layers.terr;g.clearLayers();
-  Object.entries(G.terr).forEach(([id,t])=>{const [q,r]=id.split('_').map(Number);
-    L.polygon(hexPoly(q,r),{color:t.color||'#d6a03a',weight:t.core?2:1,opacity:.8,fillOpacity:t.core?.32:.16,interactive:!!t.core})
-      .bindPopup(`<b>${t.tower?'🗼 Watchtower':t.core?'⛺ Outpost':'Team land'}</b><br>by ${t.by}`).addTo(g);
-    if(t.core)L.marker(hexCenter(q,r),{icon:L.divIcon({className:'mk',html:t.tower?'🗼':'⛺',iconSize:[30,30]}),interactive:false}).addTo(g);});
-  drawHexes();}
-map.on('moveend',drawHexes);
-map.on('click',e=>{if(G.dev.tp){setPos(e.latlng.lat,e.latlng.lng);}});
+map.on('moveend',()=>drawWorld());
+map.on('click',e=>{if(G.dev.tp){G.jump=true;setPos(e.latlng.lat,e.latlng.lng);}});
 
 function dayNight(){const h=new Date().getHours()+new Date().getMinutes()/60;let a=0,c='10,20,60';
   if(h<5.5||h>=21)a=.38;else if(h<7)a=.38*(7-h)/1.5;else if(h>=19)a=.38*(h-19)/2;if(h>=17&&h<20){c='60,25,10';a=Math.max(a,.12);}
@@ -49,25 +40,26 @@ setInterval(dayNight,60e3);dayNight();
 // ---------- position ----------
 function setPos(lat,lng){
   if(G.pos){const d=distM(G.pos[0],G.pos[1],lat,lng);if(d<2000){P.stats.meters+=d;P.contrib.km+=d/1000;questProg('meters',Math.round(d));}}
-  const first=!G.pos;G.pos=[lat,lng];meMarker.setLatLng(G.pos).addTo(map);reachCircle.setLatLng(G.pos).addTo(map);
+  const prev=G.jump?null:G.pos;G.jump=false;const first=!G.pos;G.pos=[lat,lng];meMarker.setLatLng(G.pos).addTo(map);reachCircle.setLatLng(G.pos).addTo(map);
   if(first)map.setView(G.pos,16);
   NET.setCenter(lat,lng);
   if(!G.lmCenter||distM(lat,lng,...G.lmCenter)>1500)loadLandmarks(lat,lng);
-  spawnMonsters();checkLandmarks();UI.claimBtn();save();
+  spawnMonsters();checkLandmarks();if(P.world)claimPath(prev,G.pos);UI.claimBtn();save();
 }
 function startGPS(){
   if(!navigator.geolocation){toast('No GPS — use 🧪 dev tools');setPos(47.8135,-116.8968);return;}
-  navigator.geolocation.watchPosition(p=>{if(!G.dev.walk&&!G.dev.tp)setPos(p.coords.latitude,p.coords.longitude);},
+  navigator.geolocation.watchPosition(p=>{if(!G.dev.walk&&!G.dev.drive&&!G.dev.tp)setPos(p.coords.latitude,p.coords.longitude);},
     e=>{toast('GPS off — dev mode at Rathdrum');if(!G.pos)setPos(47.8135,-116.8968);},{enableHighAccuracy:true,maximumAge:5000});
   setTimeout(()=>{if(!G.pos)setPos(47.8135,-116.8968);},6000);
 }
-setInterval(()=>{if(G.dev.walk&&G.pos){G.walkA=(G.walkA||0)+(Math.random()-.5)*.6;
-  setPos(G.pos[0]+0.00012*Math.cos(G.walkA),G.pos[1]+0.00016*Math.sin(G.walkA));map.panTo(G.pos,{animate:true});}},1500);
+// Dev: simulated walk (~15 m steps) or drive (~150 m steps, tests filling hexes between GPS points)
+setInterval(()=>{const m=G.dev.drive?10:G.dev.walk?1:0;if(m&&G.pos){G.walkA=(G.walkA||0)+(Math.random()-.5)*(G.dev.drive?.25:.6);
+  setPos(G.pos[0]+0.00012*m*Math.cos(G.walkA),G.pos[1]+0.00016*m*Math.sin(G.walkA));map.panTo(G.pos,{animate:true});}},1500);
 
 // ---------- mutant spawns (deterministic per hex per 10 min, so everyone sees the same ones) ----------
 function biomeAt(lat,lng){let b='any',best=250;G.landmarks.forEach(l=>{const d=distM(lat,lng,l.lat,l.lng);if(d<best){best=d;b=LANDMARK_KINDS[l.kind].biome;}});return b;}
 function spawnMonsters(){if(!G.pos)return;const g=G.layers.mons;g.clearLayers();const win=Math.floor(Date.now()/600e3);
-  const h=hexAt(...G.pos),ids=Object.keys(MONSTERS).filter(k=>!MONSTERS[k].boss);
+  const h=hexAt(...G.pos),ids=Object.keys(MONSTERS).filter(k=>!MONSTERS[k].boss&&!MONSTERS[k].fort);
   hexRing(h.q,h.r,4).forEach(x=>{const key=x.id+'@'+win,rnd=seedRand(key);if(rnd()>(G.night?.42:.3)||P.killed[key])return;
     const c=hexCenter(x.q,x.r),lat=c[0]+(rnd()-.5)*.0008,lng=c[1]+(rnd()-.5)*.0011,bio=biomeAt(lat,lng);
     let pool=ids.filter(k=>MONSTERS[k].biome===bio||MONSTERS[k].biome==='any');const mid=pool[Math.floor(rnd()*pool.length)];
@@ -112,20 +104,11 @@ function checkLandmarks(){G.landmarks.forEach(l=>{const d=distM(...G.pos,l.lat,l
 function startBattle(mid,lvl,key){const M=MONSTERS[mid],sc=1+(lvl-M.lvl)*.15,foe={hp:Math.round(M.hp*sc),atk:Math.round(M.atk*sc),def:Math.round(M.def*sc),crit:5};
   if(P.hp<10)return toast('Too hurt — rest a bit (HP regenerates)');
   UI.battle(M,mid,lvl,foe,key);}
-function battleWin(mid,lvl,key){P.killed[key]=1;P.stats.kills++;questProg('kills');addXP(15+lvl*5);
+function battleWin(mid,lvl,key){if(key.startsWith('fort:'))return{fort:captureEnemy(key.slice(5))};P.killed[key]=1;P.stats.kills++;questProg('kills');addXP(15+lvl*5);
   const M=MONSTERS[mid];addRes(M.drops,1+lvl*.1+(towerBonus()),true);P.contrib.kills++;P.cards[mid]=(P.cards[mid]||0)+1;
   let loot=null;if(Math.random()<.3+(stats().luck+skillFx('lootq'))/100){loot=rollGear(lvl);P.inv.push(loot);}save();spawnMonsters();return loot;}
-function towerBonus(){return Object.values(G.terr).filter(t=>t.tower).length?0.1:0;}
+function towerBonus(){return P.world&&Object.values(P.world.towers).some(t=>t.state==='up')?0.1:0;}
 setInterval(()=>{const m=stats().hp;if(P.hp<m){P.hp=Math.min(m,P.hp+2+skillFx('regen'));UI.hud();}},10e3);
-
-// ---------- territory ----------
-function claimHere(){if(!G.pos)return;const h=hexAt(...G.pos);if(G.terr[h.id]?.core)return toast('Already an outpost here');
-  const c=Object.fromEntries(Object.entries(BUILD.outpost.cost).map(([k,v])=>[k,Math.round(v*(1-Math.min(.5,skillFx('outcost')/100)))]));if(!canPay(c))return toast('Need '+Object.entries(c).map(([k,v])=>v+RES[k]).join(' '));
-  pay(c);const data={by:P.name,color:P.color,t:Date.now()};
-  hexRing(h.q,h.r,1).forEach(x=>{if(!G.terr[x.id])NET.claimHex(x.id,{...data,core:false});});
-  NET.claimHex(h.id,{...data,core:true});questProg('claims');addXP(40);P.contrib.hexes+=7;allianceLog(`⛺ ${P.name} built an outpost (+7 hexes)`);toast('⛺ Outpost built — hex claimed for the team');save();UI.hud();}
-function buildTower(id){const t=G.terr[id];const c=BUILD.tower.cost;if(!canPay(c))return toast('Need '+Object.entries(c).map(([k,v])=>v+RES[k]).join(' '));
-  pay(c);NET.claimHex(id,{...t,tower:true});toast('🗼 Watchtower built: +10% loot for everyone');save();UI.hud();}
 
 // ---------- raids ----------
 function drawRaids(){const g=G.layers.raids;g.clearLayers();
@@ -145,11 +128,11 @@ const NET=makeNet();
 async function boot(){
   ensureQuests();P.uid=await NET.init(P);save();
   $('#mode').textContent=NET.mode==='local'?'● LOCAL DEMO (offline)':'● LIVE · team '+NET.team;
-  NET.onTerritory(t=>{G.terr=t;drawTerritory();UI.claimBtn();});
+  W();NET.onTerritory(t=>{G.terr=t;drawWorld();UI.claimBtn();});
   NET.onRaids(r=>{G.raids=r;drawRaids();UI.raidBanner();UI.refreshRaid();});
   // Privacy: teammates' GPS positions are never shared or shown. Only roster stats + last active.
   NET.onAlliance(a=>{G.al=a;if(UI.tab==='alliance')UI.render();});pushMember();setInterval(pushMember,60e3);
-  shTick();
+  shTick();await runResets();catchUpAI();drawWorld();setInterval(()=>runResets(),60e3);
   UI.hud();startGPS();
 }
 

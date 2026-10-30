@@ -2,12 +2,18 @@
 const UI={
   hud(){const s=stats();$('#pname').textContent=P.name;$('#plvl').textContent='Lv'+P.lvl;
     $('#hpbar').style.width=(100*P.hp/s.hp)+'%';$('#xpbar').style.width=(100*P.xp/(P.lvl*100))+'%';
-    $('#res').innerHTML=Object.keys(RES).map(k=>`<span>${RES[k]} ${P.res[k]||0}</span>`).join('');},
+    const inc=P.world?expectedIncome():{};$('#res').innerHTML=Object.keys(RES).map(k=>`<span>${RES[k]} ${P.res[k]||0}${inc[k]?` <em class="${inc[k]>0?'inc':'dec'}">${inc[k]>0?'+':''}${inc[k]}</em>`:''}</span>`).join('');},
   badge(tab,on){const b=document.querySelector(`[data-tab=${tab}]`);b.querySelector('.dot')?.remove();if(on)b.insertAdjacentHTML('beforeend','<i class="dot"></i>');},
-  claimBtn(){if(!G.pos)return;const h=hexAt(...G.pos);$('#btnClaim').style.opacity=G.terr[h.id]?.core?.4:1;},
+  claimBtn(){if(!G.pos||!P.world)return;$('#btnClaim').style.opacity=P.tiles[hexAt(...G.pos).id]?1:.45;},
+  build(){if(!G.pos)return;const id=hexAt(...G.pos).id,t=tileInfo(id),own=!!P.tiles[id],w=W(),sh=w.sh;const cost=c=>Object.entries(c).filter(([,v])=>v).map(([k,v])=>`<span class="${(P.res[k]||0)<v?'short':''}">${v} ${RES[k]}</span>`).join(' ');
+    const canSh=!sh||sh.state==='down';
+    this.modal(`<h2>🏗️ Hex ${id}</h2><div class="row"><div class="grow">${t.res?`${RES[t.res]} <b style="color:${BAL.tiles.tierColor[t.tier]}">${t.tier.toUpperCase()}</b> ${RESN2[t.res]} tile · +${t.yield}/day`:'Empty tile (no resource)'}<small>${own?'✅ You own this hex':'❌ Not yours yet: walk across it to claim it'}</small></div></div>
+    ${canSh?`<div class="row"><div class="grow"><b>🏰 ${sh?'Rebuild':'Place'} Stronghold here</b><small>${cost(shCostNow())}</small><small>Takes ${sh?BAL.stronghold.rebuildHours:BAL.stronghold.buildHours}h · defends ${BAL.stronghold.radius} rings</small></div><button ${own?'':'disabled'} onclick="placeStronghold('${id}');UI.closeModal()">Build</button></div>`:''}
+    <div class="row"><div class="grow"><b>🗼 Tower</b><small>${cost(BAL.tower.cost)} · ${Object.entries(BAL.tower.upkeep).map(([k,v])=>v+RES[k]).join(' ')}/day</small><small>${Object.values(w.towers).filter(x=>x.state!=='down').length}/${towerMax()} built${towerMax()?'':' · needs a Stronghold'}</small></div><button ${own&&towerMax()?'':'disabled'} onclick="placeTower('${id}');UI.closeModal()">Build</button></div>
+    <button style="width:100%" onclick="UI.closeModal()">Close</button>`);},
   open(tab){this.tab=tab;this.badge(tab,false);$('#sheet').classList.remove('hidden');this.render();},
   close(){$('#sheet').classList.add('hidden');this.tab=null;},
-  SUBS:{base:[['fort','🏰 Stronghold'],['terr','⛺ Territory']],player:[['stats','📊 Stats'],['skills','🌳 Skills'],['gear','🗡️ Gear'],['quests','📜 Quests']],
+  SUBS:{base:[['fort','🏰 Stronghold'],['terr','🗺️ Territory'],['reports','⚔️ Reports']],player:[['stats','📊 Stats'],['skills','🌳 Skills'],['gear','🗡️ Gear'],['quests','📜 Quests']],
     alliance:[['over','Overview'],['members','Members'],['bank','Resources'],['act','Activity']],inv:[['res','Resources'],['items','Items'],['dex','Collection']]},
   sub:{},
   subnav(t){return`<div class="seg">${this.SUBS[t].map(([k,n])=>`<button class="${this.sub[t]===k?'on':''}" onclick="UI.sub['${t}']='${k}';UI.render()">${n}</button>`).join('')}</div>`;},
@@ -19,11 +25,19 @@ const UI={
       if(up){const tot=up-S.upStart,left=up-Date.now();h+=`<h3>Upgrading to Lv ${L+1}</h3><div class="row"><div class="grow">⏳ <b id="shleft">${fmtDur(left)}</b> left<small>Keeps going while the app is closed.</small><div class="prog"><i id="shprog" style="width:${100*(1-left/tot)}%"></i></div></div></div>`;}
       else if(L<SH_MAX){h+=`<h3>Next: Lv ${L+1}</h3><div class="row"><div class="grow">Cost: ${cost(shCost(L))}<small>Time: ${fmtDur(shTime(L))} · +2 🛡️ · +10 ❤️</small></div></div><button class="big" onclick="shUpgrade();UI.render()">Upgrade Stronghold</button>`;}
       else h+='<p>Fully fortified. 💪</p>';}
-    if(t==='base'&&sub==='terr'){const mine=Object.entries(G.terr).filter(([,x])=>x.core);
-      h+=`<h2>⛺ Team Territory</h2><div class="row"><div class="grow">🗺️ ${Object.keys(G.terr).length} hexes · ⛺ ${mine.length} outposts · 🗼 ${mine.filter(([,x])=>x.tower).length} towers</div></div>
-      ${Object.entries(BUILD).map(([k,v])=>`<div class="row"><div class="grow"><b>${v.name}</b><small>${v.desc}</small><small>Cost: ${cost(v.cost)}</small></div></div>`).join('')}
-      <p class="tiny">Stand in a hex and tap ⛺ on the map to build an outpost. Full outposts &amp; AI factions arrive in Stage 2.</p>
-      ${mine.map(([id,x])=>`<div class="row"><div class="grow">${x.tower?'🗼':'⛺'} Hex ${id}<small>by ${x.by}</small></div>${x.tower?'':`<button onclick="buildTower('${id}');UI.render()">→ 🗼</button>`}<button onclick="UI.go('${id}')">📍</button></div>`).join('')}`;}
+    if(t==='base'&&sub==='terr'){const w=W(),ids=Object.keys(P.tiles),g=grossIncome(),e=expectedIncome(),u=towerUpkeep(),sh=w.sh;
+      const tiers={common:0,rare:0,epic:0};let empty=0;ids.forEach(id=>{const x=tileInfo(id);x.res?tiers[x.tier]++:empty++;});
+      const shTxt=!sh?'Not placed yet':sh.state==='down'?'💥 Destroyed: rebuild for '+Math.round(BAL.stronghold.rebuildMult*100)+'% of the cost':sh.state==='building'?'⏳ Building: '+fmtDur(sh.buildEnd-Date.now())+' left':'✅ Standing at hex '+sh.hex;
+      const towers=Object.entries(w.towers);
+      h+=`<h2>🗺️ Territory</h2><div class="stats"><div><b>${ids.length}</b><small>Hexes owned</small></div><div><b style="color:${BAL.tiles.tierColor.rare}">${tiers.rare}</b><small>Rare tiles</small></div><div><b style="color:${BAL.tiles.tierColor.epic}">${tiers.epic}</b><small>Epic tiles</small></div></div>
+      <p class="tiny">Walk or drive across hexes to claim them. They stay yours until raiders take them.</p>
+      <h3>Next daily reset (midnight Pacific)</h3><table class="log2"><tr><th></th><th>Tiles</th><th>Alliance 25%</th><th>Upkeep</th><th>You get</th></tr>
+      ${Object.keys(RES).map(k=>`<tr><td>${RES[k]}</td><td>${g[k]}</td><td>-${Math.round(g[k]*BAL.reset.allianceShare)}</td><td>${u[k]?'-'+u[k]:''}</td><td class="${e[k]>=0?'pos':'neg'}">${e[k]>=0?'+':''}${e[k]}</td></tr>`).join('')}</table>
+      <h3>🏰 Map Stronghold</h3><div class="row"><div class="grow">${shTxt}<small>Defends hexes within ${BAL.stronghold.radius} rings · ${sh?'':'Cost: '+cost(shCostNow())}${sh&&sh.state==='down'?'Rebuild: '+cost(shCostNow()):''}</small></div>${sh&&sh.state!=='down'?`<button onclick="UI.go('${sh.hex}')">📍</button>`:''}</div>
+      <h3>🗼 Towers (${towers.filter(([,x])=>x.state!=='down').length}/${towerMax()})</h3><p class="tiny">Cost ${cost(BAL.tower.cost)} · upkeep ${Object.entries(BAL.tower.upkeep).map(([k,v])=>v+RES[k]).join(' ')}/day · defends ${BAL.tower.radius} ring</p>
+      ${towers.map(([id,x])=>`<div class="row"><div class="grow">🗼 ${id}<small>${x.state==='down'?'💥 destroyed':x.state==='building'?'⏳ '+fmtDur(x.buildEnd-Date.now()):x.online===false?'⚠️ offline (upkeep unpaid)':'✅ online'}</small></div><button onclick="UI.go('${id}')">📍</button></div>`).join('')}
+      <button class="big" onclick="UI.close();UI.build()">🏗️ Build on my current hex</button>`;}
+    if(t==='base'&&sub==='reports'){const r=W().reports;h+=`<h2>⚔️ Battle Reports</h2>${r.map(x=>`<div class="act ${x.win?'':'bad'}"><small>${when(x.t)}</small> ${x.text}</div>`).join('')||'<p class="tiny">Quiet so far. Raiders usually hit a few times a week once you hold '+BAL.ai.minTiles+'+ hexes.</p>'}`;}
     if(t==='player'&&sub==='stats'){const s=stats();
       h+=`<h2>${P.name} <small class="lv">Lv ${P.lvl}</small></h2><div class="prog"><i style="width:${100*P.xp/(P.lvl*100)}%;background:var(--acc)"></i></div><p class="tiny">${P.xp}/${P.lvl*100} XP · ${P.sp||0} skill point(s) to spend</p>
       <div class="stats">${Object.entries(STAT_INFO).map(([k,[i,n]])=>`<div><b>${i} ${k==='hp'?P.hp+'/'+s.hp:s[k]}</b><small>${n}</small></div>`).join('')}</div>
@@ -63,7 +77,7 @@ const UI={
         <div class="stats">${Object.keys(RES).map(k=>`<div><b>${RES[k]} ${A.bank[k]||0}</b><small>${RESN[k]} · you ${P.res[k]||0}</small></div>`).join('')}</div>
         <div class="seg"><button class="${mode==='deposit'?'on':''}" onclick="G.bankMode='deposit';UI.render()">⬆️ Deposit</button><button class="${mode==='withdraw'?'on':''}" onclick="G.bankMode='withdraw';UI.render()">⬇️ Withdraw</button></div>
         <div class="row"><select id="bkres">${Object.keys(RES).map(k=>`<option value="${k}">${RES[k]} ${RESN[k]}</option>`).join('')}</select><input id="bkamt" type="number" inputmode="numeric" min="1" placeholder="Amount"><button id="bkgo" onclick="bankTx($('#bkres').value,+$('#bkamt').value)">${mode==='deposit'?'Deposit':'Withdraw'}</button></div>
-        <h3>Transaction log</h3><table class="log2"><tr><th>When</th><th>Member</th><th>Change</th><th>Balance</th></tr>${A.log.map(x=>`<tr><td>${when(x.t)}</td><td>${x.member}</td><td class="${x.amt>0?'pos':'neg'}">${x.amt>0?'+':''}${x.amt} ${RES[x.res]}</td><td>${x.bal}</td></tr>`).join('')||'<tr><td colspan=4>No transactions yet</td></tr>'}</table>`;}
+        <h3>Transaction log</h3><table class="log2"><tr><th>When</th><th>Member</th><th>Change</th><th>Balance</th></tr>${A.log.map(x=>`<tr><td>${when(x.t)}</td><td>${x.member}</td><td class="${x.amt>0?'pos':'neg'}">${x.amt>0?'+':''}${x.amt} ${RES[x.res]}${x.kind==='auto-share'?'<br><span class="tag">auto-share</span>':''}</td><td>${x.bal}</td></tr>`).join('')||'<tr><td colspan=4>No transactions yet</td></tr>'}</table>`;}
       if(sub==='act'){h+=`<h2>📣 Activity</h2>${A.act.map(actLine).join('')||'<p class="tiny">Nothing yet.</p>'}`;}}
     b.innerHTML=h;},
   equip(id){const g=P.inv.find(x=>x.id===id);P.equip[g.slot]=id;P.hp=Math.min(P.hp,stats().hp);save();this.render();},
@@ -81,7 +95,7 @@ const UI={
       if(fhp<=0)return end(true);const b=simulateRound(foe,s);mhp=Math.max(0,mhp-b.dmg);pop(b.dmg,b.crit,true);log(`${M.name} hits you for ${b.dmg}`);$('#bme').textContent=mhp;
       if(mhp<=0)end(false);},700);
     const end=win=>{clearInterval(iv);P.hp=Math.max(1,mhp);let msg;
-      if(win){$('#mon').classList.add('dead');const g=battleWin(mid,lvl,key);msg=`🏆 Victory! +${Object.entries(M.drops).map(([k,v])=>v+RES[k]).join(' ')} · 🃏 card`+(g?`<br>Loot: ${gearLine(g)}`:'');}
+      if(win){$('#mon').classList.add('dead');const g=battleWin(mid,lvl,key);if(g&&g.fort){const f=g.fort;msg=`🏴 Stronghold captured! +${f.hexes} hexes · ${Object.entries(f.loot).map(([k,v])=>v+RES[k]).join(' ')}<br>Loot: ${gearLine(f.gear)}`;}else msg=`🏆 Victory! +${Object.entries(M.drops).map(([k,v])=>v+RES[k]).join(' ')} · 🃏 card`+(g?`<br>Loot: ${gearLine(g)}`:'');}
       else{msg='💀 You retreated with 1 HP. Rest to heal.';}
       save();log('<b style="color:var(--txt)">'+msg+'</b>');const d=$('#bdone');d.disabled=false;d.textContent='Continue';d.onclick=()=>this.closeModal();};},
   raid(id){this.raidOpen=id;const r=G.raids[id];if(!r)return;
@@ -112,10 +126,13 @@ function pop(n,crit,me){const a=$('#arena');if(!a)return;const d=document.create
 setInterval(()=>{UI.raidBanner();UI.refreshRaid();const S=P.stronghold;if(S&&S.upEnd&&$('#shleft')){$('#shleft').textContent=fmtDur(S.upEnd-Date.now());$('#shprog').style.width=(100*(1-(S.upEnd-Date.now())/(S.upEnd-S.upStart)))+'%';}},1000);
 
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));if(b.dataset.tab==='map'||UI.tab===b.dataset.tab){UI.close();document.querySelector('[data-tab=map]').classList.add('on');}else UI.open(b.dataset.tab);});
-$('#sheetX').onclick=()=>UI.close();$('#btnCenter').onclick=()=>G.pos&&map.setView(G.pos,16);$('#btnClaim').onclick=claimHere;
+$('#sheetX').onclick=()=>UI.close();$('#btnCenter').onclick=()=>G.pos&&map.setView(G.pos,16);$('#btnClaim').onclick=()=>UI.build();
 $('#btnDev').onclick=()=>{$('#devbar').classList.toggle('hidden');G.dev.any=true;};
 document.querySelectorAll('#devbar button').forEach(b=>b.onclick=()=>{const k=b.dataset.dev;
-  if(k==='walk'||k==='tp'){G.dev[k]=!G.dev[k];b.classList.toggle('on',G.dev[k]);toast(k==='walk'?'Auto-walk '+(G.dev.walk?'on':'off'):'Tap the map to teleport');}
+  if(k==='walk'||k==='drive'||k==='tp'){G.dev[k]=!G.dev[k];b.classList.toggle('on',G.dev[k]);toast(k==='tp'?'Tap the map to teleport':(k==='walk'?'Walk ':'Drive ')+(G.dev[k]?'on':'off'));}
+  if(k==='daily'){W().lastReset=pacificDate(Date.now()-864e5);runResets().then(()=>UI.render());}
+  if(k==='ai'){const r=aiAttack(seedRand('dev'+Date.now()));toast(r?`⚔️ Raid: ${r.held.length} held, ${r.lost.length} lost`:'No tiles to attack');}
+  if(k==='finish'){devFinishBuilds();toast('Builds finished');}
   if(k==='boss'&&G.pos){NET.spawnTestBoss(...G.pos);toast('A teammate found a boss!');}
   if(k==='rath'){G.dev.tp=true;setPos(47.8135,-116.8968);map.setView(G.pos,16);}
   if(k==='reset'&&confirm('Wipe all local progress?')){localStorage.clear();location.reload();}});

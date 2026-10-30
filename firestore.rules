@@ -34,7 +34,8 @@ service cloud.firestore {
         allow create: if signedIn() && request.resource.data.uid == request.auth.uid
                       && request.resource.data.t == request.time
                       && request.resource.data.res in ['scrap','food','water','fuel','parts']
-                      && request.resource.data.amt is int && request.resource.data.bal is int;
+                      && request.resource.data.amt is int && request.resource.data.bal is int
+                      && request.resource.data.get('kind','deposit') in ['deposit','withdraw','auto-share'];
         allow update, delete: if false;
       }
 

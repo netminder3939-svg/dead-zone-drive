@@ -38,8 +38,10 @@ class LocalNet {
   onAlliance(f){(this.cbs.al=this.cbs.al||[]).push(f);this._al();this._emitAl();}
   updateMember(m){this._al().members[this.uid||'me']={...m,lastActive:Date.now(),me:true};this._alSave();}
   activity(text){this._al().act.unshift({text,t:Date.now()});this._alSave();}
+  async bankMulti(uid,name,obj,kind){const a=this._al();let tot=0;for(const [res,amt] of Object.entries(obj)){if(!amt)continue;a.bank[res]=(a.bank[res]||0)+amt;tot+=amt;a.log.unshift({member:name,uid,res,amt,bal:a.bank[res],kind,t:Date.now()});}
+    a.act.unshift({text:`🌅 Daily reset: ${name}'s 25% auto-share sent ${tot} resources to the bank`,t:Date.now()});this._alSave();}
   async bankTx(uid,name,res,amt){const a=this._al(),bal=(a.bank[res]||0)+amt;if(bal<0)throw new Error('Bank only has '+(a.bank[res]||0));
-    a.bank[res]=bal;a.log.unshift({member:name,uid,res,amt,bal,t:Date.now()});a.act.unshift({text:`${name} ${amt>0?'deposited':'withdrew'} ${Math.abs(amt)} ${res}`,t:Date.now()});this._alSave();return bal;}
+    a.bank[res]=bal;a.log.unshift({member:name,uid,res,amt,bal,kind:amt>0?'deposit':'withdraw',t:Date.now()});a.act.unshift({text:`${name} ${amt>0?'deposited':'withdrew'} ${Math.abs(amt)} ${res}`,t:Date.now()});this._alSave();return bal;}
   onPlayers(f){this.cbs.players.push(f);}
   onRaids(f){this.cbs.raids.push(f);f(this.raids);}
   onTerritory(f){this.cbs.territory.push(f);f(this.terr);}
@@ -61,7 +63,7 @@ class LocalNet {
 class FirebaseNet {
   constructor(cfg,team){this.mode='firebase';this.cfg=cfg;this.team=team;}
   async init(profile){
-    this.team=localStorage.getItem('wl_team')||this.team;const V='https://www.gstatic.com/firebase10.12.2/';
+    this.team=localStorage.getItem('wl_team')||this.team;const V='https://www.gstatic.com/firebasejs/10.12.2/';
     const app=await import(V+'firebase-app.js'), auth=await import(V+'firebase-auth.js'), fs=await import(V+'firebase-firestore.js');
     this.fs=fs; const a=app.initializeApp(this.cfg); this.db=fs.getFirestore(a);
     const cred=await auth.signInAnonymously(auth.getAuth(a)); this.uid=cred.user.uid; this.me=profile;
@@ -80,11 +82,16 @@ class FirebaseNet {
     fs.onSnapshot(fs.query(this.col('bankLog'),fs.orderBy('t','desc'),fs.limit(60)),s=>{st.log=s.docs.map(d=>({...d.data(),t:ms(d.data().t)}));emit();});
     fs.onSnapshot(fs.query(this.col('activity'),fs.orderBy('t','desc'),fs.limit(60)),s=>{st.act=s.docs.map(d=>({...d.data(),t:ms(d.data().t)}));emit();});
     fs.onSnapshot(this.col('players'),s=>{st.members={};s.forEach(d=>st.members[d.id]={...d.data(),lastActive:ms(d.data().lastActive),me:d.id===this.uid});emit();});}
+  async bankMulti(uid,name,obj,kind){const fs=this.fs,ref=fs.doc(this.db,...this.base,'meta','alliance');let tot=0;
+    await fs.runTransaction(this.db,async tx=>{const d=await tx.get(ref);const bank={...((d.exists()&&d.data().bank)||{})};
+      for(const [res,amt] of Object.entries(obj)){if(!amt)continue;bank[res]=(bank[res]||0)+amt;tot+=amt;tx.set(fs.doc(this.col('bankLog')),{uid,member:name,res,amt,bal:bank[res],kind,t:fs.serverTimestamp()});}
+      tx.set(ref,{bank},{merge:true});});
+    this.activity(`🌅 Daily reset: ${name}'s 25% auto-share sent ${tot} resources to the bank`);}
   async bankTx(uid,name,res,amt){const fs=this.fs,ref=fs.doc(this.db,...this.base,'meta','alliance'),logRef=fs.doc(this.col('bankLog'));let bal;
     await fs.runTransaction(this.db,async tx=>{const d=await tx.get(ref);const bank=(d.exists()&&d.data().bank)||{};bal=(bank[res]||0)+amt;
       if(bal<0)throw new Error('Bank only has '+(bank[res]||0));
       tx.set(ref,{bank:{...bank,[res]:bal}},{merge:true});
-      tx.set(logRef,{uid,member:name,res,amt,bal,t:fs.serverTimestamp()});});
+      tx.set(logRef,{uid,member:name,res,amt,bal,kind:amt>0?'deposit':'withdraw',t:fs.serverTimestamp()});});
     this.activity(`${name} ${amt>0?'deposited':'withdrew'} ${Math.abs(amt)} ${res}`);return bal;}
   claimHex(id,data){return this.fs.setDoc(this.fs.doc(this.col('territory'),id),data);}
   createRaid(r){const {id,...rest}=r;return this.fs.setDoc(this.fs.doc(this.col('raids'),id),rest);}

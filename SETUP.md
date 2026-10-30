@@ -32,7 +32,11 @@ Tap 🧪 at the top right:
 - **Tap map = teleport** moves you to wherever you tap.
 - **Test boss** makes a fake teammate find a boss (Local Demo only).
 - **Rathdrum** jumps you to Rathdrum.
-- **Reset** wipes your progress on this phone.
+- **Walk / Drive** simulate moving (Drive takes big jumps to test path fill-in). Both claim hexes.
+- **Run reset** pays the daily income right now (with the 25% auto-share).
+- **AI attack** makes raiders attack now.
+- **Finish builds** completes Stronghold and tower timers instantly.
+- **Wipe** erases your progress on this phone.
 
 Add `?local` to the URL to force Local Demo even after Firebase is connected.
 
@@ -41,6 +45,9 @@ Add `?local` to the URL to force Local Demo even after Firebase is connected.
 - **Alliance Bank:** shared balances. Any member can deposit or withdraw, there are no limits, and balances can't go below zero.
 - **Bank log and Activity feed:** add-only (no edits or deletes) and stamped with Firebase's own clock.
 - After changing `firestore.rules`, paste it into Firestore → Rules again and click **Publish**.
+
+## Balance
+All the territory, income, defense and AI numbers are in `balance.js` (`balance.js` in the flat upload folder), each with a comment. Change a number there, upload, and refresh.
 
 ## Notes
 - Free limits are around 50k reads and 20k writes a day, which is plenty for a family crew.

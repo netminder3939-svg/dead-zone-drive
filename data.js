@@ -14,6 +14,7 @@ const MONSTERS = {
   feral_hound: {name:'Feral Hound',    hp:55, atk:10, def:3, lvl:3, biome:'park',  drops:{food:5,scrap:2}},
   glow_moth:   {name:'Glow Moth',      hp:35, atk:12, def:1, lvl:3, biome:'any',   drops:{fuel:2,water:2}},
   ghoul:       {name:'Wasteland Ghoul',hp:80, atk:12, def:5, lvl:4, biome:'urban', drops:{scrap:6,food:3,parts:1}},
+  enemy_fort:  {name:'Raider Stronghold',hp:800,atk:30,def:12,lvl:5,fort:true,drops:{}},
   // bosses
   boss_tank:   {name:'Rust Behemoth',  hp:2400,atk:28,def:10,lvl:10,boss:true, drops:{scrap:60,parts:12,fuel:10}},
   boss_queen:  {name:'Hive Queen',     hp:2000,atk:34,def:8, lvl:10,boss:true, drops:{food:50,water:40,parts:8}},

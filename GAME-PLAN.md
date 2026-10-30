@@ -29,7 +29,7 @@ The world ended and mutants took over the Inland Northwest. You and your crew wa
 | Collecting | Mutant cards (with counts), landmark badges, and gear rarities |
 
 ## Art list for the artist
-Files go in `assets/monsters/`. In `manifest.json`, set `"png": true` for that id. That's all the artist has to do.
+Files go in ``. In `manifest.json`, set `"png": true` for that id. That's all the artist has to do.
 - **Monsters and bosses:** PNG, **512×512**, transparent background, facing left or the front, with a little padding around the edges. The game adds the bob, glow, and hit-shake.
   - Regular: `rad_rat`, `scrap_crawler`, `bog_leech`, `feral_hound`, `glow_moth`, `ghoul`
   - Bosses: `boss_tank` (Rust Behemoth), `boss_queen` (Hive Queen), `boss_warden` (The Warden)
@@ -47,6 +47,16 @@ Files go in `assets/monsters/`. In `manifest.json`, set `"png": true` for that i
 - **Stronghold:** one fortress picture that gets bigger and stronger over 10 levels. Upgrades cost resources and run on real-time timers (2 min for level 2, up to about 7 h near the top) that keep going while the app is closed. Each level gives +2 Defense and +10 Health. There's no interior and no extra buildings.
 - **Alliance:** Overview, Members (roster and contributions, never locations), Resources (open Alliance Bank with no limits and a full log) and Activity feed.
 - **Main menu:** Map · Base · Player · Alliance · Inventory.
+
+## Territory update (Stage 1b, built)
+- **Claim by moving:** with the app open, every hex you walk or drive across becomes yours. When driving fast, the game fills in all the hexes between GPS readings. Tiles stay yours until raiders take them.
+- **Resource tiles:** each hex is fixed by its id, so everyone sees the same map. About 55% are empty. The rest hold one resource (Scrap, Food, Water, Fuel or Parts) at Common (gray), Rare (gold) or Epic (purple, about 4%).
+- **Daily income at midnight Pacific:** each owned tile pays out. 25% automatically goes to the Alliance Bank, logged as "auto-share." The top bar shows your expected gain in green next to each resource. If you miss days, up to 7 are paid when you next open the app.
+- **Stronghold on the map:** placed on a hex you own. It's expensive and takes a 6-hour build, and it defends 2 rings of hexes. If raiders destroy it, rebuilding costs 40% and takes 2 hours.
+- **Towers:** cost resources plus daily upkeep, and defend 1 ring. The limit is 1 + Stronghold level. A tower goes offline if its upkeep can't be paid.
+- **AI raiders:** about 3 attacks a week, worked out from timestamps when you open the app (only once you hold 10+ hexes). An undefended tile is lost. A defended tile triggers an auto-battle, and if the defense loses, the towers or Stronghold involved can be destroyed. Results go to Base → Reports and the alliance activity feed.
+- **Enemy Raider Strongholds:** fixed spots on the map. They're hard auto-battles, and taking one gives its hex and the ring around it, plus loot and gear.
+- **All the numbers** are in `balance.js`.
 
 ## Stages
 - **Stage 1: Character, Stronghold and alliance (done, v0.2).** Everything above runs free on Firebase Spark, and there's also a local demo mode.

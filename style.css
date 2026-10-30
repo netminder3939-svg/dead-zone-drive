@@ -67,3 +67,9 @@ h2{margin:4px 0 10px;font-size:19px;letter-spacing:.5px}h3{margin:14px 0 6px;fon
 .row select,.row input{background:#0f1214;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px;font-size:16px;min-width:0}.row input{flex:1;width:80px}
 .log2{width:100%;border-collapse:collapse;font-size:12px}.log2 th{color:var(--dim);text-align:left;font-weight:500;padding:4px}.log2 td{border-top:1px solid var(--line);padding:5px 4px}.pos{color:var(--tox)}.neg{color:#ff8a6a}
 .act{padding:7px 2px;border-bottom:1px solid var(--line);font-size:13px}.act small{color:var(--dim);margin-right:6px}
+#res em{font-style:normal;font-weight:700;font-size:10px;margin-left:2px}#res em.inc{color:#7fe07a}#res em.dec{color:#ff8a6a}
+.rt{display:flex!important;align-items:center;justify-content:center;font-size:12px;border-radius:50%;background:#111a;border:2px solid #9aa4a8;opacity:.85}
+.rt-rare{border-color:#ffb43c;box-shadow:0 0 6px #ffb43c88}.rt-epic{border-color:#d070ff;box-shadow:0 0 10px #d070ffcc;font-size:14px}.rt.own{opacity:1}
+.struct{display:flex!important;flex-direction:column;align-items:center;font-size:30px;line-height:1;filter:drop-shadow(0 2px 3px #000)}.struct b{font-size:10px;background:#000b;color:var(--acc);padding:1px 4px;border-radius:6px;margin-top:-4px}
+.struct.small{font-size:24px}.struct.down{filter:grayscale(1) opacity(.6)}.struct.enemy img{width:46px;height:46px;filter:drop-shadow(0 0 8px #e0573a)}.struct.enemy b{color:#ff8a6a}
+.tag{font-size:9px;background:#2a3a24;color:#9fe08a;padding:1px 5px;border-radius:6px}.act.bad{color:#ffb0a0}
