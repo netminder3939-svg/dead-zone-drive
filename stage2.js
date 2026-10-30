@@ -72,7 +72,7 @@ function factionUnits(id){const x=factionAt(id);if(!x)return[];const B=BAL.facti
     for(let i=0;i<H.guards;i++)u.push(mkUnit({name:d.name+' Guard',img:art,hp:s*H.guardMult*g.hp*2,atk:s*g.atk*.8,def:s*g.def,crit:0,agi:g.agi+2}));
     // Siege: damage on the HQ carries over between attacks and heals 25%/day, so repeated attacks wear it down.
     if(x.f.hq){const heal=(Date.now()-x.f.hqT)/864e5*H.regenPerDay;u.forEach((v,i)=>{if(x.f.hq[i]!=null)v.hp=Math.min(v.max,Math.round(x.f.hq[i]+v.max*heal));});}return u;}
-  const [q,r]=idQR(id),adj=hexRing(q,r,1).filter(h=>h.id!==id&&x.f.tiles[h.id]).length,m=s*(1+g.perAdjacent*Math.min(3,adj));
+  const [q,r]=idQR(id),adj=hexRing(q,r,1).filter(h=>h.id!==id&&x.f.tiles[h.id]).length,m=s*(1+g.perAdjacent*Math.min(3,adj))*(x.f.outposts&&x.f.outposts[id]?BAL.horde.outpostGuard:1);
   return[mkUnit({name:d.name+' Garrison',img:art,hp:m*g.hp,atk:m*g.atk,def:m*g.def,crit:0,agi:g.agi})];}
 UI.infoFaction=function(id){const x=factionAt(id),B=BAL.factions;if(!x)return;const d=fdef(x.fid),[lat,lng]=hexCenter(...idQR(id)),dist=G.pos?distM(...G.pos,lat,lng):1e9,far=dist>B.attackRangeM&&!G.dev.any;
   const p=predict(()=>[playerUnit()],()=>factionUnits(id)),D=diffBlock(p),units=factionUnits(id),n=Object.keys(x.f.tiles).length;
@@ -81,9 +81,9 @@ UI.infoFaction=function(id){const x=factionAt(id),B=BAL.factions;if(!x)return;co
       units.map(u=>`<div class="row"><div class="grow">🔍 <b>${u.name}</b><small>${statLine(u)}</small></div></div>`).join(''),
     buttons:[['⚔️ Attack',()=>fightFaction(id),'fight',far||cooldownLeft()>0]]});if(far)toast(`Get within ${B.attackRangeM} m to attack (${Math.round(dist)} m)`);};
 function fightFaction(id){if(cooldownLeft())return toast('Still recovering');const x=factionAt(id);if(!x)return;const B=BAL.factions,d=fdef(x.fid),f=runFight([playerUnit()],factionUnits(id));P.hp=Math.max(1,f.A[0].hp);let res;
-  if(f.win){if(x.home){const n=Object.keys(x.f.tiles).length;x.f.tiles={};x.f.hq=null;x.f.routedUntil=Date.now()+B.respawnDays*864e5;fxDirty();addRes(B.homeLoot,1,true);addXP(B.homeXP);claimTile(id);
+  if(f.win){if(x.home){const n=Object.keys(x.f.tiles).length;x.f.tiles={};x.f.hq=null;x.f.squads=[];x.f.outposts={};x.f.routedUntil=Date.now()+B.respawnDays*864e5;fxDirty();addRes(B.homeLoot,1,true);addXP(B.homeXP);claimTile(id);
       res=`🏴 ${d.name} routed! ${n} hexes freed · ${Object.entries(B.homeLoot).map(([k,v])=>v+RES[k]).join(' ')}`;report(`🏴 ${P.name} routed the ${d.name}`,true);allianceLog(`🏴 ${P.name} routed the ${d.name}!`);opsBump('retakes',1);}
-    else{delete x.f.tiles[id];fxDirty();claimTile(id);addRes(B.retakeLoot,1,true);addXP(B.retakeXP);opsBump('retakes',1);res=`🚩 Hex retaken from the ${d.name}. +${B.retakeXP} XP`;}}
+    else{delete x.f.tiles[id];if(x.f.outposts)delete x.f.outposts[id];fxDirty();claimTile(id);addRes(B.retakeLoot,1,true);addXP(B.retakeXP);opsBump('retakes',1);res=`🚩 Hex retaken from the ${d.name}. +${B.retakeXP} XP`;}}
   else{if(x.home){x.f.hq=f.B.map(u=>u.hp);x.f.hqT=Date.now();}const lost=lossPenalty();res=`💀 The ${d.name} held${x.home?` (HQ damage sticks: ${f.B.reduce((a,u)=>a+u.hp,0)}/${f.B.reduce((a,u)=>a+u.max,0)} HP left, heals ${Math.round(BAL.factions.home.regenPerDay*100)}%/day)`:''}. You dropped ${lost}🔩 and need ${BAL.fight.lossCooldownMin} min to recover.`;}
   save();UI.replay({title:`${d.name}${x.home?' home base':' garrison'}`,f,result:res,good:f.win,buttons:[['Continue',()=>{UI.closeModal();drawWorld();},'big']]});}
 const _infoTile=UI.infoTile;UI.infoTile=function(id){if(factionAt(id)&&isVis(id))return UI.infoFaction(id);const o=(W().outposts||{})[id];if(o)return UI.infoOutpost(id);return _infoTile.call(this,id);};
@@ -112,7 +112,7 @@ const _build2=UI.build;UI.build=function(){_build2.call(this);if(!G.pos)return;c
 
 // ================= map drawing =================
 const _draw=drawWorld;drawWorld=function(){_draw();if(!P.world||!map||map.getZoom()<13)return;const fx=P.world.fx,g=G.layers.terr,z=map.getZoom(),c=map.getCenter(),h=hexAt(c.lat,c.lng),n=z>=16?8:z>=15?12:16;
-  if(fx&&fx.f)for(const [fid,f] of Object.entries(fx.f)){const d=fdef(fid);for(const id in f.tiles||{}){const [q,r]=idQR(id);if(hexDist(id,h.id)>n||!isVis(id))continue;
+  if(fx&&fx.f&&(G.lay||{}).enemy!==false)for(const [fid,f] of Object.entries(fx.f)){const d=fdef(fid);for(const id in f.tiles||{}){const [q,r]=idQR(id);if(hexDist(id,h.id)>n||!isVis(id))continue;
       L.polygon(hexPoly(q,r),{renderer:tileRenderer,interactive:false,color:d.color,weight:2,opacity:.9,fillColor:d.color,fillOpacity:.28,dashArray:'3 3'}).addTo(g);
       if(z>=15||f.home===id)L.marker(hexCenter(q,r),{icon:L.divIcon({className:'lodm',html:`<div class="ico fx${f.home===id?' fxhome':''}" style="color:${d.color}"><span>${f.home===id?'🏴':d.icon}</span>${f.home===id?`<b class="nm">${d.name} HQ</b>`:''}</div>`,iconSize:[0,0]}),zIndexOffset:f.home===id?350:150}).on('click',()=>UI.infoFaction(id)).addTo(g);}}
   Object.entries(P.world.outposts||{}).forEach(([id,o])=>{const ll=hexCenter(...idQR(id));if(o.state==='up'&&z>=15)L.circle(ll,{radius:BAL.outpost.radius*HEX_R*Math.sqrt(3)+HEX_R*.9,color:'#5fd068',weight:1.5,dashArray:'4 5',fillOpacity:.04,interactive:false}).addTo(g);
@@ -146,7 +146,7 @@ const _ninit=NET.init.bind(NET);NET.init=async function(p){const uid=await _nini
 setInterval(()=>cloudSave(false),BAL.cloud.autosaveSec*1000);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){opsFlush();cloudSave(false);}});
 
 // ================= boot hooks =================
-const _cua=catchUpAI;catchUpAI=function(){_cua();try{factionCatchUp();outpostTick();}catch(e){console.error(e);}};
+const _cua=catchUpAI;catchUpAI=function(){try{factionCatchUp();outpostTick();}catch(e){console.error(e);}};
 setInterval(()=>{if(P.world)factionCatchUp(true);},5*60e3);
 
 // ================= UI tabs =================

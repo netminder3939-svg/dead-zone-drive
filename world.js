@@ -147,9 +147,10 @@ function drawWorld(){const g=G.layers.hex;g.clearLayers();G.layers.terr.clearLay
   hexRing(h.q,h.r,n).forEach(x=>{const id=x.id,mine=P.tiles[id],other=G.terr[id],raider=!mine&&(P.world.raider[id]||other?.ai),t=tileInfo(id);
     if(!isVis(id)){L.polygon(hexPoly(x.q,x.r),{renderer:tileRenderer,interactive:false,stroke:false,fillColor:'#2b2620',fillOpacity:BAL.fog.opacity}).addTo(g);return;}
     let st={color:'#4a3a26',weight:.8,opacity:.28,fill:false};
-    if(mine)st={color:P.color,weight:2,opacity:.85,fillColor:P.color,fillOpacity:.2};
-    else if(raider)st={color:'#d63a2a',weight:1.6,opacity:.8,fillColor:'#d63a2a',fillOpacity:.18};
-    else if(other&&other.uid!==P.uid)st={color:other.color||'#888',weight:1.2,opacity:.7,fillColor:other.color,fillOpacity:.14};
+    const LY=G.lay||{};
+    if(mine&&LY.mine!==false)st={color:P.color,weight:2,opacity:.85,fillColor:P.color,fillOpacity:.2};
+    else if(raider&&LY.enemy!==false)st={color:'#d63a2a',weight:1.6,opacity:.8,fillColor:'#d63a2a',fillOpacity:.18};
+    else if(other&&other.uid!==P.uid&&LY.allies!==false)st={color:other.color||'#888',weight:1.2,opacity:.7,fillColor:other.color,fillOpacity:.14};
     else if(t.res&&t.tier!=='common')st={color:BAL.tiles.tierColor[t.tier],weight:1.4,opacity:.7,fillColor:BAL.tiles.tierColor[t.tier],fillOpacity:t.tier==='epic'?.16:.08};
     L.polygon(hexPoly(x.q,x.r),{...st,renderer:tileRenderer,interactive:false}).addTo(g);
     if(icons&&t.res)L.marker(hexCenter(x.q,x.r),{icon:L.divIcon({className:'lodm',html:`<div class="ico rt rt-${t.tier}${mine?' own':''}"><span>${RES[t.res]}</span><b class="lv">+${t.yield}</b></div>`,iconSize:[0,0]}),interactive:false}).addTo(g);});

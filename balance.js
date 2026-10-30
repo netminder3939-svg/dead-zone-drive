@@ -116,3 +116,21 @@ BAL.ops={pick:3,pool:[
   {k:'visits',text:'Earn {n} landmark badges',per:2,reward:{food:80,water:80}},
   {k:'raids',text:'Join {n} boss raids',per:1,reward:{scrap:120,fuel:30}}],xp:150};
 BAL.cloud={autosaveSec:120};
+
+// ---- Stage 2b: the horde moves like players. No more random raids on arbitrary tiles (BAL.ai is unused now).
+// Each gang fields squads that walk out from their HQ / gang outposts one hex at a time (contiguous path), claiming as they go.
+// Before a squad can take a hex inside your Stronghold area, a tower ring or an outpost ring, it must beat the combined
+// defense power there (deterministic, defense wins ties). Losing squads are wounded and retreat.
+BAL.horde={
+  stepMin:20,               // a squad moves 1 hex (~170 m) every 20 min while out (walking pace with stops)
+  sortieHexes:6,            // hexes per outing, then it rests
+  restHours:9, restJitter:4, // rest 9-13 h between outings => ~2 outings a day
+  squadsBase:1, squadsMax:3, // squads per gang = 1 + tier (max 3)
+  searchRadius:9, maxPath:16,
+  // target scoring: rich tiles, undefended edges, gaps between your rings, contested ground; minus distance
+  wRich:0.6, wNeutral:1, wUndefended:6, wGap:3, wBeatable:4, wStrong:-8, wContested:2, wDist:0.45,
+  outpostEvery:5, outpostsBase:1, outpostGuard:1.5, // a gang builds an outpost when a squad stops 5+ hexes from its bases
+  woundMult:0.6, woundHours:24, retreatHours:14,
+  destroyRatio:2,           // a structure is only destroyed if the squad's power is at least 2x the defense
+  damageOnLoss:0.3,         // otherwise defenders that lose drop to 30% condition (visual only, power is unaffected)
+};

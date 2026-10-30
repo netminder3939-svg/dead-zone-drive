@@ -170,6 +170,15 @@ Files go in ``. In `manifest.json`, set `"png": true` for that id. That's all th
 - [x] Fixed: live-Firebase boss raid hits crashed (a variable name clash in `hitRaid`).
 - [ ] Deploy `firestore.rules` again in the Firebase console (new `saves` rule, research bank log entries, bank-less alliance doc updates).
 
+## Stage 2b: The horde claims land like players (Oct 30)
+- [x] **No more random raids.** The old "raiders hit 1–3 random tiles anywhere" system is switched off (`BAL.ai` unused). The ⚔️ AI attack demo now sends the nearest gang squad walking toward your land, hex by hex, and shows the result.
+- [x] **Squads:** each gang fields 1 squad (+1 per tier, max 3). A squad leaves its HQ or a gang outpost, moves 1 hex every 20 min, claims each hex it enters, and rests 9–13 h after 6 hexes (~2 outings a day). Every hex they take is next to their own land (tested: 59 gang hexes after a 3-day catch-up, all connected). Same seed, same history.
+- [x] **Targets:** squads score nearby hexes: rich tiles, your undefended edges, gaps between your tower rings, hexes they can beat, contested ground, minus distance. Strong defenses are avoided. The next target is picked when they start resting, so a ⚠️ target marker shows hours ahead when that hex is revealed. Tap a squad or target: power, target reason, and whether your defense there will hold.
+- [x] **Gang outposts** (🏚️) are built where a squad stops 5+ hexes from its bases (1 + tier per gang). Squads launch from them. Their garrison is 1.5× tougher; retaking the hex removes the outpost.
+- [x] **Defense always runs first.** Inside your Stronghold area, a tower ring or an outpost ring, the squad must beat the combined full defense power (deterministic, defense wins ties), with replay + alert. A beaten squad is wounded (−40% power for 24 h) and retreats for 14 h. Squads that win take the hex; defenders drop to 30% condition, and are only destroyed if the squad has 2× their power. Uncovered hexes fall without a fight (max 2 of your hexes a day across all gangs).
+- [x] **Defense bug fixed:** defense power used to be scaled by condition, and every *won* defense permanently cut condition. After 2–3 attacks the Stronghold dropped under raid power, lost, got destroyed, and from then on every hex was "lost with no defense". Condition is now visual only. Test: 6 attacks in a row on a Stronghold-area hex, all held, Stronghold still standing.
+- [x] **Alliance view:** route threads (each member's claimed hexes joined in claim order as a dotted colored thread, no GPS), Alliance ▸ 📋 Roster (km, tiles held, resources earned, donations, last active), and a 🗂️ map layer button (Mine / Allies / Enemy).
+
 ## Stages
 - **Stage 1: Character, Stronghold and alliance (done, v0.2).** Everything above runs free on Firebase Spark, and there's also a local demo mode.
 - **Stage 2: Outposts, territory and AI factions (done, see above).**
