@@ -1,0 +1,37 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#111416">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☢️</text></svg>"><title>Dead Zone Drive</title>
+<link rel="stylesheet" href="leaflet.css"><link rel="stylesheet" href="style.css">
+</head><body>
+<div id="map"></div><div id="tint"></div>
+<header id="hud">
+  <div class="who"><b id="pname">—</b> <span id="plvl">Lv1</span><div class="bar"><i id="hpbar"></i></div><div class="bar xp"><i id="xpbar"></i></div></div>
+  <div id="res"></div>
+  <button id="btnDev" class="chip" title="Dev tools">🧪</button>
+</header>
+<div id="mode" class="chip small"></div>
+<div id="toast"></div>
+<div id="raidBanner" class="hidden"></div>
+<div id="devbar" class="hidden">
+  <button data-dev="walk">🚶 Auto-walk</button><button data-dev="tp">📍 Tap map = teleport</button>
+  <button data-dev="boss">👹 Test boss</button><button data-dev="rath">🏠 Rathdrum</button><button data-dev="reset">♻️ Reset</button>
+</div>
+<button id="btnCenter" class="fab">◎</button>
+<button id="btnClaim" class="fab claim">⛺</button>
+<nav id="tabs">
+  <button data-tab="map" class="on">🗺️<span>Map</span></button><button data-tab="base">🏰<span>Base</span></button>
+  <button data-tab="player">🧍<span>Player</span></button><button data-tab="alliance">🤝<span>Alliance</span></button>
+  <button data-tab="inv">🎒<span>Inventory</span></button>
+</nav>
+<div id="sheet" class="hidden"><div class="grab"></div><button class="x" id="sheetX">✕</button><div id="sheetBody"></div></div>
+<div id="modal" class="hidden"><div id="modalBody"></div></div>
+<div id="onboard" class="hidden"><div class="card">
+  <h1>DEAD ZONE DRIVE</h1><p>The world ended. The mutants moved in. Your crew is taking it back, one hex at a time.</p>
+  <input id="obName" placeholder="Your name" maxlength="16"><input id="obTeam" placeholder="Team code">
+  <div class="colors" id="obColors"></div><button id="obGo" class="big">Enter the Wastes</button>
+  <p class="tiny">Location is only used while this page is open.</p></div></div>
+<script src="leaflet.js"></script><script src="firebase-config.js"></script>
+<script src="data.js"></script><script src="hex.js"></script><script src="net.js"></script>
+<script src="progress.js"></script><script src="game.js"></script><script src="ui.js"></script>
+</body></html>

@@ -1,0 +1,65 @@
+rules_version = '2';
+// Dead Zone Drive — friends-and-family rules (free Spark plan, no Cloud Functions).
+// Anyone signed in (anonymous is fine) can play. No GPS positions are ever stored.
+service cloud.firestore {
+  match /databases/{db}/documents {
+    match /teams/{team} {
+      function signedIn() { return request.auth != null; }
+      function nonNegBank(b) {
+        return b.keys().hasOnly(['scrap','food','water','fuel','parts'])
+          && (!('scrap' in b) || (b.scrap is int && b.scrap >= 0))
+          && (!('food'  in b) || (b.food  is int && b.food  >= 0))
+          && (!('water' in b) || (b.water is int && b.water >= 0))
+          && (!('fuel'  in b) || (b.fuel  is int && b.fuel  >= 0))
+          && (!('parts' in b) || (b.parts is int && b.parts >= 0));
+      }
+
+      // Member roster: name, level, stronghold level, contribution stats, last active. NO location fields.
+      match /players/{uid} {
+        allow read: if signedIn();
+        allow write: if signedIn() && request.auth.uid == uid
+                     && !request.resource.data.keys().hasAny(['lat','lng','pos','location']);
+      }
+
+      // Alliance Bank balances (open access: any member can deposit or withdraw, no limits).
+      match /meta/alliance {
+        allow read: if signedIn();
+        allow create, update: if signedIn() && nonNegBank(request.resource.data.bank);
+        allow delete: if false;
+      }
+
+      // Bank transaction log: append-only, stamped by the server clock, tied to the signed-in member.
+      match /bankLog/{id} {
+        allow read: if signedIn();
+        allow create: if signedIn() && request.resource.data.uid == request.auth.uid
+                      && request.resource.data.t == request.time
+                      && request.resource.data.res in ['scrap','food','water','fuel','parts']
+                      && request.resource.data.amt is int && request.resource.data.bal is int;
+        allow update, delete: if false;
+      }
+
+      // Activity feed: append-only with server timestamps.
+      match /activity/{id} {
+        allow read: if signedIn();
+        allow create: if signedIn() && request.resource.data.uid == request.auth.uid
+                      && request.resource.data.t == request.time
+                      && request.resource.data.text is string && request.resource.data.text.size() < 200;
+        allow update, delete: if false;
+      }
+
+      match /territory/{hex} {
+        allow read: if signedIn();
+        allow create, update: if signedIn() && request.resource.data.by is string;
+        allow delete: if false;
+      }
+
+      match /raids/{raid} {
+        allow read: if signedIn();
+        allow create: if signedIn() && request.resource.data.hp == request.resource.data.maxHp;
+        allow update: if signedIn() && request.resource.data.hp <= resource.data.hp
+                      && request.time.toMillis() < resource.data.endsAt + 60000;
+        allow delete: if false;
+      }
+    }
+  }
+}
