@@ -87,6 +87,7 @@ Files go in `assets/monsters/`. In `manifest.json`, set `"png": true` for that i
 | Skill trees (Combat, Scavenger, Survivor) | Done | 1 point per level, reset costs 50 Scrap |
 | Stronghold (one exterior, levels, offline timers) | Done | The drawing grows with each level |
 | Stronghold placed on the map | Done | Expensive, 6-hour build |
+| Stronghold collects tile resources in its area | Done | Auto-claims and pays every resource tile in its ring. The ring grows with Stronghold level. |
 | Buildings can fall, cheaper rebuild | Done | Rebuild costs 40%. Towers repair at 50%. |
 | Stronghold relocation | Done | Costs resources, 7-day cooldown, keeps its level |
 | Towers with upkeep and a defense ring | Done | Upgrades raise power and ring size (+1 ring every 2 levels) |
@@ -121,6 +122,17 @@ Files go in `assets/monsters/`. In `manifest.json`, set `"png": true` for that i
 ## Stage 1e tuning (Oct 30)
 - **Fewer mutants:** the chance a nearby hex has a mutant went from 30% to 9% by day and from 42% to 13% at night. That's about a third as many: roughly 5–6 on screen instead of about 18 in the 61 hexes around you. Bosses and lairs are unchanged. Tune it with `BAL.spawn` in balance.js.
 - **One hex at a time:** moving claims and reveals only the hex you're in. There's no fill-in between GPS readings and no neighbor reveals. Your standing towers and Stronghold still reveal their own rings (`BAL.fog.structuresReveal`).
+
+## Stage 1f: Stronghold area income (Oct 30)
+- A standing Stronghold automatically claims every hex in its ring, and their resource tiles pay at each daily reset. Tiles you already owned are only counted once. Hexes with an uncaptured enemy fort are skipped.
+- **Ring size grows with level** (`BAL.stronghold.levelsPerRing = 3`):
+  - Levels 1–3: 2 rings (19 hexes)
+  - Levels 4–6: 3 rings (37 hexes)
+  - Levels 7–9: 4 rings (61 hexes)
+  - Level 10: 5 rings (91 hexes)
+- The Stronghold card shows hexes in the ring, how many are resource tiles, and the daily gain per resource in green (after the 25% alliance share), plus the level where the next ring unlocks.
+- The ring is also the Stronghold's defense area. Its hexes are visible through the existing structure-reveal rule (`BAL.fog.structuresReveal`); nothing else was revealed.
+- You can switch it off with `BAL.stronghold.areaIncome = false`.
 
 ## Stages
 - **Stage 1: Character, Stronghold and alliance (done, v0.2).** Everything above runs free on Firebase Spark, and there's also a local demo mode.

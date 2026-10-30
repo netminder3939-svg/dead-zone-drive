@@ -62,7 +62,7 @@ setInterval(()=>{if(G.drive.on){driveHud();if(G.pos)map.panTo(G.pos,{animate:tru
 // ---------- placement preview ----------
 G.preview=L.layerGroup();
 function showPreview(id){G.preview.clearLayers().addTo(map);const ll=hexCenter(...idQR(id)),ring=k=>k*HEX_R*Math.sqrt(3)+HEX_R*.9;
-  [[BAL.tower.radius,'#2a8fd6','Tower Lv1 ring'],[BAL.stronghold.radius,'#d6a03a','Stronghold ring']].forEach(([r,c])=>L.circle(ll,{radius:ring(r),color:c,weight:2,dashArray:'3 6',fillColor:c,fillOpacity:.08,interactive:false}).addTo(G.preview));
+  [[BAL.tower.radius,'#2a8fd6','Tower Lv1 ring'],[shRadius(),'#d6a03a','Stronghold ring']].forEach(([r,c])=>L.circle(ll,{radius:ring(r),color:c,weight:2,dashArray:'3 6',fillColor:c,fillOpacity:.08,interactive:false}).addTo(G.preview));
   const [q,r]=idQR(id);hexRing(q,r,BAL.tower.radius).forEach(x=>L.polygon(hexPoly(x.q,x.r),{color:'#2a8fd6',weight:1,fillColor:'#2a8fd6',fillOpacity:.18,interactive:false}).addTo(G.preview));}
 const _closeModal=UI.closeModal.bind(UI);UI.closeModal=function(){G.preview.clearLayers();_closeModal();};
 const _build=UI.build.bind(UI);UI.build=function(){_build();if(G.pos){showPreview(hexAt(...G.pos).id);map.setView(G.pos,16);

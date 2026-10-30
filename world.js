@@ -13,11 +13,20 @@ const RESN2={scrap:'Scrap',food:'Food',water:'Water',fuel:'Fuel',parts:'Parts'};
 function isVis(id){if(P.explored&&P.explored[id])return true;if(G.allyExp.has(id)||G.terr[id]||P.tiles[id])return true;
   if(G.pos&&hexDist(hexAt(...G.pos).id,id)<=BAL.fog.aroundPlayer)return true;
   // explicit rule: your standing stronghold/towers reveal their own defense ring
-  if(BAL.fog.structuresReveal&&P.world){const s=P.world.sh;if(s&&s.state==='up'&&hexDist(s.hex,id)<=BAL.stronghold.radius)return true;
+  if(BAL.fog.structuresReveal&&P.world){const s=P.world.sh;if(s&&s.state==='up'&&hexDist(s.hex,id)<=shRadius())return true;
     for(const [tid,t] of Object.entries(P.world.towers))if(t.state==='up'&&hexDist(tid,id)<=towerRadius(t))return true;}
   return false;}
 function explore(ids){P.explored=P.explored||{};const fresh=[];ids.forEach(id=>{const [q,r]=idQR(id);hexRing(q,r,BAL.fog.pathRings).forEach(x=>{if(!P.explored[x.id]){P.explored[x.id]=1;fresh.push(x.id);}});});
   if(fresh.length&&NET.shareExplored)NET.shareExplored(fresh);return fresh.length;}
+// ---------- Stronghold area (Stage 1f) ----------
+function shRadius(){return BAL.stronghold.radius+Math.floor((strongholdLevel()-1)/BAL.stronghold.levelsPerRing);}
+function shAreaIds(){const s=P.world&&P.world.sh;if(!s||s.state!=='up')return[];const [q,r]=idQR(s.hex);return hexRing(q,r,shRadius()).map(x=>x.id);}
+// Claims every hex in the Stronghold ring so its tiles count toward daily income (owned tiles are never counted twice).
+function shClaimArea(){if(!BAL.stronghold.areaIncome)return 0;const ids=shAreaIds().filter(id=>!P.tiles[id]&&!(enemyAt(id)&&!W().enemyTaken[id]));
+  ids.forEach(claimTile);if(ids.length){save();if(typeof drawWorld==='function')drawWorld();}return ids.length;}
+function shAreaInfo(){const ids=shAreaIds(),inc={scrap:0,food:0,water:0,fuel:0,parts:0};let res=0;
+  ids.forEach(id=>{const t=tileInfo(id);if(t.res){res++;inc[t.res]+=t.yield;}});const mine={};for(const k in inc)mine[k]=inc[k]-Math.round(inc[k]*BAL.reset.allianceShare);return{hexes:ids.length,res,gross:inc,mine};}
+setInterval(()=>{if(P.world&&shAreaIds().some(id=>!P.tiles[id]))shClaimArea();},5000);
 // ---------- resource tiles ----------
 const _tileCache={};
 function tileInfo(id){if(_tileCache[id])return _tileCache[id];const T=BAL.tiles,r=seedRand('tile:'+id);let out={id,res:null};
@@ -25,7 +34,7 @@ function tileInfo(id){if(_tileCache[id])return _tileCache[id];const T=BAL.tiles,
     const y=r();out.tier=y<T.tierChance.epic?'epic':y<T.tierChance.epic+T.tierChance.rare?'rare':'common';
     out.yield=Math.max(1,Math.round(T.dailyYield[out.tier]*T.resMult[out.res]));}
   return _tileCache[id]=out;}
-function grossIncome(){const inc={scrap:0,food:0,water:0,fuel:0,parts:0};for(const id in P.tiles){const t=tileInfo(id);if(t.res)inc[t.res]+=t.yield;}return inc;}
+function grossIncome(){const inc={scrap:0,food:0,water:0,fuel:0,parts:0},all=new Set(Object.keys(P.tiles));if(BAL.stronghold.areaIncome)shAreaIds().forEach(i=>all.add(i));for(const id of all){const t=tileInfo(id);if(t.res)inc[t.res]+=t.yield;}return inc;}
 function towerUpkeep(){const u={scrap:0,food:0,water:0,fuel:0,parts:0},n=Object.values(W().towers).filter(t=>t.state!=='down').length;for(const k in BAL.tower.upkeep)u[k]+=BAL.tower.upkeep[k]*n;return u;}
 // What you'll personally net at the next reset (after the 25% alliance share and tower upkeep)
 function expectedIncome(){const g=grossIncome(),u=towerUpkeep(),o={};for(const k in g){const share=Math.round(g[k]*BAL.reset.allianceShare);o[k]=g[k]-share-u[k];}return o;}
@@ -41,7 +50,7 @@ function claimTile(id){W();const t=Date.now();P.tiles[id]={t};delete P.world.rai
   NET.claimHex(id,{by:P.name,uid:P.uid,color:P.color,t});}
 
 // ---------- daily reset ----------
-async function runResets(){const w=W(),today=pacificDate();if(!w.lastReset){w.lastReset=today;save();return;}
+async function runResets(){const w=W(),today=pacificDate();shClaimArea();if(!w.lastReset){w.lastReset=today;save();return;}
   let days=Math.round((Date.parse(today)-Date.parse(w.lastReset))/864e5);if(days<=0)return;days=Math.min(days,BAL.reset.maxMissedDays);
   for(let i=0;i<days;i++)await payReset(i===days-1?today:'missed day');w.lastReset=today;save();UI.hud();}
 async function payReset(label){const g=grossIncome(),share={},mine={};let tot=0,stot=0;
@@ -54,7 +63,7 @@ async function payReset(label){const g=grossIncome(),share={},mine={};let tot=0,
   toast(`🌅 Daily income collected (${stot} auto-shared)`);}
 
 // ---------- structures ----------
-function shState(){const s=W().sh;if(s&&s.state==='building'&&Date.now()>=s.buildEnd){s.state='up';report('🏰 Your Stronghold is finished',true);allianceLog(`🏰 ${P.name} finished a Stronghold`);save();}return s;}
+function shState(){const s=W().sh;if(s&&s.state==='building'&&Date.now()>=s.buildEnd){s.state='up';report('🏰 Your Stronghold is finished',true);setTimeout(shClaimArea,0);allianceLog(`🏰 ${P.name} finished a Stronghold`);save();}return s;}
 function towerTick(){let ch=false;Object.entries(W().towers).forEach(([id,t])=>{if(t.state==='building'&&Date.now()>=t.buildEnd){t.state='up';t.online=true;ch=true;report('🗼 Tower finished at '+id,true);}});if(ch){save();drawWorld();}}
 setInterval(()=>{if(P.world){shState();towerTick();}},2000);
 function shCostNow(){const s=W().sh,m=s&&s.everBuilt?BAL.stronghold.rebuildMult:1;return Object.fromEntries(Object.entries(BAL.stronghold.cost).map(([k,v])=>[k,Math.round(v*m)]));}
@@ -72,7 +81,7 @@ function devFinishBuilds(){const w=W();if(w.sh&&w.sh.state==='building')w.sh.bui
 // ---------- AI raider attacks ----------
 function report(text,win){W().reports.unshift({t:Date.now(),text,win});W().reports=W().reports.slice(0,80);}
 function defendersFor(id){const w=W(),out=[];const s=w.sh;
-  if(s&&s.state==='up'&&hexDist(s.hex,id)<=BAL.stronghold.radius){const st=stats();out.push({kind:'sh',id:s.hex,power:BAL.stronghold.basePower+strongholdLevel()*BAL.stronghold.powerPerLevel+Math.round((st.atk+st.def)/2)});}
+  if(s&&s.state==='up'&&hexDist(s.hex,id)<=shRadius()){const st=stats();out.push({kind:'sh',id:s.hex,power:BAL.stronghold.basePower+strongholdLevel()*BAL.stronghold.powerPerLevel+Math.round((st.atk+st.def)/2)});}
   Object.entries(w.towers).forEach(([tid,t])=>{if(t.state==='up'&&t.online!==false&&hexDist(tid,id)<=towerRadius(t))out.push({kind:'tower',id:tid,power:towerPower(t)});});return out;}
 // Each attacked tile: undefended = lost; defended = a real turn-based fight (raiders vs your structures), saved for replay.
 function aiAttack(rnd,forcedPower,when=Date.now()){const A=BAL.ai,ids=Object.keys(P.tiles).sort();if(!ids.length)return null;
@@ -130,8 +139,8 @@ function drawWorld(){const g=G.layers.hex;g.clearLayers();G.layers.terr.clearLay
     if(icons&&t.res)L.marker(hexCenter(x.q,x.r),{icon:L.divIcon({className:'lodm',html:`<div class="ico rt rt-${t.tier}${mine?' own':''}"><span>${RES[t.res]}</span><b class="lv">+${t.yield}</b></div>`,iconSize:[0,0]}),interactive:false}).addTo(g);});
   const s=P.world.sh,ring=k=>k*HEX_R*Math.sqrt(3)+HEX_R*.9,showRange=z>=15;
   if(s){const ll=hexCenter(...idQR(s.hex)),down=s.state==='down',L_=strongholdLevel();
-    if(showRange&&!down)L.circle(ll,{radius:ring(BAL.stronghold.radius),color:'#d6a03a',weight:2,dashArray:'6 6',fillColor:'#d6a03a',fillOpacity:.06,interactive:false}).addTo(G.layers.terr);
-    L.marker(ll,{icon:L.divIcon({className:'lodm',html:`<div class="ico st sh${down?' down':''}"><span class="emo">🏰</span><div class="art">${strongholdSVG(L_)}</div><b class="lv">${down?'RUINS':s.state==='building'?'⏳ building':'Lv'+L_}</b>${hpBar(down?0:s.hpPct??1)}<b class="nm">${P.name}'s Stronghold · range ${BAL.stronghold.radius}</b></div>`,iconSize:[0,0]}),zIndexOffset:400}).on('click',()=>UI.infoStruct('sh')).addTo(G.layers.terr);}
+    if(showRange&&!down)L.circle(ll,{radius:ring(shRadius()),color:'#d6a03a',weight:2,dashArray:'6 6',fillColor:'#d6a03a',fillOpacity:.06,interactive:false}).addTo(G.layers.terr);
+    L.marker(ll,{icon:L.divIcon({className:'lodm',html:`<div class="ico st sh${down?' down':''}"><span class="emo">🏰</span><div class="art">${strongholdSVG(L_)}</div><b class="lv">${down?'RUINS':s.state==='building'?'⏳ building':'Lv'+L_}</b>${hpBar(down?0:s.hpPct??1)}<b class="nm">${P.name}'s Stronghold · range ${shRadius()}</b></div>`,iconSize:[0,0]}),zIndexOffset:400}).on('click',()=>UI.infoStruct('sh')).addTo(G.layers.terr);}
   Object.entries(P.world.towers).forEach(([id,t])=>{const ll=hexCenter(...idQR(id)),down=t.state==='down',lv=t.level||1;
     if(showRange&&!down)L.circle(ll,{radius:ring(towerRadius(t)),color:t.online===false?'#777':'#2a8fd6',weight:1.6,dashArray:'4 5',fillColor:'#2a8fd6',fillOpacity:.06,interactive:false}).addTo(G.layers.terr);
     L.marker(ll,{icon:L.divIcon({className:'lodm',html:`<div class="ico st tw${down?' down':''}"><span class="emo">🗼</span><div class="art">${towerSVG(lv)}</div><b class="lv">${down?'RUINS':t.state==='building'?'⏳':'Lv'+lv}</b>${hpBar(down?0:t.hpPct??1)}<b class="nm">Tower · power ${towerPower(t)} · ring ${towerRadius(t)}</b></div>`,iconSize:[0,0]}),zIndexOffset:300}).on('click',()=>UI.infoStruct('tower',id)).addTo(G.layers.terr);});

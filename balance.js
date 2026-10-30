@@ -66,3 +66,6 @@ BAL.ai.hpPerPower=3; BAL.ai.atkPerPower=0.3; BAL.ai.unitPower=50;
 BAL.tower.levelsPerRing=2;          // tower ring grows +1 every 2 levels (Lv1-2: 1 ring, Lv3-4: 2, Lv5: 3)
 BAL.stronghold.relocateCost={scrap:250,fuel:60,parts:20}; BAL.stronghold.relocateCooldownDays=7;
 BAL.markers={types:{target:['🎯','Target Zone'],outpost:['⛺','Outpost Site'],enemy:['⚠️','Contested / Enemy Zone'],hub:['📦','Resource Gathering Hub'],waypoint:['📍','Waypoint']},expireDays:3};
+// ---- Stage 1f: Stronghold area income. Ring = radius + 1 per N stronghold levels.
+BAL.stronghold.levelsPerRing=3;   // Lv1-3: 2 rings (19 hexes), Lv4-6: 3 (37), Lv7-9: 4 (61), Lv10: 5 (91)
+BAL.stronghold.areaIncome=true;   // standing Stronghold auto-claims + collects every resource tile in its ring

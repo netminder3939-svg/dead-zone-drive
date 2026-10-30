@@ -143,3 +143,4 @@ body.drive #tabs,body.drive .fab,body.drive #devbar,body.drive #sheet{display:no
 .fullin{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:#0f1214;color:var(--txt);font-size:16px}
 #modal.peek{align-items:flex-end;background:#0004}#modal.peek #modalBody{max-height:52vh}
 .prevnote{color:#9fd8ff!important}
+.areabox{margin:8px 0;padding:8px;border:1px solid #3a6a34;background:#16241499;border-radius:10px;font-size:13px}.areares{display:flex;flex-wrap:wrap;gap:6px;margin:5px 0}.areares span{background:#0006;border-radius:8px;padding:2px 7px}em.inc{font-style:normal;font-weight:800;color:#7fe07a}
