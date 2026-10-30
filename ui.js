@@ -147,9 +147,10 @@ document.querySelectorAll('#devbar button').forEach(b=>b.onclick=()=>{const k=b.
 
 // onboarding
 const COLORS=['#4ad7ff','#ff7ab6','#ffd24a','#8fd14f','#c070ff','#ff8a3a'];
+const _inv=new URLSearchParams(location.search).get('team');if(_inv&&!P.name)localStorage.setItem('wl_team',_inv.trim().toLowerCase().slice(0,40));
 if(!P.name){$('#onboard').classList.remove('hidden');$('#obTeam').value=localStorage.getItem('wl_team')||window.DEFAULT_TEAM;
   $('#obColors').innerHTML=COLORS.map(c=>`<b style="background:${c}" data-c="${c}" class="${c===P.color?'on':''}"></b>`).join('');
   $('#obColors').onclick=e=>{if(!e.target.dataset.c)return;P.color=e.target.dataset.c;document.querySelectorAll('#obColors b').forEach(x=>x.classList.toggle('on',x.dataset.c===P.color));};
-  $('#obGo').onclick=()=>{const n=$('#obName').value.trim();if(!n)return $('#obName').focus();P.name=n;localStorage.setItem('wl_team',$('#obTeam').value.trim()||window.DEFAULT_TEAM);
+  $('#obGo').onclick=()=>{const n=$('#obName').value.trim();if(!n)return $('#obName').focus();P.name=n;localStorage.setItem('wl_team',($('#obTeam').value.trim()||window.DEFAULT_TEAM).toLowerCase());
     P.inv.push({id:'starter',name:'Pipe Wrench',slot:'weapon',rarity:0,atk:6});P.equip.weapon='starter';save();$('#onboard').classList.add('hidden');boot();};}
 else window.addEventListener('DOMContentLoaded',boot);

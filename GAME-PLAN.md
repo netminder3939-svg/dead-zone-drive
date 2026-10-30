@@ -179,6 +179,23 @@ Files go in ``. In `manifest.json`, set `"png": true` for that id. That's all th
 - [x] **Defense bug fixed:** defense power used to be scaled by condition, and every *won* defense permanently cut condition. After 2–3 attacks the Stronghold dropped under raid power, lost, got destroyed, and from then on every hex was "lost with no defense". Condition is now visual only. Test: 6 attacks in a row on a Stronghold-area hex, all held, Stronghold still standing.
 - [x] **Alliance view:** route threads (each member's claimed hexes joined in claim order as a dotted colored thread, no GPS), Alliance ▸ 📋 Roster (km, tiles held, resources earned, donations, last active), and a 🗂️ map layer button (Mine / Allies / Enemy).
 
+## Stage 2c: Transaction log (Oct 30)
+- [x] **Inventory ▸ 📒 Log:** every resource change gets its own line with a category: fights, builds, donations, losses, rewards. All automatic income (daily payout after tower upkeep and the 25% alliance share) is grouped into **one line per day**, e.g. "Daily income · +42 Scrap, +18 Food, +20 Water". Filter chips: All / Income / Combat. Keeps the last 150 entries.
+- [x] **Alliance ▸ Resources log:** the bank's automatic 25% shares are grouped into one "Daily share" line per member per day.
+- [ ] **Supply lines: in design (not built).** Idea under discussion: lay lines hex by hex from the Stronghold to outposts / remote areas, income only flows while the line is unbroken, the horde targets lines, towers protect them, upgrades raise throughput.
+
+## Stage 2d: Live Firebase on by default (Oct 30)
+- [x] `firebase-config.js` now has the real project (dead-zone-drive), so the site runs LIVE by default. `?local` in the address still opens the offline demo.
+- [x] Alliance = team code. Invite links: `...?team=CODE` fills the code in for a new player. Alliance ▸ Overview has a 📨 Invite button (share sheet or copy).
+- [x] Tested live from two separate browsers: sign-in, same alliance, shared territory, feed, bank, research, operations, cloud save + restore code, horde, boss raid, markers. No permission errors. Published rules match `firestore.rules`.
+
+### How to play with your buddy
+1. Open the game: https://netminder3939-svg.github.io/dead-zone-drive/
+2. Type your name. In "Team code" type a name for your alliance (e.g. `smith-crew`) and tap Enter the Wastes. That code IS your alliance.
+3. Go to Alliance ▸ Overview and tap 📨 Invite. Send the link to your buddy (text, email, anything).
+4. Your buddy opens the link, types their name (the team code is already filled in) and taps Enter the Wastes.
+5. Done: you now share the map, bank, feed, research and missions. (No link? They can just type the same team code.)
+
 ## Stages
 - **Stage 1: Character, Stronghold and alliance (done, v0.2).** Everything above runs free on Firebase Spark, and there's also a local demo mode.
 - **Stage 2: Outposts, territory and AI factions (done, see above).**

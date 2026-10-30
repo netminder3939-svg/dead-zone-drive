@@ -159,3 +159,4 @@ body.drive #tabs,body.drive .fab,body.drive #devbar,body.drive #sheet{display:no
 #laypop{position:fixed;right:74px;bottom:calc(env(safe-area-inset-bottom) + 312px);z-index:650;display:flex;flex-direction:column;gap:6px}
 #laypop button{background:#1f1a14ee;border:2px solid #555;color:#ccc;border-radius:16px;padding:6px 12px;font-size:14px;opacity:.7}#laypop button.on{border-color:#d6a03a;color:#fff;opacity:1}
 table.roster td,table.roster th{padding:4px 3px;font-size:12px}
+.seg.chips button{flex:1}.tx .pos{color:#5fd068}.tx .neg{color:#ff6a5a}
