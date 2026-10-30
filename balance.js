@@ -36,7 +36,7 @@ const BAL={
   // ---- AI raider attacks (simulated from timestamps when the app opens)
   ai:{
     windowHours:8,            // the week is split into 8h windows...
-    attackChance:0.14,        // ...each with a 14% chance => about 3 attacks a week
+    attackChance:0.10,        // ...each with a 10% chance => about 2 attacks a week (factions add pressure in Stage 2)
     minTiles:10,              // grace: no attacks until you own this many tiles
     targetsMin:1, targetsMax:3,
     basePower:40, powerPerLevel:10, powerPerTile:0.4, maxTilesCounted:600, // raid power = base + level*10 + min(tiles,600)*0.4 (no randomness)
@@ -76,3 +76,43 @@ BAL.stronghold.areaIncome=true;   // standing Stronghold auto-claims + collects 
 // Turn order: higher agility acts first; ties go to the attacker. Each unit hits the living foe with the lowest HP.
 BAL.combat={defFactor:0.6,critAsDamage:true,agiReduceCap:25};
 BAL.progress={xpBase:100,xpExp:1.5,mutantLevelPerPlayerLevel:1.0,mutantScalePerLevel:0.2,fortLevelDiv:4,respecPerLevel:50};
+
+// ---- Stage 2: AI factions, outposts, alliance research + operations, cloud saves
+// Factions: raider gangs with home bases a couple of km from your territory. Every few hours (simulated on app open)
+// each may claim a neutral hex next to its land, preferring hexes toward you. Where their land touches yours they may
+// try to take one of your edge hexes: their attack power vs your defense power there (Stronghold/towers/outposts covering it).
+// Their hexes can't be claimed by driving: fight the garrison (deterministic) to retake. Beat the home base to rout them.
+BAL.factions={
+  list:[{id:'dogs',name:'Rust Dogs',color:'#d6542a',icon:'🐕'},{id:'choir',name:'Ash Choir',color:'#9b6bd6',icon:'🕯️'},{id:'vultures',name:'Iron Vultures',color:'#3aa6a0',icon:'🦅'}],
+  startTiles:10,              // factions appear once you own this many hexes
+  homeDist:[9,13],            // home base distance in hexes (~1.5-2.2 km) from your Stronghold / first hex
+  startRing:1,                // home + ring 1 = 7 starting hexes
+  tickHours:4, maxCatchUpDays:7,
+  expandChance:0.35, expandPerTick:1, // ~2 new hexes per faction per day
+  contestChance:0.25, maxTakesPerDay:2, // at most 2 of your hexes per day across all factions
+  maxTiles:30, maxTilesPerTier:10,
+  // strength = (base + perLevel*yourLevel + perMember*(alliance members-1) + perDay*min(30,days active)) * tierMult^tier
+  base:30, perLevel:7, perMember:6, perDay:1, tierMult:1.15,
+  garrison:{hp:2.4,atk:0.24,def:0.07,agi:3,perAdjacent:0.1}, // interior hexes (more faction neighbors) are tougher
+  home:{mult:2.2,guards:1,guardMult:0.4,regenPerDay:0.25},
+  attackRangeM:300, retakeXP:25, retakeLoot:{scrap:12,food:4}, homeXP:250, homeLoot:{scrap:150,food:60,water:60,fuel:30,parts:20},
+  respawnDays:5,              // a routed faction returns this many days later, farther out and one tier stronger
+};
+// Outposts: small structures. Capture takes a 1-hour hold, then they claim + guard a 1-ring area.
+BAL.outpost={cost:{scrap:200,food:60,water:60,fuel:30,parts:15},holdMin:60,radius:1,power:60,powerPerShLevel:8,capBase:2,capPerShLevels:2};
+// Alliance research: paid from the bank, shared by the whole alliance. cost = base * (level+1)^1.6
+BAL.research={max:5,base:{scrap:300,food:120,water:120,fuel:60,parts:40},exp:1.6,list:{
+  logistics:{name:'Supply Lines',icon:'🚚',desc:'+5% tile income per level',per:5},
+  walls:{name:'Fortified Walls',icon:'🧱',desc:'+8% Stronghold, tower and outpost power per level',per:8},
+  medics:{name:'Field Medics',icon:'🩺',desc:'+4% max health per level',per:4},
+  jammers:{name:'Radio Jammers',icon:'📡',desc:'-6% faction attack power per level',per:6},
+  salvage:{name:'Salvage Crews',icon:'🧰',desc:'+8% resources from fights per level',per:8}}};
+// Operations: 3 alliance missions per week (Mon-Sun, Pacific), goals scale with member count.
+BAL.ops={pick:3,pool:[
+  {k:'claims',text:'Claim {n} hexes as a crew',per:60,reward:{scrap:120,food:60,water:60}},
+  {k:'kills',text:'Defeat {n} mutants',per:12,reward:{scrap:80,parts:15}},
+  {k:'retakes',text:'Retake {n} hexes from factions',per:4,reward:{scrap:100,fuel:30,parts:10}},
+  {k:'outposts',text:'Finish {n} outposts',per:1,reward:{scrap:150,parts:20}},
+  {k:'visits',text:'Earn {n} landmark badges',per:2,reward:{food:80,water:80}},
+  {k:'raids',text:'Join {n} boss raids',per:1,reward:{scrap:120,fuel:30}}],xp:150};
+BAL.cloud={autosaveSec:120};

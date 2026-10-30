@@ -38,7 +38,7 @@ class LocalNet {
     const now=Date.now();this.sims.forEach((s,i)=>{this.al.members[s.uid]=this.al.members[s.uid]||{name:s.name,color:s.color,lvl:3+i*2,stronghold:2+i,contrib:{kills:20+i*15,badges:3+i*2,raids:1+i,hexes:7*(i+1),deposited:40*i,withdrawn:10*i,km:5+i*3.5}};this.al.members[s.uid].lastActive=now-(i*47+3)*60e3;});
     if(!this.al.act.length)this.al.act=[{text:'Toni built an outpost (+7 hexes)',t:now-3*3600e3},{text:'Wife earned the Overgrown Park badge',t:now-5*3600e3},{text:'Alliance founded',t:now-86400e3}];}return this.al;}
   _alSave(){localStorage.setItem('wl_al',JSON.stringify(this.al));this._emitAl();}
-  _emitAl(){(this.cbs.al||[]).forEach(f=>f({bank:{...this.al.bank},log:this.al.log.slice(0,60),act:this.al.act.slice(0,60),members:this.al.members}));}
+  _emitAl(){(this.cbs.al||[]).forEach(f=>f({research:{...(this.al.research||{})},ops:JSON.parse(JSON.stringify(this.al.ops||{})),bank:{...this.al.bank},log:this.al.log.slice(0,60),act:this.al.act.slice(0,60),members:this.al.members}));}
   onAlliance(f){(this.cbs.al=this.cbs.al||[]).push(f);this._al();this._emitAl();}
   updateMember(m){this._al().members[this.uid||'me']={...m,lastActive:Date.now(),me:true};this._alSave();}
   activity(text){this._al().act.unshift({text,t:Date.now()});this._alSave();}
@@ -47,6 +47,13 @@ class LocalNet {
   async bankTx(uid,name,res,amt){const a=this._al(),bal=(a.bank[res]||0)+amt;if(bal<0)throw new Error('Bank only has '+(a.bank[res]||0));
     a.bank[res]=bal;a.log.unshift({member:name,uid,res,amt,bal,kind:amt>0?'deposit':'withdraw',t:Date.now()});a.act.unshift({text:`${name} ${amt>0?'deposited':'withdrew'} ${Math.abs(amt)} ${res}`,t:Date.now()});this._alSave();return bal;}
   onExplored(f){(this.cbs.exp=this.cbs.exp||[]).push(f);f(JSON.parse(localStorage.getItem('wl_allyexp')||'[]'));}
+  // ----- Stage 2 (local demo): research, operations, cloud-save stand-in -----
+  async research(uid,name,id,cost){const a=this._al();a.research=a.research||{};for(const [k,v] of Object.entries(cost))if((a.bank[k]||0)<v)throw new Error('Bank needs '+v+' '+k);
+    for(const [k,v] of Object.entries(cost)){if(!v)continue;a.bank[k]-=v;a.log.unshift({member:name,uid,res:k,amt:-v,bal:a.bank[k],kind:'research',t:Date.now()});}
+    a.research[id]=(a.research[id]||0)+1;a.act.unshift({text:`🔬 ${name} funded research: ${id} → Lv${a.research[id]}`,t:Date.now()});this._alSave();return a.research[id];}
+  async opsAdd(week,inc){const a=this._al();a.ops=a.ops||{};const o=a.ops[week]=a.ops[week]||{};for(const k in inc)o[k]=(o[k]||0)+inc[k];this._alSave();}
+  async saveProfile(uid,doc){localStorage.setItem('wl_cloud_'+uid,JSON.stringify(doc));}
+  async loadProfile(uid){const s=localStorage.getItem('wl_cloud_'+uid);return s?JSON.parse(s):null;}
   shareExplored(){}
   onMarkers(f){this.cbs.mk=[f];f(JSON.parse(localStorage.getItem('wl_mk')||'{}'));}
   _mk(fn){const m=JSON.parse(localStorage.getItem('wl_mk')||'{}');fn(m);localStorage.setItem('wl_mk',JSON.stringify(m));(this.cbs.mk||[]).forEach(f=>f(m));}
@@ -93,8 +100,8 @@ class FirebaseNet {
   // Privacy: no GPS is written. Members doc = name, level, contribution stats, last active.
   updateMember(m){this.fs.setDoc(this.fs.doc(this.col('players'),this.uid),{...m,lastActive:this.fs.serverTimestamp()});}
   activity(text){this.fs.addDoc(this.col('activity'),{text,uid:this.uid,t:this.fs.serverTimestamp()});}
-  onAlliance(f){const fs=this.fs,st={bank:{},log:[],act:[],members:{}},emit=()=>f({...st});const ms=x=>x&&x.toMillis?x.toMillis():Date.now();
-    fs.onSnapshot(fs.doc(this.db,...this.base,'meta','alliance'),d=>{st.bank=(d.exists()&&d.data().bank)||{};emit();});
+  onAlliance(f){const fs=this.fs,st={bank:{},research:{},ops:{},log:[],act:[],members:{}},emit=()=>f({...st});const ms=x=>x&&x.toMillis?x.toMillis():Date.now();
+    fs.onSnapshot(fs.doc(this.db,...this.base,'meta','alliance'),d=>{const x=d.exists()?d.data():{};st.bank=x.bank||{};st.research=x.research||{};st.ops=x.ops||{};emit();});
     fs.onSnapshot(fs.query(this.col('bankLog'),fs.orderBy('t','desc'),fs.limit(60)),s=>{st.log=s.docs.map(d=>({...d.data(),t:ms(d.data().t)}));emit();});
     fs.onSnapshot(fs.query(this.col('activity'),fs.orderBy('t','desc'),fs.limit(60)),s=>{st.act=s.docs.map(d=>({...d.data(),t:ms(d.data().t)}));emit();});
     fs.onSnapshot(this.col('players'),s=>{st.members={};s.forEach(d=>st.members[d.id]={...d.data(),lastActive:ms(d.data().lastActive),me:d.id===this.uid});emit();});}
@@ -109,13 +116,24 @@ class FirebaseNet {
       tx.set(ref,{bank:{...bank,[res]:bal}},{merge:true});
       tx.set(logRef,{uid,member:name,res,amt,bal,kind:amt>0?'deposit':'withdraw',t:fs.serverTimestamp()});});
     this.activity(`${name} ${amt>0?'deposited':'withdrew'} ${Math.abs(amt)} ${res}`);return bal;}
+  // ----- Stage 2: research (atomic bank spend), operations counters, cloud saves -----
+  async research(uid,name,id,cost){const fs=this.fs,ref=fs.doc(this.db,...this.base,'meta','alliance');let lvl;
+    await fs.runTransaction(this.db,async tx=>{const d=await tx.get(ref),x=d.exists()?d.data():{},bank={...(x.bank||{})},rs={...(x.research||{})};
+      for(const [k,v] of Object.entries(cost))if((bank[k]||0)<v)throw new Error('Bank needs '+v+' '+k);
+      for(const [k,v] of Object.entries(cost)){if(!v)continue;bank[k]-=v;tx.set(fs.doc(this.col('bankLog')),{uid,member:name,res:k,amt:-v,bal:bank[k],kind:'research',t:fs.serverTimestamp()});}
+      lvl=rs[id]=(rs[id]||0)+1;tx.set(ref,{bank,research:rs},{merge:true});});
+    this.activity(`🔬 ${name} funded research: ${id} → Lv${lvl}`);return lvl;}
+  async opsAdd(week,inc){const fs=this.fs,o={};for(const k in inc)o[k]=fs.increment(inc[k]);
+    return fs.setDoc(fs.doc(this.db,...this.base,'meta','alliance'),{ops:{[week]:o}},{merge:true}).catch(()=>{});}
+  async saveProfile(uid,doc){const fs=this.fs;return fs.setDoc(fs.doc(this.col('saves'),uid),{...doc,serverT:fs.serverTimestamp()});}
+  async loadProfile(uid){const fs=this.fs,d=await fs.getDoc(fs.doc(this.col('saves'),uid));return d.exists()?d.data():null;}
   claimHex(id,data){return this.fs.setDoc(this.fs.doc(this.col('territory'),id),data);}
   createRaid(r){const {id,...rest}=r;return this.fs.setDoc(this.fs.doc(this.col('raids'),id),rest);}
   async hitRaid(id,uid,name,dmg,hp,max){
     const ref=this.fs.doc(this.col('raids'),id);
     await this.fs.runTransaction(this.db,async tx=>{const s=await tx.get(ref);if(!s.exists())return;const r=s.data();if(r.done||Date.now()>r.endsAt)return;
-      const p=(r.participants||{})[uid]||{name,dmg:0};p.dmg+=dmg;if(hp!=null){p.hp=hp;p.max=max;}const hp=Math.max(0,r.hp-dmg);
-      tx.update(ref,{hp,['participants.'+uid]:p,done:hp<=0,won:hp<=0});});
+      const p=(r.participants||{})[uid]||{name,dmg:0};p.dmg+=dmg;if(hp!=null){p.hp=hp;p.max=max;}const left=Math.max(0,r.hp-dmg);
+      tx.update(ref,{hp:left,['participants.'+uid]:p,done:left<=0,won:left<=0});});
   }
   spawnTestBoss(){alert('Test boss is only for local demo mode.');}
 }

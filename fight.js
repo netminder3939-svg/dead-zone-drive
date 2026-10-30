@@ -43,7 +43,7 @@ UI.replay=function(o){// o:{title,sub,f,result,buttons:[[label,fn,cls]],speed}
     const d=document.createElement('div');d.className='dmg'+(e.crit?' crit':'')+(e.dodge?' dodge':'');d.textContent=e.dodge?'DODGE':(e.crit?'CRIT ':'')+'-'+e.dmg;el.appendChild(d);setTimeout(()=>d.remove(),900);
     const nm=id=>(f.startA.concat(f.startB).find(u=>u.uid===id)||{}).name;const l=$('#rlog');if(l)l.innerHTML=`R${e.r}: ${nm(e.a)} → ${nm(e.t)} ${e.dodge?'<i>dodged</i>':e.dmg+(e.crit?' <b class="c">CRIT</b>':'')}<br>`+l.innerHTML;};
   const finish=()=>{if(done)return;done=true;clearInterval(iv);for(;i<f.events.length;i++){const e=f.events[i],el=document.getElementById(e.t);if(el){hp[e.t][0]=e.hp;el.querySelector('.hpb i').style.width=(100*e.hp/hp[e.t][1])+'%';el.querySelector('.hpt').textContent=e.hp+'/'+hp[e.t][1];if(e.hp<=0)el.classList.add('ko');}}
-    $('#rskip').remove();$('#rres').innerHTML=`<div class="result ${o.good?'good':'bad'}">${o.result}</div>`+(o.buttons||[]).map((b,k)=>`<button class="${b[2]||''}" style="width:100%;margin-top:6px" id="rb${k}">${b[0]}</button>`).join('');
+    $('#rskip')?.remove();if(!$('#rres'))return;$('#rres').innerHTML=`<div class="result ${o.good?'good':'bad'}">${o.result}</div>`+(o.buttons||[]).map((b,k)=>`<button class="${b[2]||''}" style="width:100%;margin-top:6px" id="rb${k}">${b[0]}</button>`).join('');
     (o.buttons||[]).forEach((b,k)=>$('#rb'+k).onclick=b[1]);UI.hud();};
   const iv=setInterval(()=>{if(i>=f.events.length)return finish();show(f.events[i++]);},delay);$('#rskip').onclick=finish;};
 

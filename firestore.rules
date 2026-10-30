@@ -24,7 +24,7 @@ service cloud.firestore {
       // Alliance Bank balances (open access: any member can deposit or withdraw, no limits).
       match /meta/alliance {
         allow read: if signedIn();
-        allow create, update: if signedIn() && nonNegBank(request.resource.data.bank);
+        allow create, update: if signedIn() && (!('bank' in request.resource.data) || nonNegBank(request.resource.data.bank));
         allow delete: if false;
       }
 
@@ -35,7 +35,7 @@ service cloud.firestore {
                       && request.resource.data.t == request.time
                       && request.resource.data.res in ['scrap','food','water','fuel','parts']
                       && request.resource.data.amt is int && request.resource.data.bal is int
-                      && request.resource.data.get('kind','deposit') in ['deposit','withdraw','auto-share'];
+                      && request.resource.data.get('kind','deposit') in ['deposit','withdraw','auto-share','research'];
         allow update, delete: if false;
       }
 
@@ -58,6 +58,15 @@ service cloud.firestore {
       match /markers/{id} {
         allow read, delete: if signedIn();
         allow create: if signedIn() && request.resource.data.uid == request.auth.uid && request.resource.data.hex is string;
+      }
+
+      // Cloud saves (Stage 2): one doc per player. Anyone in the team can READ with the restore code
+      // (their player id) to move a save to a new phone; only the owner can write. Profiles hold no GPS.
+      match /saves/{uid} {
+        allow read: if signedIn();
+        allow write: if signedIn() && request.auth.uid == uid
+                     && request.resource.data.data is string && request.resource.data.data.size() < 900000
+                     && request.resource.data.rev is int;
       }
 
       match /territory/{hex} {

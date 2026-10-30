@@ -21,7 +21,7 @@ const UI={
     const cost=c=>Object.entries(c).filter(([,v])=>v).map(([k,v])=>`<span class="${(P.res[k]||0)<v?'short':''}">${v} ${RES[k]}</span>`).join(' ');
     if(t==='base'&&sub==='fort'){const S=P.stronghold||{level:1},L=S.level,up=S.upEnd;
       h+=`<h2>🏰 ${P.name}'s Stronghold <small class="lv">Lv ${L}/${SH_MAX}</small></h2><div class="fortwrap">${strongholdSVG(L)}</div>
-      <div class="row"><div class="grow">Bonuses now: +${L*2} 🛡️ Defense · +${L*10} ❤️ Health<small>Outpost capacity (Stage 2): ${L}</small></div></div>`;
+      <div class="row"><div class="grow">Bonuses now: +${L*2} 🛡️ Defense · +${L*10} ❤️ Health<small>Outpost capacity: ${typeof outpostCap==='function'?outpostCap():L}</small></div></div>`;
       if(up){const tot=up-S.upStart,left=up-Date.now();h+=`<h3>Upgrading to Lv ${L+1}</h3><div class="row"><div class="grow">⏳ <b id="shleft">${fmtDur(left)}</b> left<small>Keeps going while the app is closed.</small><div class="prog"><i id="shprog" style="width:${100*(1-left/tot)}%"></i></div></div></div>`;}
       else if(L<SH_MAX){h+=`<h3>Next: Lv ${L+1}</h3><div class="row"><div class="grow">Cost: ${cost(shCost(L))}<small>Time: ${fmtDur(shTime(L))} · +2 🛡️ · +10 ❤️</small></div></div><button class="big" onclick="shUpgrade();UI.render()">Upgrade Stronghold</button>`;}
       else h+='<p>Fully fortified. 💪</p>';}

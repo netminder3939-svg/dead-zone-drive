@@ -153,9 +153,26 @@ Files go in ``. In `manifest.json`, set `"png": true` for that id. That's all th
   - **Relocation fix:** hexes that only came from the Stronghold ring are now marked; when the Stronghold moves, the old ring's hexes you never drove over are released. Driving over a ring hex makes it permanently yours. Relocation costs 250 scrap, 60 fuel, 60 parts. (Ring hexes claimed before this update aren't marked, so they stay.)
 - Balance simulator (not shipped): `sim/sim.js`, results in `sim/report.txt`.
 
+## Stage 2: AI factions, outposts, research, operations, cloud saves (Oct 30)
+- [x] **Raider factions** (Rust Dogs, Ash Choir, Iron Vultures): home bases about 1.5–2.2 km from your land; they appear once you hold 10 hexes.
+  - Every 4 hours (worked out when you open the app, up to 7 days back, seeded so it's the same every time) each faction may grab a neutral hex next to its land, leaning toward you (~2 hexes/day each, max 30 hexes + 10 per tier).
+  - Where their land touches yours they test one edge hex: their attack power vs your defense there (Stronghold, towers, outposts covering it). Higher attack takes it; otherwise you hold. At most 2 of your hexes per day across all factions.
+  - Strength = (30 + 7 × your level + 6 × extra alliance members + 1 per day active, max 30) × 1.15 per tier.
+  - Their hexes can't be claimed by driving. Tap one (within 300 m) to see the exact predicted fight, then attack to retake it. Interior hexes are tougher (+10% per faction neighbor, up to 3).
+  - **HQ siege:** a home base fight is tough, but damage sticks between attacks (heals 25%/day). Beat it to rout the faction: all its hexes go free and it comes back in 5 days, farther out and one tier stronger.
+  - Only hexes revealed from the fog are shown. "While you were away" banner + Inbox report summarize what happened.
+  - Base ▸ ☠️ Factions tab shows each faction's size, attack power and whether its HQ has been spotted.
+- [x] **Outposts:** build from 🏗️ on any hex you stand in that isn't a faction hex. 1-hour capture hold (fails if the hex is lost during it), then it claims + guards its 7-hex ring (power 60 + 8 per Stronghold level). Limit 2 + 1 per 2 Stronghold levels. Base ▸ ⛺ Outposts tab.
+- [x] **Alliance Research** (Alliance ▸ 🔬): spends the bank (cost × (level+1)^1.6, max Lv5): Supply Lines +5% tile income, Fortified Walls +8% structure power, Field Medics +4% max HP, Radio Jammers −6% faction attack, Salvage Crews +8% fight resources. Shared by everyone. The bank has no limits.
+- [x] **Operations** (Alliance ▸ 🎖️): 3 crew missions per week (Mon–Sun Pacific), goals scale with member count; each member claims the reward once (+150 XP).
+- [x] **Cloud saves** (Player ▸ ☁️): with live Firebase, the profile saves to `teams/{team}/saves/{uid}` every 2 min and when you leave the app. Loads a newer cloud save on open (old phone copy kept as backup, "Undo" button). Never overwrites a newer cloud save. Damaged saves are ignored. A restore code moves a save to a new phone. Demo mode keeps using localStorage. No GPS is stored.
+- [x] AI raider attack chance lowered to 10% per 8 h window (factions add the pressure now).
+- [x] Fixed: live-Firebase boss raid hits crashed (a variable name clash in `hitRaid`).
+- [ ] Deploy `firestore.rules` again in the Firebase console (new `saves` rule, research bank log entries, bank-less alliance doc updates).
+
 ## Stages
 - **Stage 1: Character, Stronghold and alliance (done, v0.2).** Everything above runs free on Firebase Spark, and there's also a local demo mode.
-- **Stage 2: Outposts, territory and AI factions.**
+- **Stage 2: Outposts, territory and AI factions (done, see above).**
   - Real outposts with capacity set by Stronghold level, upgrade timers, and defense.
   - Hex states: unclaimed, alliance, AI, contested.
   - Tactical map markers.
