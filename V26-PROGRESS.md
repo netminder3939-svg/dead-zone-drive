@@ -44,7 +44,7 @@ Plan: js/v26a.js (pipeline fix + garrison combat + 5 classes) · js/v26b.js (rep
   - Live untouched (still ddd-v19-3b)
   - deployed TEST https://dead-zone-drive--test-edax914d.web.app (version 303614555a2e1f7a). Live still ddd-v19-3b. Local v26g scenario PASS.
 
-- 2026-11-06 ddd-v26-11 TEST (not deployed): phone/desktop save merge + claim-march zero-tile fix. See js/sync26.js and js/v26i.js. Live still ddd-v19-3b. Nothing ships until Jacob says go.
+- 2026-11-06 ddd-v26-11 TEST (not deployed): save merge, claim-every-hex on a march, escort count above the moving van. Live still ddd-v19-3b. Nothing ships until Jacob says go.
 - 2026-11-05 ~2:05 PM PT ddd-v26-10 TEST: tap escort van → info card (who / troops / class / walls+damage). No fight.
   - js/v26h.js pipeVanCard26 + richer guardUid/Name/Cls sync; v26g van marker interactive
   - Shot: shots-v26/28-v26-10-van-card.png. Live untouched.

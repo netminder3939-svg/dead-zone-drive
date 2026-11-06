@@ -129,6 +129,7 @@ ok(!plan.claim.includes('9_0'),'hexes past the loss are not taken');
 ok(guarded.has('4_0')&&plan.claim.includes('4_0'),'a guarded pipeline hex is still claimable when nobody owns it');
 const allPipe=S.planClaimRoute('0_0','9_0',{owned:()=>false,ally:()=>false,fort:()=>false,defender:()=>null,room:Infinity});
 ok(allPipe.claim.length===9&&allPipe.stop==null,'a whole unowned 9-hex route is claimed, not returned empty');
+ok(allPipe.claim[0]==='1_0'&&allPipe.claim.includes('4_0')&&allPipe.claim.includes('8_0')&&allPipe.claim[8]==='9_0','every crossed hex is claimed, not only the destination');
 ok(S.explainClaim(allPipe).indexOf('Claimed 9')===0,'the report says how many hexes were claimed');
 const none=S.planClaimRoute('0_0','3_0',{owned:()=>true,ally:()=>false,fort:()=>false,room:Infinity});
 ok(none.claim.length===0&&/Skipped 3/.test(S.explainClaim(none)),'a route you already own reports the skips instead of a silent zero');
