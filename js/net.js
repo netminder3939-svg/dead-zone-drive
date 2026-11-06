@@ -1,5 +1,6 @@
 // Shared-state layer. LocalNet = offline demo (localStorage + fake teammates).
 // FirebaseNet = live crew sync via Firestore. Same interface for both.
+function isMe(u){try{return !!u&&(u===P.uid||(P.alias||[]).includes(u));}catch(e){return false;}} // v24: same player across devices (name+PIN)
 const SIM_NAMES = [['Wife','#ff7ab6'],['Toni','#4ad7ff'],['Adam','#ffd24a']];
 
 class LocalNet {
@@ -43,7 +44,7 @@ class LocalNet {
   updateMember(m){this._al().members[this.uid||'me']={...m,lastActive:Date.now(),me:true};this._alSave();}
   activity(text){this._al().act.unshift({text,t:Date.now()});this._alSave();}
   async bankMulti(uid,name,obj,kind){const a=this._al();let tot=0;for(const [res,amt] of Object.entries(obj)){if(!amt)continue;a.bank[res]=(a.bank[res]||0)+amt;tot+=amt;a.log.unshift({member:name,uid,res,amt,bal:a.bank[res],kind,t:Date.now()});}
-    a.act.unshift({text:`🌅 Daily reset: ${name}'s 25% auto-share sent ${tot} resources to the bank`,t:Date.now()});this._alSave();}
+    a.act.unshift({text:`🌅 Daily reset: ${poss(name)} 25% auto-share sent ${tot} resources to the bank`,t:Date.now()});this._alSave();}
   async bankTx(uid,name,res,amt){const a=this._al(),bal=(a.bank[res]||0)+amt;if(bal<0)throw new Error('Bank only has '+(a.bank[res]||0));
     a.bank[res]=bal;a.log.unshift({member:name,uid,res,amt,bal,kind:amt>0?'deposit':'withdraw',t:Date.now()});a.act.unshift({text:`${name} ${amt>0?'deposited':'withdrew'} ${Math.abs(amt)} ${res}`,t:Date.now()});this._alSave();return bal;}
   onExplored(f){(this.cbs.exp=this.cbs.exp||[]).push(f);f(JSON.parse(localStorage.getItem('wl_allyexp')||'[]'));}
@@ -82,8 +83,11 @@ class FirebaseNet {
   async init(profile){
     this.team=localStorage.getItem('wl_team')||this.team;const V='https://www.gstatic.com/firebasejs/10.12.2/';
     const app=await import(V+'firebase-app.js'), auth=await import(V+'firebase-auth.js'), fs=await import(V+'firebase-firestore.js');
-    this.fs=fs; const a=app.initializeApp(this.cfg); this.db=fs.getFirestore(a);
-    const cred=await auth.signInAnonymously(auth.getAuth(a)); this.uid=cred.user.uid; this.me=profile;
+    this.fs=fs; const a=app.initializeApp(this.cfg); // v16 (J3): iOS Safari drops Firestore's streaming channel after backgrounding; long-polling is the reliable transport there.
+    const ios=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+    try{this.db=fs.initializeFirestore(a,ios?{experimentalForceLongPolling:true}:{experimentalAutoDetectLongPolling:true});}catch(e){this.db=fs.getFirestore(a);}
+    const au=auth.getAuth(a);this.authMod=auth;this.auth=au;try{await auth.setPersistence(au,auth.browserLocalPersistence);}catch(e){}try{await au.authStateReady();}catch(e){} /* v23: keep a signed-in account (same player on every device); only fall back to anonymous */
+    const user=au.currentUser||(await auth.signInAnonymously(au)).user; this.uid=user.uid; this.isAnon=user.isAnonymous; this.email=user.email||''; this.me=profile;
     this.base=['teams',this.team]; return this.uid;
   }
   col(n){return this.fs.collection(this.db,...this.base,n);}
@@ -104,12 +108,12 @@ class FirebaseNet {
     fs.onSnapshot(fs.doc(this.db,...this.base,'meta','alliance'),d=>{const x=d.exists()?d.data():{};st.bank=x.bank||{};st.research=x.research||{};st.ops=x.ops||{};emit();});
     fs.onSnapshot(fs.query(this.col('bankLog'),fs.orderBy('t','desc'),fs.limit(60)),s=>{st.log=s.docs.map(d=>({...d.data(),t:ms(d.data().t)}));emit();});
     fs.onSnapshot(fs.query(this.col('activity'),fs.orderBy('t','desc'),fs.limit(60)),s=>{st.act=s.docs.map(d=>({...d.data(),t:ms(d.data().t)}));emit();});
-    fs.onSnapshot(this.col('players'),s=>{st.members={};s.forEach(d=>st.members[d.id]={...d.data(),lastActive:ms(d.data().lastActive),me:d.id===this.uid});emit();});}
+    fs.onSnapshot(this.col('players'),s=>{st.members={};s.forEach(d=>st.members[d.id]={...d.data(),lastActive:ms(d.data().lastActive),me:d.id===this.uid});for(const m of Object.values({...st.members}))for(const a of (Array.isArray(m.alias)?m.alias:[]))if(a!==this.uid&&st.members[a])delete st.members[a]; /* v24: other devices of the same player are one member */emit();});}
   async bankMulti(uid,name,obj,kind){const fs=this.fs,ref=fs.doc(this.db,...this.base,'meta','alliance');let tot=0;
     await fs.runTransaction(this.db,async tx=>{const d=await tx.get(ref);const bank={...((d.exists()&&d.data().bank)||{})};
       for(const [res,amt] of Object.entries(obj)){if(!amt)continue;bank[res]=(bank[res]||0)+amt;tot+=amt;tx.set(fs.doc(this.col('bankLog')),{uid,member:name,res,amt,bal:bank[res],kind,t:fs.serverTimestamp()});}
       tx.set(ref,{bank},{merge:true});});
-    this.activity(`🌅 Daily reset: ${name}'s 25% auto-share sent ${tot} resources to the bank`);}
+    this.activity(`🌅 Daily reset: ${poss(name)} 25% auto-share sent ${tot} resources to the bank`);}
   async bankTx(uid,name,res,amt){const fs=this.fs,ref=fs.doc(this.db,...this.base,'meta','alliance'),logRef=fs.doc(this.col('bankLog'));let bal;
     await fs.runTransaction(this.db,async tx=>{const d=await tx.get(ref);const bank=(d.exists()&&d.data().bank)||{};bal=(bank[res]||0)+amt;
       if(bal<0)throw new Error('Bank only has '+(bank[res]||0));
@@ -135,7 +139,7 @@ class FirebaseNet {
       const p=(r.participants||{})[uid]||{name,dmg:0};p.dmg+=dmg;p.fights=(p.fights||0)+1;p.taken=(p.taken||0)+(taken||0);p.heal=(p.heal||0)+(heal||0);if(hp!=null){p.hp=hp;p.max=max;}const left=Math.max(0,r.hp-dmg);
       tx.update(ref,{hp:left,['participants.'+uid]:p,done:left<=0,won:left<=0});});
   }
-  spawnTestBoss(){alert('Test boss is only for local demo mode.');}
+  spawnTestBoss(){if(typeof spawnTestBossNear==='function')return spawnTestBossNear();}
 }
 
 function makeNet(){

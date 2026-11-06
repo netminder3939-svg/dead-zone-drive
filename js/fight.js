@@ -69,12 +69,12 @@ UI._cb=[];
 UI.info=function(o){this._cb=[];const btns=(o.buttons||[]).map(b=>{this._cb.push(b[1]);return`<button class="${b[2]||''}" ${b[3]?'disabled':''} onclick="UI._cb[${this._cb.length-1}]()">${b[0]}</button>`;}).join('');
   this.modal(`<div class="icard"><div class="ihead"><div class="iart">${o.art||''}</div><div><h2>${o.title}</h2>${o.sub?`<div class="tiny">${o.sub}</div>`:''}${o.diff?`<span class="diff" style="background:${o.diff[1]}">${o.diff[0]}</span>`:''}</div></div>
     ${o.body||''}<div class="ibtns">${btns}<button onclick="UI.closeModal()">Close</button></div></div>`);};
-function diffBlock(p){const d=diffLabel(p);return{d,html:`<div class="row"><div class="grow">Predicted: <b style="color:${d[1]}">${p.win?'WIN':'LOSS'}</b> in ${p.rounds} turn${p.rounds===1?'':'s'} · ${p.win?`you end with ${p.hpLeft}/${p.hpMax} HP`:`enemy keeps ${p.foeLeft}/${p.foeMax} HP`}<small>Exact result, no luck involved: same HP, stats and gear always give this outcome.</small></div></div>`};}
+function diffBlock(p){const d=diffLabel(p);return{d,html:`<div class="row"><div class="grow">Predicted: <b style="color:${d[1]}">${p.win?'✅ likely win':'❌ likely loss'}</b> in ${p.rounds} turn${p.rounds===1?'':'s'} · ${p.win?`you end with ${p.hpLeft}/${p.hpMax} HP`:`enemy keeps ${p.foeLeft}/${p.foeMax} HP`}<small>Exact result, no luck involved: same HP, stats and gear always give this outcome.</small></div></div>`};}
 const statLine=u=>`❤️ ${u.max} · ⚔️ ${u.atk} · 🛡️ ${u.def} · 💨 ${u.agi}`;
 function cdBlock(){const c=cooldownLeft();return c?`<div class="row warn">🩹 Recovering from a defeat: ${fmtDur(c)} until you can fight</div>`:'';}
 
 UI.infoMon=function(mid,lvl,key,lat,lng){const M=MONSTERS[mid],d=distM(...G.pos,lat,lng),far=d>120&&!G.dev.any,p=predict(()=>[playerUnit()],()=>mutantUnits(mid,lvl)),D=diffBlock(p);
-  const sc=()=>this.info({title:M.name,sub:`Level ${lvl} mutant · ${Math.round(d)} m away`,art:imgTag(monImg(mid)),diff:D.d,body:D.html+cdBlock()+`<div class="row"><div class="grow">Drops: ${Object.entries(M.drops).map(([k,v])=>v+RES[k]).join(' ')} · card · maybe gear</div></div>`+(this._scout?`<div class="row"><div class="grow">🔍 ${statLine(mutantUnits(mid,lvl)[0])}</div></div>`:''),
+  const sc=()=>this.info({title:M.name,sub:`Level ${lvl} mutant · blight-touched · ${distLabel(lat,lng)}`,art:imgTag(monImg(mid)),diff:D.d,body:D.html+cdBlock()+`<div class="row"><div class="grow">Drops: ${Object.entries(M.drops).map(([k,v])=>v+RES[k]).join(' ')} · card · maybe gear</div></div>`+(this._scout?`<div class="row"><div class="grow">🔍 ${statLine(mutantUnits(mid,lvl)[0])}</div></div>`:''),
     buttons:[['⚔️ Fight',()=>fightMutant(mid,lvl,key),'fight',far||cooldownLeft()>0],['🔍 Scout',()=>{this._scout=true;sc();this._scout=false;}]]});
   sc();if(far)toast(`Get within 120 m to fight (${Math.round(d)} m)`);};
 UI.infoFort=function(id){const e=enemyAt(id),s=enemyStats(e),[lat,lng]=hexCenter(...idQR(id)),d=distM(...G.pos,lat,lng),far=d>BAL.enemy.attackRangeM&&!G.dev.any;
@@ -85,14 +85,14 @@ UI.infoFort=function(id){const e=enemyAt(id),s=enemyStats(e),[lat,lng]=hexCenter
 UI.infoLandmark=function(l){const K=LANDMARK_KINDS[l.kind],boss=lairBoss(l),r=raidFor(l.id),v=P.badges[l.id],d=distM(...G.pos,l.lat,l.lng);
   let body=`<div class="row"><div class="grow">${v?'🏅 Badge earned':'Visit (within 90 m) to earn a badge, XP and supplies'}<small>${Math.round(d)} m away</small></div></div>`;
   if(boss)body+=`<div class="row warn">☠️ ${r&&!r.done?MONSTERS[boss].name+' raid is LIVE':'Something big lurks here. Get close to reveal it and start an alliance raid.'}</div>`;
-  this.info({title:l.name,sub:K.label,art:`<span class="bigemo">${K.icon}</span>`,body,buttons:r&&!r.done&&Date.now()<r.endsAt?[['☠️ Raid info',()=>UI.infoRaid(r.id),'fight']]:[]});};
+  this.info({title:l.name,sub:(l.name||'').indexOf(K.label)===0?'Landmark':(l.kind||'landmark').replace(/_/g,' ').replace(/^./,c=>c.toUpperCase()),art:`<span class="bigemo">${K.icon}</span>`,body,buttons:r&&!r.done&&Date.now()<r.endsAt?[['☠️ Raid info',()=>UI.infoRaid(r.id),'fight']]:[]});};
 UI.infoRaid=function(id){const r=G.raids[id];if(!r)return;const B=MONSTERS[r.bossId];
   this.info({title:B.name,sub:`Alliance raid · ${r.place} · ${mins(r.endsAt)} left`,art:imgTag(monImg(r.bossId)),diff:['RAID','#c070ff'],
     body:`<div class="row"><div class="grow">Boss HP ${r.hp}/${r.maxHp}<div class="prog"><i style="width:${100*r.hp/r.maxHp}%;background:#e0573a"></i></div><small>${Object.keys(r.participants||{}).length} fighting · loot split by damage</small></div></div>`+cdBlock(),
     buttons:[['⚔️ Join raid',()=>UI.raid(id),'fight']]});};
 UI.infoTile=function(id){const t=tileInfo(id),own=P.tiles[id],o=G.terr[id],raider=!own&&(W().raider[id]||o?.ai);
-  this.info({title:t.res?`${t.tier[0].toUpperCase()+t.tier.slice(1)} ${RESN2[t.res]} tile`:'Empty hex',sub:'Hex '+id,art:`<span class="bigemo">${t.res?RES[t.res]:'⬡'}</span>`,diff:t.res?[t.tier.toUpperCase(),BAL.tiles.tierColor[t.tier]]:null,
-    body:`<div class="row"><div class="grow">${t.res?`Pays +${t.yield} ${RES[t.res]} at each daily reset (you keep 75%)`:'No resources, but still counts as territory'}<small>${own?'✅ Yours':raider?'🔴 Held by raiders: walk over it to take it back':o&&o.uid!==P.uid?'Held by '+o.by:'Unclaimed: walk or drive across it to claim'}</small></div></div>`,
+  this.info({title:t.res?`${t.tier[0].toUpperCase()+t.tier.slice(1)} ${RESN2[t.res]} tile`:'Empty hex',sub:hexName(id),art:`<span class="bigemo">${t.res?RES[t.res]:'⬡'}</span>`,diff:t.res?[t.tier.toUpperCase(),BAL.tiles.tierColor[t.tier]]:null,
+    body:`<div class="row"><div class="grow">${t.res?(o&&!o.ai&&!isMe(o.uid)&&!own?`Yields ${t.yield} ${RES[t.res]} for ${o.by} every night at the reset.`:`Yields ${t.yield} ${RES[t.res]} every night at the reset. You keep three-quarters; the rest goes to the crew.`):'Nothing to harvest here, but it still counts as your ground.'}<small>${own?'✅ This hex is yours.':raider?'🔴 Raiders hold it. Walk over it to take it back.':o&&!isMe(o.uid)?'Your ally '+o.by+' holds it.':(typeof claimsToday==='function'&&claimsToday().n>=BAL.tiles.dailyClaimCap?`🚫 Nobody holds it, but you've used all ${BAL.tiles.dailyClaimCap} claims for today. Try again after the reset.`:`Nobody holds it yet. Walk or drive in, or send a 🚩 March, to claim it. You've claimed ${claimsToday().n} ${isFinite(BAL.tiles.dailyClaimCap)?' of '+BAL.tiles.dailyClaimCap:''} today.`)}</small></div></div>`,
     buttons:[...(own?[['🏗️ Build here',()=>UI.build()]]:[]),['📌 Mark',()=>UI.markPick(id)]]});};
 UI.infoStruct=function(kind,id){const w=W(),o=kind==='sh'?w.sh:w.towers[id];if(!o)return;const lvl=kind==='sh'?strongholdLevel():(o.level||1),down=o.state==='down',pct=Math.round(100*(o.hpPct??1));
   const power=kind==='sh'?BAL.stronghold.basePower+lvl*BAL.stronghold.powerPerLevel:towerPower(o),cost=c=>Object.entries(c).filter(([,v])=>v).map(([k,v])=>`<span class="${(P.res[k]||0)<v?'short':''}">${v}${RES[k]}</span>`).join(' ');
@@ -102,17 +102,17 @@ UI.infoStruct=function(kind,id){const w=W(),o=kind==='sh'?w.sh:w.towers[id];if(!
     if(kind==='sh'&&G.pos&&P.tiles[hexAt(...G.pos).id]&&hexAt(...G.pos).id!==o.hex)btn.push([`🚚 Relocate here (${cost(BAL.stronghold.relocateCost)})`,()=>{relocateStronghold();UI.closeModal();}]);
     if(kind==='sh')btn.push(['⬆️ Upgrade',()=>{UI.closeModal();UI.open('base');UI.sub.base='fort';UI.render();}]);
     else if(lvl<BAL.tower.maxLevel)btn.push([`⬆️ Upgrade (${cost(towerUpCost(o))})`,()=>{upgradeTower(id);UI.infoStruct(kind,id);}]);}
-  this.info({title:kind==='sh'?`${P.name}'s Stronghold`:'Watchtower',sub:`Level ${lvl} · ${down?'💥 DESTROYED':o.state==='building'?'⏳ building '+fmtDur(o.buildEnd-Date.now()):'condition '+pct+'%'}`,
+  this.info({title:kind==='sh'?`${poss(P.name)} Stronghold`:'Watchtower',sub:`Level ${lvl} · ${down?'💥 DESTROYED':o.state==='building'?'⏳ building '+fmtDur(o.buildEnd-Date.now()):'condition '+pct+'%'}`,
     art:kind==='sh'?strongholdSVG(lvl):towerSVG(lvl),body:`<div class="row"><div class="grow">Defense power <b>${power}</b> · protects <b>${kind==='sh'?shRadius():towerRadius(o)} ring(s)</b> (${hexRing(0,0,kind==='sh'?shRadius():towerRadius(o)).length} hexes)${kind==='tower'&&lvl<BAL.tower.maxLevel?`<small class="pos">Next level: power ${towerPower({level:lvl+1})} · ring ${towerRadiusAt(lvl+1)}${towerRadiusAt(lvl+1)>towerRadius(o)?' ⬆ bigger area!':''}</small>`:''}${kind==='sh'&&!down&&o.state==='up'?(()=>{const a=shAreaInfo(),tot=Object.values(a.mine).reduce((x,y)=>x+y,0);return`<div class="areabox"><b>🌾 Area income</b> · ${a.hexes} hexes in ring, ${a.res} resource tiles<div class="areares">${Object.keys(RES).map(k=>`<span>${RES[k]} <em class="inc">+${a.mine[k]}</em></span>`).join('')}</div><small>You get <em class="inc">+${tot}/day</em> at reset (after 25% alliance share). Next ring at Lv${(Math.floor((lvl-1)/BAL.stronghold.levelsPerRing)+1)*BAL.stronghold.levelsPerRing+1}.</small></div>`;})():''}<small>Tiles outside every ring are taken by raiders with no fight.</small><div class="prog"><i style="width:${down?0:pct}%"></i></div>${kind==='tower'?`<small>Upkeep ${Object.entries(BAL.tower.upkeep).map(([k,v])=>v+RES[k]).join(' ')}/day · ${o.online===false?'⚠️ offline':'online'}</small>`:''}</div></div>`,buttons:btn});};
 
 // ---------- fights ----------
 function fightMutant(mid,lvl,key){if(cooldownLeft())return toast('Still recovering');const M=MONSTERS[mid],f=runFight([playerUnit()],mutantUnits(mid,lvl));P.hp=Math.max(1,f.A[0].hp);
   let res,good=f.win;if(f.win){const g=battleWin(mid,lvl,key);res=`🏆 Victory! +${Object.entries(M.drops).map(([k,v])=>v+RES[k]).join(' ')} · 🃏 card${g?'<br>Loot: '+gearLine(g):''}`;}
-  else{const lost=lossPenalty();res=`💀 Defeated by ${M.name}. You dropped ${lost}🔩 and need ${BAL.fight.lossCooldownMin} min to recover.`;}save();
+  else{const lost=lossPenalty();res=`💀 Defeated by ${M.name}. You dropped ${lost}🔩 and are knocked out: rest ${BAL.fight.lossCooldownMin} min before your next fight.`;}save();
   UI.replay({title:`${M.name} · Lv${lvl}`,f,result:res,good,buttons:[['Continue',()=>UI.closeModal(),'big']]});}
 function fightFort(id){if(cooldownLeft())return toast('Still recovering');const f=runFight([playerUnit()],fortUnits(id));P.hp=Math.max(1,f.A[0].hp);let res;
   if(f.win){const c=captureEnemy(id);res=`🏴 Stronghold captured! +${c.hexes} hexes · ${Object.entries(c.loot).map(([k,v])=>v+RES[k]).join(' ')}<br>Loot: ${gearLine(c.gear)}`;}
-  else{const lost=lossPenalty();res=`💀 The raiders held their fort. You dropped ${lost}🔩 and need ${BAL.fight.lossCooldownMin} min to recover.`;report(`💀 ${P.name} lost an attack on a Raider Stronghold`,false);}
+  else{const lost=lossPenalty();res=`💀 The raiders held their fort. You dropped ${lost}🔩 and are knocked out: rest ${BAL.fight.lossCooldownMin} min before your next fight.`;report(`💀 ${P.name} lost an attack on a Raider Stronghold`,false);}
   save();UI.replay({title:'Assault: Raider Stronghold',f,result:res,good:f.win,buttons:[['Continue',()=>{UI.closeModal();drawWorld();},'big']]});}
 
 // ---------- structures: tower levels, repair, patch ----------
@@ -132,7 +132,7 @@ UI.attackAlert=function(rep){if(!rep)return;const d=rep.detail||{};W().unseen=(W
       ${(rep.fights||[]).map(x=>`<div class="row"><div class="grow">Hex ${x.tile}<small>${x.f?(x.f.win?'Defenders won':'Defenders fell'):'No defense in range: tile lost'}</small></div></div>`).join('')}`,
     buttons:[...(fights.length?[['▶️ Watch battle',()=>playFights(rep,0),'fight']]:[]),['🗺️ View on map',()=>{UI.closeModal();flashTiles([...(d.held||[]),...(d.lost||[])]);}]]});};
 function playFights(rep,k){const fs=rep.fights.filter(x=>x.f),x=fs[k];if(!x)return UI.attackAlert(rep);
-  UI.replay({title:`Defense of hex ${x.tile}`,sub:`Battle ${k+1} of ${fs.length}`,f:x.f,good:x.f.win,result:x.f.win?'🛡️ Raiders driven off. Tile held.':'🚩 Defenders fell. Tile lost.'+(x.destroyed?.length?' 💥 '+x.destroyed.join(', ')+' destroyed.':''),
+  UI.replay({title:`Defense of ${hexName(x.tile)}`,sub:`Battle ${k+1} of ${fs.length}`,f:x.f,good:x.f.win,result:x.f.win?'🛡️ Raiders driven off. Tile held.':'🚩 Defenders fell. Tile lost.'+(x.destroyed?.length?' 💥 '+x.destroyed.join(', ')+' destroyed.':''),
     buttons:[[k+1<fs.length?'Next battle ▶':'Back to report',()=>playFights(rep,k+1),'big'],['🗺️ View on map',()=>{UI.closeModal();flashTiles([x.tile]);}]]});}
 function flashTiles(ids){if(!ids.length)return;const g=L.layerGroup().addTo(map),pts=[];
   ids.forEach(id=>{const [q,r]=idQR(id),poly=hexPoly(q,r);pts.push(...poly);L.polygon(poly,{className:'flash',color:'#ff3b30',weight:3,fillColor:'#ff3b30',fillOpacity:.45}).addTo(g);});
@@ -164,7 +164,7 @@ async function raidAttack(id){const r=G.raids[id];if(!r||r.done)return;if(P.hp<=
   P.hp=Math.max(0,f.A[0].hp);await NET.hitRaid(id,P.uid,P.name,dmg,P.hp,stats().hp,mt.taken,mt.heal);
   if(!P.raidLoot[id+'_j']){P.raidLoot[id+'_j']=1;questProg('raids');P.contrib.raids++;allianceLog(`${P.name} joined the raid on ${B.name}`);}
   let ko=false;if(P.hp<=0){P.hp=1;lossPenalty();ko=true;}save();UI.hud();
-  UI.replay({title:`☠️ Raid: ${B.name}`,sub:r.place,f,good:!ko,result:(f.win?`💀 ${B.name} is down! You landed the final blow.`:`You dealt <b>${dmg}</b> damage to ${B.name}.`)+(ko?` You were knocked out and need ${BAL.fight.lossCooldownMin} min to recover.`:''),
+  UI.replay({title:`☠️ Raid: ${B.name}`,sub:r.place,f,good:!ko,result:(f.win?`💀 ${B.name} is down! You landed the final blow.`:`You dealt <b>${dmg}</b> damage to ${B.name}.`)+(ko?` You were knocked out and are knocked out: rest ${BAL.fight.lossCooldownMin} min before your next fight.`:''),
     buttons:[['⬅️ Back to raid',()=>UI.raid(id),'big']],autostart:true});}
 
 // ---------- Test boss button: spawns the Crystal Knight one hex next to you (local + live) ----------
@@ -183,3 +183,11 @@ function towerSVG(l){let s='';const h=60+l*14,y=150-h;for(let i=0;i<l;i++)s+=`<r
   <rect x="32" y="${y-14}" width="56" height="16" fill="#8a8070" stroke="#222"/>${[0,1,2,3].map(i=>`<rect x="${32+i*15}" y="${y-22}" width="9" height="9" fill="#8a8070"/>`).join('')}
   <rect x="54" y="${y+6}" width="12" height="10" fill="#ffd27a"/>${l>=3?`<path d="M60 ${y-22} L10 ${y-60} L30 ${y-66}Z" fill="#fff3b0" opacity=".25"/>`:''}${l>=4?`<line x1="60" y1="${y-22}" x2="60" y2="${y-44}" stroke="#aaa" stroke-width="2"/><path d="M60 ${y-44} l18 5 l-18 5z" fill="${P.color}"/>`:''}
   <rect x="20" y="148" width="80" height="8" fill="#3a332a"/></svg>`;}
+
+// v16 (P9): distance in metres from your GPS dot plus hexes, so it matches what you see on the map
+function distLabel(lat,lng){const m=Math.round(distM(...G.pos,lat,lng)),h=hexDist(hexAt(...G.pos).id,hexAt(lat,lng).id);return h===0?`${m} m away · in your hex`:`${m} m away · ${pl(h,'hex','hexes')} over`;}
+
+// v19: player setting for how fights show (Player > Stats > Fight view). The info card before the fight is unchanged.
+const _replayFull=UI.replay;UI.replay=function(o){const v=P.fightView||'full';
+  if(v==='skip'){const btn=(o.buttons||[]);this.modal(`<h2>${o.title}</h2><div class="result ${o.good?'good':'bad'}">${o.result}</div>`+btn.map((b,k)=>`<button class="${b[2]||''}" style="width:100%;margin-top:6px" id="rb${k}">${b[0]}</button>`).join(''));btn.forEach((b,k)=>$('#rb'+k).onclick=b[1]);UI.hud();return;}
+  _replayFull.call(this,o);if(v==='quick'){const s=$('#rskip');if(s)s.click();}};
