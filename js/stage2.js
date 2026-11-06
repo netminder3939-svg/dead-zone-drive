@@ -133,7 +133,7 @@ function opsClaim(key){const o=opsList().find(x=>x.key===key);P.opsClaimed=P.ops
 const CS={last:0,lastStr:'',status:'not saved yet'};
 function profileValid(o){return o&&typeof o==='object'&&typeof o.name==='string'&&o.name&&Number.isFinite(o.lvl)&&o.lvl>=1&&o.res&&typeof o.res==='object';}
 function profileClean(){const o=JSON.parse(JSON.stringify(P));delete o.pos;delete o.lat;delete o.lng;return o;}
-async function cloudSave(force){if(!NET.saveProfile||!P.name||window.__wiping)return;if((G.srvFullEpoch||0)>(P.fullEpoch||0)){if(typeof fullResetCheck==='function')fullResetCheck();return;} // v19: a phone still holding pre-wipe data wipes itself instead of just going quiet. v17 B4: never upload a pre-wipe save
+async function cloudSave(force){if(G.cloudLogin&&G.cloudLogin.pending)return;if(!NET.saveProfile||!P.name||window.__wiping)return;if((G.srvFullEpoch||0)>(P.fullEpoch||0)){if(typeof fullResetCheck==='function')fullResetCheck();return;} // v19: a phone still holding pre-wipe data wipes itself instead of just going quiet. v17 B4: never upload a pre-wipe save
   if(!force&&G.syncHoldUntil&&Date.now()<G.syncHoldUntil)return;
   const local=profileClean();if(!force&&JSON.stringify(local)===CS.lastStr)return;
   if(typeof SYNC26==='undefined'||!SYNC26.runCloudHandoff){CS.report='Cloud save did not go through. Your progress is still on this device.';CS.status=CS.report;return;}

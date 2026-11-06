@@ -90,6 +90,7 @@ async function syncNow(){
   if(syncing)return syncing;
   syncing=(async()=>{
     try{
+      if(Gref.cloudLogin&&Gref.cloudLogin.pending){Gref.sync26Ready=true;return;}
       if(!needFirebase()){Gref.sync26Ready=true;return;}
       if(Gref.syncHoldUntil&&Date.now()<Gref.syncHoldUntil){Gref.sync26Ready=true;return;}
       if(Gref.drive&&Gref.drive.on){Gref.sync26Ready=true;return;} // never swap saves out from under a live drive recap
@@ -188,6 +189,7 @@ try{
   const prevScore=typeof score26==='function'?score26:null;
   if(prevScore)score26=function(o){if(Gref._sync26force&&o===P)return prevScore(o)+1e12;return prevScore(o);};
   cloudSave=async function(force){
+    if(Gref.cloudLogin&&Gref.cloudLogin.pending)return;
     if(!Gref.sync26Ready){if(force&&typeof CS!=='undefined'){CS.report='Cloud save did not go through. Your progress is still on this device.';CS.status=CS.report;}Gref.sync26Pending=true;return;}
     if(!force&&Gref.syncHoldUntil&&Date.now()<Gref.syncHoldUntil)return;
     if(!SYNC26.shouldUpload(memGen,storedGen())){if(force&&typeof CS!=='undefined'){CS.report='Cloud save did not go through. Your progress is still on this device.';CS.status=CS.report;}return;}
