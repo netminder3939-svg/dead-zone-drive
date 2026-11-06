@@ -469,7 +469,7 @@
     try{loaded=await io.load();}
     catch(e){
       const blob=((e&&e.code)||'')+' '+((e&&e.message)||'');
-      return {local:local,report:cloudFailureText(e),wrote:false,rev:local._rev||0,quota:/quota|resource-exhausted|429/i.test(blob)};
+      return {local:local,report:cloudFailureText(e),wrote:false,rev:local._rev||0,quota:/quota|resource-exhausted|429/i.test(blob),why:'load-error',code:String((e&&(e.code||e.name))||'unknown').slice(0,40)};
     }
     let profile=clone(local),rev=local._rev||0;
     if(loaded&&(loaded.rev||0)>rev){
@@ -480,7 +480,7 @@
     // The server already has this revision and the same progress. Another
     // click must not pretend the copy never arrived, and must not burn a new number.
     if(loaded&&(loaded.rev||0)===rev&&gameEqual(local,loaded.profile)){
-      return {local:local,report:'',wrote:false,already:true,rev:rev,savedAt:(loaded.profile&&loaded.profile._savedAt)||0,quota:false};
+      return {local:local,report:'',wrote:false,already:true,rev:rev,savedAt:(loaded.profile&&loaded.profile._savedAt)||0,quota:false,why:'already',serverRev:rev};
     }
     const next=rev+1,savedAt=io.now?io.now():Date.now();
     const out=clone(profile);out._rev=next;out._savedAt=savedAt;
@@ -491,9 +491,9 @@
       const quota=/quota|resource-exhausted|429/i.test(blob);
       const why=quota?'The server said quota exceeded.':(/unavailable|deadline-exceeded|aborted|cancelled/i.test(blob)?'The server did not answer.':'This send did not go through.');
       const report=heldRev?('Do not switch yet. Cloud save '+heldRev+' is on the server. '+why+' The latest change is still on this device.'):cloudFailureText(e);
-      return {local:local,report:report,wrote:false,rev:local._rev||0,confirmedRev:heldRev,quota:quota};
+      return {local:local,report:report,wrote:false,rev:local._rev||0,confirmedRev:heldRev,quota:quota,why:heldRev?'write-error-same-rev':'write-error',code:String((e&&(e.code||e.name))||'unknown').slice(0,40),serverRev:loaded?(loaded.rev||0):0};
     }
-    return {local:out,report:'',wrote:true,rev:next,quota:false};
+    return {local:out,report:'',wrote:true,rev:next,quota:false,why:'wrote',serverRev:loaded?(loaded.rev||0):0};
   }
   const api={clone,cmpClock,clockOf,merge,gameEqual,recordChange,snapOf,shouldUpload,hexLine,hexDist,crossedHexes,planClaimRoute,explainClaim,aliasMayResolve,driveKey,unionDrives,landAhead,decide,profileFromSaveDoc,overlayResGrant,preferLand,cloudFailureText,saveStatusLine,syncAllowed,uploadPlan,runCloudHandoff,SYNC_HOLD_MS};
   root.SYNC26=api;

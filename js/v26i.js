@@ -99,7 +99,7 @@ async function syncNow(){
       try{const a=await acctGet(P.acct);if(a&&Array.isArray(a.uids))uids=[...new Set([myUid(),...a.uids])];}catch(e){}
       let changed=false;
       for(const u of uids){
-        let d=null;try{d=await NET.loadProfile(u);}catch(e){if(u===myUid()){Gref.syncHoldUntil=Date.now()+SYNC26.SYNC_HOLD_MS;if(typeof CS!=='undefined'){CS.report=SYNC26.cloudFailureText(e);CS.status=CS.report;}Gref.sync26Ready=true;return;}continue;}
+        let d=null;try{d=await NET.loadProfile(u);}catch(e){if(u===myUid()){Gref.syncHoldUntil=Date.now()+SYNC26.SYNC_HOLD_MS;Gref.syncHoldQuota=/quota|resource-exhausted|429/i.test(((e&&e.code)||'')+' '+((e&&e.message)||''));if(typeof CS!=='undefined'){CS.report=SYNC26.cloudFailureText(e);CS.status=CS.report;CS.why='load-error '+String((e&&(e.code||e.name))||'unknown').slice(0,40);}Gref.sync26Ready=true;return;}continue;}
         if(!d||d.data==null)continue;
         let o=SYNC26.profileFromSaveDoc(d);
         if(o&&o.res&&!o.name&&!o.wiped&&(d.rev||0)>(P._rev||0))o=SYNC26.overlayResGrant(snap(),o.res,d.rev,d.savedAt);
@@ -190,12 +190,13 @@ try{
   if(prevScore)score26=function(o){if(Gref._sync26force&&o===P)return prevScore(o)+1e12;return prevScore(o);};
   cloudSave=async function(force){
     if(Gref.cloudLogin&&Gref.cloudLogin.pending)return;
-    if(!Gref.sync26Ready){if(force&&typeof CS!=='undefined'){CS.report='Do not switch yet. This send has not been confirmed.';CS.status=CS.report;}Gref.sync26Pending=true;return;}
+    if(!Gref.sync26Ready){if(force&&typeof CS!=='undefined'){CS.report='Do not switch yet. This send has not been confirmed.';CS.status=CS.report;CS.why='not-ready';}Gref.sync26Pending=true;return;}
     if(!force&&Gref.syncHoldUntil&&Date.now()<Gref.syncHoldUntil)return;
-    if(!SYNC26.shouldUpload(memGen,storedGen())){if(force&&typeof CS!=='undefined'){CS.report='Do not switch yet. This send has not been confirmed.';CS.status=CS.report;}return;}
+    if(force&&Gref.syncHoldUntil&&!Gref.syncHoldQuota){Gref.syncHoldUntil=0;if(typeof CS!=='undefined')CS.why='hold-cleared';}
+    if(!SYNC26.shouldUpload(memGen,storedGen())){if(force&&typeof CS!=='undefined'){CS.report='Do not switch yet. This send has not been confirmed.';CS.status=CS.report;CS.why='gen-block';}return;}
     if(!syncing)await syncNow();
-    if(Gref.syncHoldUntil&&Date.now()<Gref.syncHoldUntil)return;
-    if(!SYNC26.shouldUpload(memGen,storedGen())){if(force&&typeof CS!=='undefined'){CS.report='Do not switch yet. This send has not been confirmed.';CS.status=CS.report;}return;}
+    if(!force&&Gref.syncHoldUntil&&Date.now()<Gref.syncHoldUntil)return;
+    if(!SYNC26.shouldUpload(memGen,storedGen())){if(force&&typeof CS!=='undefined'){CS.report='Do not switch yet. This send has not been confirmed.';CS.status=CS.report;CS.why='gen-block';}return;}
     Gref._sync26force=!!force;
     try{return await prevCS(!!force);}finally{Gref._sync26force=false;}
   };

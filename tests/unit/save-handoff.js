@@ -52,7 +52,7 @@ const quota={code:'resource-exhausted',message:'Quota exceeded.'};
     load:async()=>{throw quota;},
     write:async()=>{blockedWrites++;}
   });
-  ok(blocked.wrote===false&&blockedWrites===0&&blocked.rev===1&&blocked.quota===true,'a quota error does not write and does not move the revision');
+  ok(blocked.wrote===false&&blockedWrites===0&&blocked.rev===1&&blocked.quota===true&&blocked.why==='load-error','a quota error does not write and does not move the revision');
   ok(blocked.local.res.scrap===2574,'the spent balance stays on the device');
   ok(/quota exceeded/i.test(blocked.report),'the screen can say the server refused with quota exceeded');
   const shown=S.saveStatusLine({last:0,report:blocked.report,status:'saved earlier'},1);
@@ -137,7 +137,7 @@ const quota={code:'resource-exhausted',message:'Quota exceeded.'};
     load:async()=>server,
     write:async()=>{again++;}
   });
-  ok(same.already===true&&same.wrote===false&&again===0&&same.rev===2,'the same revision and the same progress is not written again');
+  ok(same.already===true&&same.wrote===false&&again===0&&same.rev===2&&same.why==='already','the same revision and the same progress is not written again');
   let rejected=0;
   const newerFail=await S.runCloudHandoff(Object.assign(JSON.parse(JSON.stringify(server.profile)),{res:Object.assign({},server.profile.res,{scrap:1})}),{
     load:async()=>server,
