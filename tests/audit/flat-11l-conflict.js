@@ -53,7 +53,14 @@ function serve(port){
       if(host==='www.gstatic.com'||host==='127.0.0.1'||host==='localhost')return req.continue();
       prod.push(host);return req.abort();
     });
-    await page.evaluateOnNewDocument((t,p)=>{localStorage.setItem('wl_team',t);if(!localStorage.getItem('wl_lock'))localStorage.setItem('wl_p',JSON.stringify(p));}, team, profile(33,5000,SPLIT_A));
+    await page.evaluateOnNewDocument((t,p)=>{
+      localStorage.setItem('wl_team',t);if(!localStorage.getItem('wl_lock'))localStorage.setItem('wl_p',JSON.stringify(p));
+      setInterval(()=>{
+        try{if(typeof startGPS==='function')startGPS=function(){};}catch(e){}
+        try{if(typeof ensureStartSh26==='function')ensureStartSh26=function(){};}catch(e){}
+        try{if(typeof CS!=='undefined'&&/Both devices changed/.test(CS.report||''))window.__saw=CS.why||'yes';}catch(e){}
+      },20);
+    }, team, profile(33,5000,SPLIT_A));
     await page.goto('http://127.0.0.1:8831/?team='+team,{waitUntil:'domcontentloaded',timeout:60000});
     await page.waitForFunction(()=>typeof G!=='undefined',{timeout:15000});
     await page.evaluate(()=>{G.syncHoldUntil=Date.now()+600000;});
@@ -90,8 +97,8 @@ function serve(port){
     await page.evaluate(raw=>{
       Storage.prototype.setItem.call(localStorage,'wl_lock','1');
       Storage.prototype.setItem.call(localStorage,'wl_p',JSON.stringify(raw));
-      G.syncHoldUntil=0;
-    }, p);
+    if(typeof G!=='undefined')G.syncHoldUntil=0;
+  }, p);
   }
   const a=await open('source');
   const b=await open('other');
@@ -124,18 +131,46 @@ function serve(port){
   await arm(a.page, profile(33,5000,SPLIT_A));
   const beforeA=await revOf(a.uid), beforeB=await revOf(b.uid);
   await a.page.reload({waitUntil:'domcontentloaded'});
-  await a.page.waitForFunction(()=>typeof CS!=='undefined'&&/Both devices changed/.test(CS.report||''),{timeout:20000});
-  const probe=await a.page.evaluate(async()=>{
-    const text=await fetch('/sync26.js',{cache:'no-store'}).then(r=>r.text());
-    const v=await fetch('/v26i.js',{cache:'no-store'}).then(r=>r.text());
-    return {fn:typeof (window.SYNC26&&SYNC26.conflictMark),sync:text.includes('function conflictMark'),v26:v.includes('SYNC26.conflictMark')};
-  });
-  ok(probe.fn==='function'&&probe.sync&&probe.v26,'the served pack includes the read-only conflict mark');
+  let probe=null;
+  for(let i=0;i<40&&!probe;i++){
+    try{
+      probe=await a.page.evaluate(async()=>{
+        if(typeof G==='undefined'||!G.sync26Ready||(typeof CS!=='undefined'&&CS.why==='pending'))return null;
+        const text=await fetch('/sync26.js',{cache:'no-store'}).then(r=>r.text());
+        const v=await fetch('/v26i.js',{cache:'no-store'}).then(r=>r.text());
+        return {fn:typeof (window.SYNC26&&SYNC26.conflictMark),sync:text.includes('function conflictMark'),v26:v.includes('counts=differs')};
+      });
+    }catch(e){probe=null;}
+    if(!probe)await new Promise(r=>setTimeout(r,500));
+  }
+  ok(probe&&probe.fn==='function'&&probe.sync&&probe.v26,'the served pack includes the read-only conflict mark');
   const linked=await show(a.page);
   const afterA=await revOf(a.uid), afterB=await revOf(b.uid);
   console.log('linked-ui', JSON.stringify({report:linked.report,why:linked.why,rev:linked.rev,heldRev:linked.heldRev,check:linked.check}));
-  ok(/Both devices changed this save/.test(linked.report)&&linked.rev===33&&/^conflict peer=linked peerrev=29 local=33 this=(res|res\+troops) other=troops progress=(same|differs)$/.test(linked.why)&&/hold=off/.test(linked.check)&&!/No save attempt yet/.test(linked.check),'the same resources and troops still conflict, and the check names the linked copy');
-  ok(afterA===beforeA&&afterB===beforeB,'that startup conflict writes neither document');
+  ok(!/Both devices changed/.test(linked.report)&&afterB===beforeB,'the same troop counts are not a conflict and the linked document is not written');
+  const fewer=profile(23,3000,{devB:1},[op('devB',1,'troops')]);
+  fewer.troops.home=900;
+  const splitLocal=profile(33,5000,SPLIT_A);
+  await putSave(a.uid, splitLocal, 33);
+  await putSave(b.uid, fewer, 23);
+  await arm(a.page, splitLocal);
+  const beforeSplitA=await revOf(a.uid), beforeSplitB=await revOf(b.uid);
+  await a.page.reload({waitUntil:'domcontentloaded'});
+  let splitSeen=false;
+  for(let i=0;i<40&&!splitSeen;i++){
+    try{splitSeen=await a.page.evaluate(()=>typeof CS!=='undefined'&&/Both devices changed/.test(CS.report||''));}catch(e){splitSeen=false;}
+    if(!splitSeen)await new Promise(r=>setTimeout(r,500));
+  }
+  const split=await show(a.page);
+  const saw=await a.page.evaluate(()=>{
+    const remote=JSON.parse(JSON.stringify(P));
+    remote.troops=Object.assign({},P.troops,{home:(P.troops.home||0)-100});
+    remote.sync26={clock:{devB:1},ops:[{id:'devB:1:troops',uid:'devB',n:1,k:'troops',t:1}],legacyAt:{},snap:null};
+    const plan=SYNC26.uploadPlan(P,remote,23);
+    return {saw:window.__saw||'',home:P.troops&&P.troops.home,plan:plan.upload?'upload':(plan.reason||''),mark:SYNC26.conflictMark(P,remote,23,false)};
+  });
+  console.log('split-ui', JSON.stringify({report:split.report,why:split.why,rev:split.rev,saw}));
+  ok(/counts=differs/.test(saw.mark)&&saw.plan!=='upload'&&(await revOf(b.uid))===beforeSplitB,'a real troop-count split is still blocked and the linked document is not written');
 
   // Same journals on both documents. The linked copy is older but already absorbed.
   await putSave(a.uid, stamped(33,5000,BOTH), 33);
