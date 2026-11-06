@@ -277,6 +277,17 @@
       profile._merged=mode==='A'?'local':'remote';
     }else profile=mergeConcurrent(A,B,now);
     absorb(profile,A);absorb(profile,B);
+    // A higher document rev is an external edit (the QA grant). Copy its resources
+    // only when this device still has zeros and has not journaled a spend or refill.
+    // A drive, a training queue, or a later spend stays on the profile we already picked.
+    const ra=A._rev||0,rb=B._rev||0;
+    if(ra!==rb){
+      const hi=ra>rb?A:B,lo=ra>rb?B:A;
+      const loRes=normRes(lo.res);
+      const untouched=RES.every(function(k){return loRes[k]===0;});
+      const blocked=(lo.sync26&&lo.sync26.truncated)||unseen(lo.sync26&&lo.sync26.ops,clockOf(hi)).some(function(op){return op&&op.k==='res';});
+      if(untouched&&!blocked&&hi.res&&typeof hi.res==='object')profile.res=normRes(hi.res);
+    }
     const changed=!gameEqual(A,profile);
     if(changed){
       const s=ensure(profile);

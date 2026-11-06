@@ -138,6 +138,21 @@ const applied=S.merge(localQa,cloudQa,{uid:localQa.uid,remoteUid:localQa.uid,now
 ok(cloudQa._savedAt===DOC_SAVED&&cloudQa._rev===2,'document savedAt and rev override the older copy inside the JSON');
 ok(applied.profile.res.scrap===3000&&applied.profile.res.fuel===3000,'the 3000 grant is what the screen should load');
 ok(!applied.profile.stats||applied.profile.stats.meters===0,'no distance was invented to make the grant win');
+// A newer local journal (level tick, no spend) used to keep the zeros. The grant is resources only.
+const ahead=JSON.parse(JSON.stringify(localQa));
+S.recordChange(ahead,ahead.uid,inner);
+ahead.lvl=2;ahead.xp=10;S.recordChange(ahead,ahead.uid,inner+1000);
+const aheadMerge=S.merge(ahead,cloudQa,{uid:ahead.uid,remoteUid:ahead.uid,now:DOC_SAVED+2000});
+ok(aheadMerge.profile.res.scrap===3000&&aheadMerge.profile.lvl===2,'a higher rev grant still fills a zero balance after a non-resource journal');
+const spentQa=JSON.parse(JSON.stringify(ahead));
+spentQa.res={scrap:2574,food:2864,water:2864,fuel:3000,parts:2992};
+spentQa.troops.queue=[{id:'t1',n:1000}];
+spentQa.world={sh:{level:1,upEnd:DOC_SAVED+3600e3,state:'up',hex:'z'},barracks:{level:1,upEnd:DOC_SAVED+1800e3}};
+S.recordChange(spentQa,spentQa.uid,DOC_SAVED+5000);
+const spentMerge=S.merge(spentQa,cloudQa,{uid:spentQa.uid,remoteUid:spentQa.uid,now:DOC_SAVED+8000});
+ok(spentMerge.profile.res.scrap===2574&&spentMerge.profile.res.fuel===3000,'a refill and spend is not replaced by the flat 3000 grant');
+ok(spentMerge.profile.troops.queue.length===1&&spentMerge.profile.world.sh.upEnd===DOC_SAVED+3600e3,'training and the stronghold timer stay');
+ok(spentMerge.profile.dr26.length===0&&(spentMerge.profile.stats.meters||0)===0,'keeping the spend does not invent a drive');
 
 // ---- offline concurrent journals: deltas add once, troops do not ----
 function withSnap(p){p.sync26=p.sync26||{clock:{'7qg8':1,'vXcZ':1},ops:[],legacyAt:{}};p.sync26.snap=S.snapOf(p);return p;}
