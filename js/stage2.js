@@ -134,12 +134,19 @@ const CS={last:0,lastStr:'',status:'not saved yet'};
 function profileValid(o){return o&&typeof o==='object'&&typeof o.name==='string'&&o.name&&Number.isFinite(o.lvl)&&o.lvl>=1&&o.res&&typeof o.res==='object';}
 function profileClean(){const o=JSON.parse(JSON.stringify(P));delete o.pos;delete o.lat;delete o.lng;return o;}
 async function cloudSave(force){if(!NET.saveProfile||!P.name||window.__wiping)return;if((G.srvFullEpoch||0)>(P.fullEpoch||0)){if(typeof fullResetCheck==='function')fullResetCheck();return;} // v19: a phone still holding pre-wipe data wipes itself instead of just going quiet. v17 B4: never upload a pre-wipe save
- const o=profileClean(),s=JSON.stringify(o);if(!force&&s===CS.lastStr)return;
-  // safety: never overwrite a newer save made on another device
-  try{const c=await NET.loadProfile(P.uid);if(c&&(c.rev||0)>(P._rev||0)){CS.status='a newer save is in the cloud: reopen the app to load it';return;}}catch(e){}
-  P._rev=(P._rev||0)+1;P._savedAt=Date.now();save();const doc={data:JSON.stringify(profileClean()),rev:P._rev,savedAt:P._savedAt,name:P.name,lvl:P.lvl,v:2,fe:P.fullEpoch||0,me:P.mapEpoch||0};
-  if(P.acct)doc.acct=String(P.acct).slice(0,24);
-  try{await NET.saveProfile(P.uid,doc);CS.last=Date.now();CS.lastStr=s;CS.status='saved '+when(CS.last);}catch(e){CS.status='save failed: '+(e.message||e);}}
+  if(!force&&G.syncHoldUntil&&Date.now()<G.syncHoldUntil)return;
+  const local=profileClean();if(!force&&JSON.stringify(local)===CS.lastStr)return;
+  if(typeof SYNC26==='undefined'||!SYNC26.runCloudHandoff){CS.report='Cloud save did not go through. Your progress is still on this device.';CS.status=CS.report;return;}
+  const result=await SYNC26.runCloudHandoff(local,{
+    load:async function(){const c=await NET.loadProfile(P.uid);if(!c)return null;return {rev:c.rev||0,profile:SYNC26.profileFromSaveDoc(c)};},
+    write:async function(doc){const body={data:JSON.stringify(doc.profile),rev:doc.rev,savedAt:doc.savedAt,name:doc.profile.name,lvl:doc.profile.lvl,v:2,fe:doc.profile.fullEpoch||P.fullEpoch||0,me:doc.profile.mapEpoch||P.mapEpoch||0};if(P.acct)body.acct=String(P.acct).slice(0,24);await NET.saveProfile(P.uid,body);}
+  });
+  if(result.quota)G.syncHoldUntil=Date.now()+SYNC26.SYNC_HOLD_MS;
+  if(!result.wrote){CS.report=result.report;CS.status=result.report;return;}
+  const src=result.local,keepUid=P.uid,keepAcct=P.acct,keepAlias=P.alias;
+  ['res','troops','world','dr26','tiles','stats','badges','pipeUnlock26','sync26','stronghold','lvl','xp','sp','skills','contrib'].forEach(function(k){if(src[k]!==undefined)P[k]=src[k];});
+  P._rev=result.rev;P._savedAt=src._savedAt;P.uid=keepUid;if(keepAcct)P.acct=keepAcct;if(keepAlias)P.alias=keepAlias;save();
+  CS.last=Date.now();CS.lastStr=JSON.stringify(profileClean());CS.report='';CS.status='saved '+when(CS.last);}
 function adoptProfile(o,why){localStorage.setItem('wl_p_backup',localStorage.getItem('wl_p')||'');const uid=P.uid;for(const k of Object.keys(P))delete P[k];Object.assign(P,P_DEFAULT(),o);P.uid=uid||o.uid;save();report('☁️ '+why,true);}
 async function cloudCheck(uid){if(!NET.loadProfile)return;try{const d=await NET.loadProfile(uid);if(!d||!d.data)return;let o;try{o=JSON.parse(d.data);}catch(e){return;}
     if(!profileValid(o))return;if((d.rev||0)>(P._rev||0)){adoptProfile(o,`Loaded your newer cloud save (Lv${o.lvl}). Old phone copy kept as a backup.`);}}catch(e){CS.status='cloud check failed';}}
@@ -169,7 +176,7 @@ const _render=UI.render;UI.render=function(){_render.call(this);const t=this.tab
     else h+=BAL.factions.list.map(d=>{const f=fx.f[d.id];if(!f)return'';const n=Object.keys(f.tiles||{}).length,seen=Object.keys(f.tiles||{}).filter(isVis).length,homeSeen=f.home&&isVis(f.home);
       return`<div class="row"><i class="cdot" style="background:${d.color}"></i><div class="grow"><b>${d.icon} ${d.name}</b> <small style="display:inline">tier ${f.tier||0}</small><small>${f.routedUntil&&Date.now()<f.routedUntil?'🏳️ Routed · back in '+fmtDur(f.routedUntil-Date.now()):`${n} hexes (${seen} seen) · attack power ${factionAttack(f)} · ${homeSeen?'HQ spotted':'HQ hidden in the fog'}`}</small></div>${homeSeen&&!f.routedUntil?`<button onclick="UI.close();map.setView(hexCenter(...idQR('${f.home}')),15)">HQ</button>`:''}</div>`;}).join('');}
   if(t==='player'&&sub==='save'){const live=NET.mode!=='local';h=`<h2>☁️ Cloud save</h2><p class="tiny">${live?'Your progress is saved to the alliance cloud every couple of minutes and when you leave the app.':'Demo mode: saves stay on this phone (a cloud copy is kept in local storage).'}</p>
-    <div class="row"><div class="grow">Status: <b>${CS.last?CS.status:(P._rev?'saved earlier':'not saved yet')}</b><small>${P._rev?'Cloud save number '+P._rev:''}</small></div><button onclick="cloudSave(true).then(()=>UI.render())">☁️ Save to the cloud</button></div>
+    <div class="row"><div class="grow">Status: <b>${typeof SYNC26!=='undefined'&&SYNC26.saveStatusLine?SYNC26.saveStatusLine(CS,P._rev):(CS.report||(CS.last?CS.status:(P._rev?'saved earlier':'not saved yet')))}</b><small>${P._rev?'Cloud save number '+P._rev:''}</small></div><button onclick="cloudSave(true).then(()=>UI.render())">☁️ Save to the cloud</button></div>
     <div class="row"><div class="grow">🔑 Your restore code<small>${P.uid?`${poss(P.name||'Survivor')} save · ends in …${P.uid.slice(-4)}`:'Not ready yet'}</small><small>Keep it somewhere safe. On a new phone, join the same team and paste it below.</small><small id="rfull" style="word-break:break-all;display:none">${P.uid||''}</small></div>${P.uid?`<button onclick="const e=$('#rfull');e.style.display=e.style.display==='none'?'block':'none'">Show</button><button onclick="navigator.clipboard&&navigator.clipboard.writeText(P.uid).then(()=>toast('🔑 Restore code copied'),()=>toast('Copy failed: tap Show and copy it by hand'))">Copy</button>`:''}</div>
     <div class="row"><input id="rcode" placeholder="Paste a restore code"><button onclick="cloudRestore($('#rcode').value)">Load</button></div>
     <button style="width:100%" onclick="undoRestore()">Undo last load (use backup)</button>`;}

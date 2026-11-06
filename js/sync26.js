@@ -421,7 +421,53 @@
     return now>=start+dur+g;
   }
 
-  const api={clone,cmpClock,clockOf,merge,gameEqual,recordChange,snapOf,shouldUpload,hexLine,hexDist,crossedHexes,planClaimRoute,explainClaim,aliasMayResolve,driveKey,unionDrives,landAhead,decide,profileFromSaveDoc,overlayResGrant,preferLand};
+  const SYNC_HOLD_MS=5*60*1000;
+  function cloudFailureText(err){
+    const code=err&&(err.code||err.status)||'';
+    const msg=err&&err.message?String(err.message):'';
+    if(/quota|resource-exhausted|429/i.test(code+' '+msg))return 'Cloud save did not go through. The server said quota exceeded. Your progress is still on this device.';
+    return 'Cloud save did not go through. Your progress is still on this device.';
+  }
+  function saveStatusLine(cs,rev){
+    if(cs&&cs.report)return cs.report;
+    if(cs&&cs.last)return cs.status||'saved';
+    if(rev)return 'saved earlier';
+    return 'not saved yet';
+  }
+  function syncAllowed(now,holdUntil){return !(holdUntil&&now<holdUntil);}
+  // Merge first. The number written is one higher than the higher revision, and
+  // only after the write is acknowledged. A higher cloud revision does not
+  // discard a journaled spend, a building timer, troops, or a real drive.
+  function uploadPlan(local,remote,remoteRev){
+    if(!remote||remote.wiped||!remote.name)return {upload:false,reason:'A newer cloud save is present. This device was not overwritten.'};
+    const m=merge(local,remote,{uid:local.uid||remote.uid,remoteUid:remote.uid||local.uid,now:Date.now()});
+    const profile=m.profile;
+    profile._rev=Math.max(local._rev||0,remoteRev||0);
+    return {upload:true,profile:profile,rev:profile._rev};
+  }
+  async function runCloudHandoff(local,io){
+    let loaded=null;
+    try{loaded=await io.load();}
+    catch(e){
+      const blob=((e&&e.code)||'')+' '+((e&&e.message)||'');
+      return {local:local,report:cloudFailureText(e),wrote:false,rev:local._rev||0,quota:/quota|resource-exhausted|429/i.test(blob)};
+    }
+    let profile=clone(local),rev=local._rev||0;
+    if(loaded&&(loaded.rev||0)>rev){
+      const plan=uploadPlan(local,loaded.profile,loaded.rev||0);
+      if(!plan.upload)return {local:local,report:plan.reason,wrote:false,rev:rev,quota:false};
+      profile=plan.profile;rev=plan.rev;
+    }
+    const next=rev+1,savedAt=io.now?io.now():Date.now();
+    const out=clone(profile);out._rev=next;out._savedAt=savedAt;
+    try{await io.write({profile:out,rev:next,savedAt:savedAt});}
+    catch(e){
+      const blob=((e&&e.code)||'')+' '+((e&&e.message)||'');
+      return {local:local,report:cloudFailureText(e),wrote:false,rev:local._rev||0,quota:/quota|resource-exhausted|429/i.test(blob)};
+    }
+    return {local:out,report:'',wrote:true,rev:next,quota:false};
+  }
+  const api={clone,cmpClock,clockOf,merge,gameEqual,recordChange,snapOf,shouldUpload,hexLine,hexDist,crossedHexes,planClaimRoute,explainClaim,aliasMayResolve,driveKey,unionDrives,landAhead,decide,profileFromSaveDoc,overlayResGrant,preferLand,cloudFailureText,saveStatusLine,syncAllowed,uploadPlan,runCloudHandoff,SYNC_HOLD_MS};
   root.SYNC26=api;
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

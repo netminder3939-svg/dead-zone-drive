@@ -39,7 +39,7 @@ try{const _cs26e=cloudSave;cloudSave=async function(force){
       const c=await NET.loadProfile(P.uid);
       if(c&&c.data){
         let o=null;try{o=JSON.parse(c.data);}catch(e){o=null;}
-        if(o&&score26(o)>score26(P)+1e5){CS.status='a richer save is in the cloud: reopen the app to load it';return;}
+        if(!force&&o&&score26(o)>score26(P)+1e5){CS.report='A newer cloud save is present. This device was not overwritten.';CS.status=CS.report;return;}
       }
     }
   }catch(e){}
