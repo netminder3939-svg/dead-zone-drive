@@ -97,8 +97,9 @@ async function resolveMarch(id,m){if(G._mBusy[id])return;G._mBusy[id]=1;try{
   else if(out.win!==false&&m.kind==='patrol'){out.win=true;out.kind='patrol';out.loot={};out.claimed=[];out.result=`🛡️ Patrol reached ${hexName(m.to)}: nothing to fight there. No claim, nothing used.`;apply=()=>{};}
   else if(out.win!==false){
     // v16 (J1): every hex on the path, in order. Own/ally hexes are skipped; defenders fight first; stop at the first loss or when the 40/day cap runs out.
-    const path=marchTrack(m.from,m.to).slice(1),got=[],loot={};let lost=null,capHit=false,last=null;const cap=BAL.tiles.dailyClaimCap,cd=claimsToday();let room=cap-cd.n+1; // +1 = the claim reserved at send
-    for(const hx of path){if(allied(hx))continue;if(room<=0){capHit=true;break;}const tg=marchTarget(hx);if(tg.kind==='fort')continue;let f2=null;if(tg.units.length){f2=runFight(marchUnits(m),tg.units);last=f2;}
+    // v26-11: exact hex line, and skip only real ownership. A guarded pipeline is not "already ours".
+    const path=(typeof claimRoute26==='function'?claimRoute26(m.from,m.to):marchTrack(m.from,m.to)).slice(1),got=[],loot={};let lost=null,capHit=false,last=null;const cap=BAL.tiles.dailyClaimCap,cd=claimsToday();let room=cap-cd.n+1; // +1 = the claim reserved at send
+    for(const hx of path){if(typeof claimSkip26==='function'?claimSkip26(hx):allied(hx))continue;if(room<=0){capHit=true;break;}const tg=marchTarget(hx);if(tg.kind==='fort')continue;let f2=null;if(tg.units.length){f2=runFight(marchUnits(m),tg.units);last=f2;}
       if(f2&&!f2.win){lost=hx;break;}got.push(hx);room--;for(const[k,v] of Object.entries(tg.loot||{}))loot[k]=(loot[k]||0)+v;}
     f=last||f;out.win=!lost;out.kind='path';out.claimed=got;if(ic&&out.win)for(const[k,v] of Object.entries(BAL.march.interceptLoot))loot[k]=(loot[k]||0)+v;out.loot=got.length||ic?loot:{};
     if(lost&&got.length)out.win=true; // partial success keeps the hexes it took and its loot
@@ -209,7 +210,7 @@ const _raidUI=UI.raid;UI.raid=function(id){_raidUI.call(this,id);const b=$('#rhi
   const cd=cooldownLeft();if(cd>0&&!(G.raids[id]||{}).done){b.disabled=true;b.textContent=`😵 Knocked out · fight again in ${fmtDur(cd)}`;setTimeout(()=>{if(this.raidOpen===id&&$('#rhit'))UI.raid(id);},Math.min(cd,5000)+200);}};
 
 // v16 (J1): how many path hexes this march would claim, against today's cap.
-function pathTxt(from,to){const path=marchTrack(from,to).slice(1).filter(h=>!allied(h)&&marchTarget(h).kind!=='fort') /* v19.1: same rule as the resolve, so the card matches the inbox */,left=BAL.tiles.dailyClaimCap-claimsToday().n,n=Math.min(path.length,left);
+function pathTxt(from,to){const track=typeof claimRoute26==='function'?claimRoute26(from,to):marchTrack(from,to);const path=track.slice(1).filter(h=>!(typeof claimSkip26==='function'?claimSkip26(h):allied(h))&&marchTarget(h).kind!=='fort') /* v19.1 / v26-11: same rule as the resolve, so the card matches the inbox */,left=BAL.tiles.dailyClaimCap-claimsToday().n,n=Math.min(path.length,left);
   return `claims up to ${pl(n,'hex','hexes')} along the path (every hex you don't hold yet)${path.length>left?` (cap: ${left} left today)`:''}`;}
 // v16: Intercept a horde squad: a march aimed at the squad, fought (fixed math) wherever the squad is when you arrive.
 const _infoSquadI=UI.infoSquad;UI.infoSquad=function(fid,sid){_infoSquadI.call(this,fid,sid);const t=findSquad(fid,sid);const box=document.querySelector('#modalBody .ibtns');if(!t||!box||!G.pos)return;
