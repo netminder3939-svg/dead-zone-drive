@@ -143,7 +143,13 @@ const quota={code:'resource-exhausted',message:'Quota exceeded.'};
     load:async()=>server,
     write:async()=>{rejected++;throw {code:'unavailable',message:'backend unavailable'};}
   });
-  ok(newerFail.wrote===false&&newerFail.confirmedRev===2&&rejected===1&&/already on the server/.test(newerFail.report)&&!/still on this device/.test(newerFail.report),'a failed newer send still says cloud save 2 is already on the server');
+  ok(newerFail.wrote===false&&newerFail.confirmedRev===2&&rejected===1&&/Do not switch yet/.test(newerFail.report)&&!/Safe to switch/.test(newerFail.report),'a failed newer send does not say safe to switch');
+  let quotaWrites=0;
+  const quotaFail=await S.runCloudHandoff(Object.assign(JSON.parse(JSON.stringify(server.profile)),{res:Object.assign({},server.profile.res,{scrap:2})}),{
+    load:async()=>server,
+    write:async()=>{quotaWrites++;throw {code:'resource-exhausted',message:'Quota exceeded.'};}
+  });
+  ok(quotaFail.quota===true&&quotaFail.wrote===false&&quotaWrites===1&&/quota exceeded/i.test(quotaFail.report)&&!/Safe to switch/.test(quotaFail.report),'quota with an unsent change is not safe to switch');
 
   console.log(fail?fail+' failed':'all passed');
   process.exit(fail?1:0);

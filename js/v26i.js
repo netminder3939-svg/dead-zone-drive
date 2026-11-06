@@ -105,7 +105,7 @@ async function syncNow(){
         if(o&&o.res&&!o.name&&!o.wiped&&(d.rev||0)>(P._rev||0))o=SYNC26.overlayResGrant(snap(),o.res,d.rev,d.savedAt);
         if(!o||o.wiped||!o.name)continue;
         o.uid=o.uid||u;
-        if(u===myUid()&&JSON.stringify(o.tiles||{})===JSON.stringify(P.tiles||{})&&(o._savedAt||0)<=(P._savedAt||0)&&SYNC26.gameEqual(o,snap()))continue;
+        if(u===myUid()&&JSON.stringify(o.tiles||{})===JSON.stringify(P.tiles||{})&&(o._savedAt||0)<=(P._savedAt||0)&&SYNC26.gameEqual(o,snap())){if(typeof CS!=='undefined'&&(d.rev||0)>0&&(d.rev||0)===(P._rev||0)){CS.report='Safe to switch. Cloud save '+(P._rev||0)+' is on the server.';CS.status=CS.report;CS.last=Date.now();}continue;}
         scrub();
         const before=snap();
         const plan=SYNC26.uploadPlan(before,o,d.rev||0);
@@ -190,12 +190,12 @@ try{
   if(prevScore)score26=function(o){if(Gref._sync26force&&o===P)return prevScore(o)+1e12;return prevScore(o);};
   cloudSave=async function(force){
     if(Gref.cloudLogin&&Gref.cloudLogin.pending)return;
-    if(!Gref.sync26Ready){if(force&&typeof CS!=='undefined'){CS.report='Cloud save did not go through. Your progress is still on this device.';CS.status=CS.report;}Gref.sync26Pending=true;return;}
+    if(!Gref.sync26Ready){if(force&&typeof CS!=='undefined'){CS.report='Do not switch yet. This send has not been confirmed.';CS.status=CS.report;}Gref.sync26Pending=true;return;}
     if(!force&&Gref.syncHoldUntil&&Date.now()<Gref.syncHoldUntil)return;
-    if(!SYNC26.shouldUpload(memGen,storedGen())){if(force&&typeof CS!=='undefined'){CS.report='Cloud save did not go through. Your progress is still on this device.';CS.status=CS.report;}return;}
+    if(!SYNC26.shouldUpload(memGen,storedGen())){if(force&&typeof CS!=='undefined'){CS.report='Do not switch yet. This send has not been confirmed.';CS.status=CS.report;}return;}
     if(!syncing)await syncNow();
     if(Gref.syncHoldUntil&&Date.now()<Gref.syncHoldUntil)return;
-    if(!SYNC26.shouldUpload(memGen,storedGen())){if(force&&typeof CS!=='undefined'){CS.report='Cloud save did not go through. Your progress is still on this device.';CS.status=CS.report;}return;}
+    if(!SYNC26.shouldUpload(memGen,storedGen())){if(force&&typeof CS!=='undefined'){CS.report='Do not switch yet. This send has not been confirmed.';CS.status=CS.report;}return;}
     Gref._sync26force=!!force;
     try{return await prevCS(!!force);}finally{Gref._sync26force=false;}
   };

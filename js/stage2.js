@@ -136,13 +136,14 @@ function profileClean(){const o=JSON.parse(JSON.stringify(P));delete o.pos;delet
 async function cloudSave(force){if(G.cloudLogin&&G.cloudLogin.pending)return;if(!NET.saveProfile||!P.name||window.__wiping)return;if((G.srvFullEpoch||0)>(P.fullEpoch||0)){if(typeof fullResetCheck==='function')fullResetCheck();return;} // v19: a phone still holding pre-wipe data wipes itself instead of just going quiet. v17 B4: never upload a pre-wipe save
   if(!force&&G.syncHoldUntil&&Date.now()<G.syncHoldUntil)return;
   const local=profileClean();if(!force&&JSON.stringify(local)===CS.lastStr)return;
+  if(force&&JSON.stringify(local)!==CS.lastStr){CS.report='Do not switch yet. This send has not been confirmed.';CS.status=CS.report;try{if(typeof UI!=='undefined'&&UI.render)UI.render();}catch(e){}}
   if(typeof SYNC26==='undefined'||!SYNC26.runCloudHandoff){CS.report='Cloud save did not go through. Your progress is still on this device.';CS.status=CS.report;return;}
   const result=await SYNC26.runCloudHandoff(local,{
     load:async function(){const c=await NET.loadProfile(P.uid);if(!c)return null;return {rev:c.rev||0,profile:SYNC26.profileFromSaveDoc(c)};},
     write:async function(doc){const body={data:JSON.stringify(doc.profile),rev:doc.rev,savedAt:doc.savedAt,name:doc.profile.name,lvl:doc.profile.lvl,v:2,fe:doc.profile.fullEpoch||P.fullEpoch||0,me:doc.profile.mapEpoch||P.mapEpoch||0};if(P.acct)body.acct=String(P.acct).slice(0,24);await NET.saveProfile(P.uid,body);}
   });
   if(result.quota)G.syncHoldUntil=Date.now()+SYNC26.SYNC_HOLD_MS;
-  if(result.already){CS.report='';CS.last=result.savedAt||Date.now();CS.lastStr=JSON.stringify(profileClean());CS.status='saved '+when(CS.last);return;}
+  if(result.already){const n=result.rev||P._rev||0;CS.report='Safe to switch. Cloud save '+n+' is on the server.';CS.status=CS.report;CS.last=result.savedAt||Date.now();CS.lastStr=JSON.stringify(profileClean());return;}
   if(!result.wrote){
     if(result.held){P.sync26=P.sync26||{clock:{},ops:[],legacyAt:{}};P.sync26.heldRemote={rev:result.heldRev||0,at:Date.now(),profile:result.held};try{save();}catch(e){}}
     CS.report=result.report;CS.status=result.report;return;
@@ -150,7 +151,7 @@ async function cloudSave(force){if(G.cloudLogin&&G.cloudLogin.pending)return;if(
   const src=result.local,keepUid=P.uid,keepAcct=P.acct,keepAlias=P.alias;
   ['res','troops','world','dr26','tiles','stats','badges','pipeUnlock26','sync26','stronghold','lvl','xp','sp','skills','contrib'].forEach(function(k){if(src[k]!==undefined)P[k]=src[k];});
   P._rev=result.rev;P._savedAt=src._savedAt;P.uid=keepUid;if(keepAcct)P.acct=keepAcct;if(keepAlias)P.alias=keepAlias;save();
-  CS.last=Date.now();CS.lastStr=JSON.stringify(profileClean());CS.report='';CS.status='saved '+when(CS.last);}
+  CS.last=Date.now();CS.lastStr=JSON.stringify(profileClean());CS.report='Safe to switch. Cloud save '+result.rev+' is on the server.';CS.status=CS.report;}
 function adoptProfile(o,why){localStorage.setItem('wl_p_backup',localStorage.getItem('wl_p')||'');const uid=P.uid;for(const k of Object.keys(P))delete P[k];Object.assign(P,P_DEFAULT(),o);P.uid=uid||o.uid;save();report('☁️ '+why,true);}
 async function cloudCheck(uid){if(!NET.loadProfile)return;try{const d=await NET.loadProfile(uid);if(!d||!d.data)return;let o;try{o=JSON.parse(d.data);}catch(e){return;}
     if(!profileValid(o))return;if((d.rev||0)>(P._rev||0)){adoptProfile(o,`Loaded your newer cloud save (Lv${o.lvl}). Old phone copy kept as a backup.`);}}catch(e){CS.status='cloud check failed';}}

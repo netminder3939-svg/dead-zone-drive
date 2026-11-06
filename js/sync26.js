@@ -106,13 +106,14 @@
     profile.marchPaid={...(other.marchPaid||{}),...(profile.marchPaid||{})};
     profile.skills=profile.skills||{};
   }
+  function emptyObj(v){return !v||(typeof v==='object'&&!Array.isArray(v)&&!Object.keys(v).length);}
   function sig(o){
     return JSON.stringify(stable({
       lvl:(o&&o.lvl)||1,xp:(o&&o.xp)||0,sp:(o&&o.sp)||0,skills:(o&&o.skills)||{},
       badges:(o&&o.badges)||{},pipes:(o&&o.pipeUnlock26)||{},meters:meters(o),kills:kills(o),
       tiles:(o&&o.tiles)||{},res:normRes(o&&o.res),troops:(o&&o.troops)||null,
       drives:(o&&o.dr26||[]).map(driveKey).filter(Boolean).sort(),
-      claim:(o&&o.claimDay)||null,paid:(o&&o.marchPaid)||null,done:(o&&o.marchDone)||null,
+      claim:(o&&o.claimDay)||null,paid:emptyObj(o&&o.marchPaid)?null:o.marchPaid,done:emptyObj(o&&o.marchDone)?null:o.marchDone,
       hp:(o&&o.hp)||0,sh:(o&&o.stronghold)||null,
       worldSh:o&&o.world&&o.world.sh||null,barracks:o&&o.world&&o.world.barracks||null,
       contrib:(o&&o.contrib)||null
@@ -425,8 +426,8 @@
   function cloudFailureText(err){
     const code=err&&(err.code||err.status)||'';
     const msg=err&&err.message?String(err.message):'';
-    if(/quota|resource-exhausted|429/i.test(code+' '+msg))return 'Cloud save did not go through. The server said quota exceeded. Your progress is still on this device.';
-    return 'Cloud save did not go through. Your progress is still on this device.';
+    if(/quota|resource-exhausted|429/i.test(code+' '+msg))return 'Do not switch yet. The server said quota exceeded. The latest change is still on this device.';
+    return 'Do not switch yet. Cloud save did not go through. The latest change is still on this device.';
   }
   function saveStatusLine(cs,rev){
     if(cs&&cs.report)return cs.report;
@@ -487,8 +488,10 @@
     catch(e){
       const blob=((e&&e.code)||'')+' '+((e&&e.message)||'');
       const heldRev=loaded&&(loaded.rev||0)=== (local._rev||0)?(local._rev||0):0;
-      const report=heldRev?('Cloud save '+heldRev+' is already on the server. This send did not go through.'):cloudFailureText(e);
-      return {local:local,report:report,wrote:false,rev:local._rev||0,confirmedRev:heldRev,quota:/quota|resource-exhausted|429/i.test(blob)};
+      const quota=/quota|resource-exhausted|429/i.test(blob);
+      const why=quota?'The server said quota exceeded.':(/unavailable|deadline-exceeded|aborted|cancelled/i.test(blob)?'The server did not answer.':'This send did not go through.');
+      const report=heldRev?('Do not switch yet. Cloud save '+heldRev+' is on the server. '+why+' The latest change is still on this device.'):cloudFailureText(e);
+      return {local:local,report:report,wrote:false,rev:local._rev||0,confirmedRev:heldRev,quota:quota};
     }
     return {local:out,report:'',wrote:true,rev:next,quota:false};
   }
