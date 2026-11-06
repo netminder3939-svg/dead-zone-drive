@@ -184,8 +184,8 @@
     if(typeof d.data==='string'){try{o=JSON.parse(d.data);}catch(e){return null;}}
     else if(typeof d.data==='object')o=clone(d.data);
     if(!o||typeof o!=='object'||Array.isArray(o))return null;
-    if(d.rev)o._rev=Math.max(o._rev||0,d.rev|0);
-    if(d.savedAt)o._savedAt=Math.max(o._savedAt||0,d.savedAt|0);
+    if(d.rev)o._rev=Math.max(o._rev||0,Number(d.rev)||0);
+    if(d.savedAt)o._savedAt=Math.max(o._savedAt||0,Number(d.savedAt)||0);
     return o;
   }
   // A grant that replaced the string with only {res:{...}} must not wipe the player.

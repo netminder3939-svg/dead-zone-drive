@@ -129,6 +129,15 @@ const asMap=S.profileFromSaveDoc({data:{name:'QA-Test',lvl:1,res:{scrap:3000}},r
 ok(asMap&&asMap.res.scrap===3000&&asMap.name==='QA-Test','a map-shaped data field is accepted');
 const onlyRes=S.overlayResGrant(fresh,{scrap:3000,food:3000,water:3000,fuel:3000,parts:3000},2,1888);
 ok(onlyRes.name==='pope'&&onlyRes.lvl===5&&onlyRes.res.scrap===3000&&onlyRes._rev===2,'a res-only grant keeps the player and applies the amounts');
+// QA-Test readback: res is inside the JSON, document savedAt/rev are newer, inner _savedAt is still the 18:45 create.
+const DOC_SAVED=1793933308647;
+const inner=DOC_SAVED-180000;
+const localQa=prof({name:'QA-Test',uid:'Vc6L0ebZEZY8iFXLBmr5prq7bQm1',acct:'qatest',_rev:1,_savedAt:inner,res:{...RES},stats:{meters:0,kills:0},dr26:[],tiles:{},lvl:1,xp:0,badges:{},pipeUnlock26:{},skills:{},contrib:{hexes:0,badges:0,km:0}});
+const cloudQa=S.profileFromSaveDoc({data:JSON.stringify({name:'QA-Test',lvl:1,xp:0,acct:'qatest',res:{scrap:3000,food:3000,water:3000,fuel:3000,parts:3000},_rev:1,_savedAt:inner,stats:{meters:0,kills:0},dr26:[],tiles:{}}),rev:2,savedAt:DOC_SAVED});
+const applied=S.merge(localQa,cloudQa,{uid:localQa.uid,remoteUid:localQa.uid,now:DOC_SAVED+1000});
+ok(cloudQa._savedAt===DOC_SAVED&&cloudQa._rev===2,'document savedAt and rev override the older copy inside the JSON');
+ok(applied.profile.res.scrap===3000&&applied.profile.res.fuel===3000,'the 3000 grant is what the screen should load');
+ok(!applied.profile.stats||applied.profile.stats.meters===0,'no distance was invented to make the grant win');
 
 // ---- offline concurrent journals: deltas add once, troops do not ----
 function withSnap(p){p.sync26=p.sync26||{clock:{'7qg8':1,'vXcZ':1},ops:[],legacyAt:{}};p.sync26.snap=S.snapOf(p);return p;}
