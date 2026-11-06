@@ -8,7 +8,7 @@ const RES={scrap:2566,food:2855,water:2864,fuel:3000,parts:2992};
 function snap(){return {res:{...RES},tiles:{},troops:{home:1000,queue:[],away:{}},prog:{lvl:1,xp:0,meters:0,kills:0,badges:0,drives:0}};}
 function troopOp(uid){return {id:uid+':1:troops',uid,n:1,k:'troops',t:1};}
 function profile(rev,savedAt,clock,ops){
-  return {name:'QA-Test',lvl:1,acct:'qatest',_rev:rev,_savedAt:savedAt,res:{...RES},troops:{home:1000,queue:[],away:{}},stronghold:{level:2},tiles:{},stats:{meters:0,kills:0},sync26:{clock,ops,legacyAt:{},snap:snap()}};
+  return {name:'QA-Test',lvl:1,xp:0,sp:0,hp:100,acct:'qatest',_rev:rev,_savedAt:savedAt,res:{...RES},skills:{},badges:{},contrib:{kills:0,badges:0,raids:0,hexes:0,deposited:0,withdrawn:0,km:0},troops:{home:1000,queue:[],away:{}},stronghold:{level:2},world:{barracks:{level:1}},tiles:{},stats:{meters:0,kills:0},claimDay:{d:new Date().toLocaleDateString('en-CA'),n:0},sync26:{clock,ops,legacyAt:{},snap:snap()}};
 }
 function serve(port){
   const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.woff2':'font/woff2'};
@@ -46,6 +46,7 @@ function serve(port){
     await page.evaluateOnNewDocument((t,p)=>{
       localStorage.setItem('wl_team',t);if(!localStorage.getItem('wl_lock'))localStorage.setItem('wl_p',JSON.stringify(p));
       const allow=['home','queue','away','stationed','returning','wounded','healing','healFree','glSeen','gl25Seen','esc25','rec26','cap26Seen','recalled'];
+      setInterval(()=>{try{if(typeof startGPS==='function')startGPS=function(){};if(typeof ensureStartSh26==='function')ensureStartSh26=function(){};}catch(e){}},20);
       window.__boot=[];
       setInterval(()=>{
         if(typeof P==='undefined'||!P)return;
@@ -78,7 +79,7 @@ function serve(port){
   }, local);
   await a.page.reload({waitUntil:'domcontentloaded'});
   await a.page.waitForFunction(()=>typeof G!=='undefined'&&(G.sync26Ready||(typeof CS!=='undefined'&&/Both devices changed/.test(CS.report||''))),{timeout:20000}).catch(()=>{});
-  await new Promise(r=>setTimeout(r,22000));
+  await new Promise(r=>setTimeout(r,1500));
   const seen=await a.page.evaluate(()=>{
     const allow=['home','queue','away','stationed','returning','wounded','healing','healFree','glSeen','gl25Seen','esc25','rec26','cap26Seen','recalled'];
     const t=P.troops||{};
@@ -110,14 +111,51 @@ function serve(port){
       awaySame:held?sum(t.away)===sum(ht.away):'n/a',
       resSame,tileSame,shSame,
       tiles:Object.keys(P.tiles||{}).length,
+      sh:P.world&&P.world.sh?1:0,
+      meters:(P.stats&&P.stats.meters)|0,
+      brief:{hp:P.hp||0,xp:P.xp||0,badges:Object.keys(P.badges||{}).length,world:P.world?Object.keys(P.world).sort().join(','):'',contrib:JSON.stringify(P.contrib||null),claim:P.claimDay||'',paid:P.marchPaid?Object.keys(P.marchPaid).length:0,done:P.marchDone?Object.keys(P.marchDone).length:0,quests:P.quests?1:0,worldVals:Object.fromEntries(Object.keys(P.world||{}).map(k=>[k,P.world[k]==null?'null':Array.isArray(P.world[k])?'a'+P.world[k].length:(typeof P.world[k]==='object'?'o'+Object.keys(P.world[k]).length:typeof P.world[k])]))},
       boot:(window.__boot||[]).slice(0,12)
     };
   });
-  let ownRev=-1;
+  let ownRev=-1,linkedRev=-1,linkedEnd=null;
   await env.withSecurityRulesDisabled(async c=>{
-    const s=await getDoc(doc(c.firestore(),'teams',team,'saves',a.uid));
+    const db=c.firestore();
+    const s=await getDoc(doc(db,'teams',team,'saves',a.uid));
+    const o=await getDoc(doc(db,'teams',team,'saves',b.uid));
     ownRev=s.exists()?s.data().rev:-1;
+    linkedRev=o.exists()?o.data().rev:-1;
+    if(o.exists()){try{linkedEnd=(JSON.parse(o.data().data).troops.queue[0]||{}).end;}catch(e){linkedEnd=null;}}
   });
-  console.log('startup', JSON.stringify({...seen, ownRev, prod:prod.filter(h=>/googleapis|firebase|gstatic/.test(h)&&h!=='www.gstatic.com').length}));
+  let fail=0;
+  function ok(c,m){if(!c){console.error('FAIL',m);fail++;}else console.log('ok',m);}
+  console.log('startup', JSON.stringify({report:seen.report,why:seen.why,rev:seen.rev,home:seen.home,keys:seen.keys,tiles:seen.tiles,sh:seen.sh,meters:seen.meters,brief:seen.brief,ownRev,linkedRev,prod:prod.filter(h=>/googleapis|firebase|gstatic/.test(h)&&h!=='www.gstatic.com').length}));
+  if(process.env.EXPECT==='conflict'){
+    ok(/Both devices changed/.test(seen.report)&&seen.home===1000&&linkedRev===23&&ownRev===33,'11m startup empty containers conflict and write nothing');
+  }else{
+    ok(!/Both devices changed/.test(seen.report)&&seen.home===1000&&linkedRev===23&&ownRev===33,'11o empty containers do not conflict or write');
+    const late=profile(33,5000,{devA:1},[troopOp('devA')]);
+    late.troops.queue=[{n:100,end:500}];
+    const early=profile(23,3000,{devB:1},[troopOp('devB')]);
+    early.troops.queue=[{n:100,end:900}];
+    await env.withSecurityRulesDisabled(async c=>{
+      const db=c.firestore();
+      await setDoc(doc(db,'teams',team,'saves',a.uid),{data:JSON.stringify(late),rev:33,savedAt:5000,name:'QA-Test',lvl:1,v:2,fe:0,acct:'qatest'});
+      await setDoc(doc(db,'teams',team,'saves',b.uid),{data:JSON.stringify(early),rev:23,savedAt:3000,name:'QA-Test',lvl:1,v:2,fe:0,acct:'qatest'});
+    });
+    await a.page.evaluate(raw=>{Storage.prototype.setItem.call(localStorage,'wl_p',JSON.stringify(raw));G.syncHoldUntil=0;}, late);
+    await a.page.reload({waitUntil:'domcontentloaded'});
+    await a.page.waitForFunction(()=>typeof CS!=='undefined'&&/Both devices changed/.test(CS.report||''),{timeout:20000}).catch(()=>{});
+    const timed=await a.page.evaluate(()=>({report:(CS&&CS.report)||'',why:(CS&&CS.why)||'',home:P.troops.home|0,end:(P.troops.queue[0]||{}).end|0}));
+    let timedRev=-1,timedEnd=null;
+    await env.withSecurityRulesDisabled(async c=>{
+      const o=await getDoc(doc(c.firestore(),'teams',team,'saves',b.uid));
+      timedRev=o.exists()?o.data().rev:-1;
+      timedEnd=(JSON.parse(o.data().data).troops.queue[0]||{}).end;
+    });
+    console.log('timing', JSON.stringify({report:timed.report,why:timed.why,home:timed.home,end:timed.end,linkedRev:timedRev,linkedEnd:timedEnd}));
+    ok(/Both devices changed/.test(timed.report)&&/troops=differs/.test(timed.why)&&timed.home===1000&&timed.end===500&&timedRev===23&&timedEnd===900,'a different completion time conflicts and the linked document stays at its own time');
+  }
   await browser.close(); srv.close(); await env.cleanup();
+  console.log(fail?fail+' failed':'all passed');
+  process.exit(fail?1:0);
 })().catch(e=>{console.error('HARNESS', String(e&&e.stack||e).split('\n').slice(0,6).join(' | ')); process.exit(1);});

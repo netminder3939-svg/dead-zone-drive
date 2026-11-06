@@ -138,7 +138,7 @@ function serve(port){
         if(typeof G==='undefined'||!G.sync26Ready||(typeof CS!=='undefined'&&CS.why==='pending'))return null;
         const text=await fetch('/sync26.js',{cache:'no-store'}).then(r=>r.text());
         const v=await fetch('/v26i.js',{cache:'no-store'}).then(r=>r.text());
-        return {fn:typeof (window.SYNC26&&SYNC26.conflictMark),sync:text.includes('function conflictMark'),v26:v.includes('counts=differs')};
+        return {fn:typeof (window.SYNC26&&SYNC26.conflictMark),sync:text.includes('function troopState'),v26:v.includes('troops=differs')};
       });
     }catch(e){probe=null;}
     if(!probe)await new Promise(r=>setTimeout(r,500));
@@ -170,7 +170,7 @@ function serve(port){
     return {saw:window.__saw||'',home:P.troops&&P.troops.home,plan:plan.upload?'upload':(plan.reason||''),mark:SYNC26.conflictMark(P,remote,23,false)};
   });
   console.log('split-ui', JSON.stringify({report:split.report,why:split.why,rev:split.rev,saw}));
-  ok(/counts=differs/.test(saw.mark)&&saw.plan!=='upload'&&(await revOf(b.uid))===beforeSplitB,'a real troop-count split is still blocked and the linked document is not written');
+  ok(/troops=differs/.test(saw.mark)&&saw.plan!=='upload'&&(await revOf(b.uid))===beforeSplitB,'a real troop-count split is still blocked and the linked document is not written');
 
   // Same journals on both documents. The linked copy is older but already absorbed.
   await putSave(a.uid, stamped(33,5000,BOTH), 33);
