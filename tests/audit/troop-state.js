@@ -1,5 +1,5 @@
 // Semantic troop state for the extracted 11o archive. No production Firebase.
-const S=require('/tmp/11p-pack/ddd-v26-11p-flat/public/sync26.js');
+const S=require('/tmp/11q-pack/ddd-v26-11q-flat/public/sync26.js');
 let fail=0;
 function ok(c,m){if(!c){console.error('FAIL',m);fail++;}else console.log('ok',m);}
 const RES={scrap:2566,food:2855,water:2864,fuel:3000,parts:2992};
@@ -40,6 +40,9 @@ ok(S.gameEqual(prof(34,home,{A:1},[],{troops:Object.assign({},home,{rec26:{h1:'1
 ok(S.gameEqual(prof(34,home,{A:1},[]),prof(34,home,{A:1},[],{cls:null}))&&S.gameEqual(prof(34,home,{A:1},[]),prof(34,home,{A:1},[],{cls:{}})),'a missing class and a null class are the same');
 ok(blocked(plan(prof(34,Object.assign({},home,{wounded:8,healFree:{day:'2026-11-06',n:5}}),{A:1},troop('A')),prof(23,Object.assign({},home,{wounded:8,healFree:{day:'2026-11-06',n:0}}),{B:1},troop('B')))),'a used free-heal allowance is not the same as an unused one');
 ok(S.gameEqual(prof(34,home,{A:1},[],{troops:Object.assign({},home,{healFree:{day:'',n:0}})}),prof(34,home,{A:1},[])),'an empty free-heal counter matches a missing one');
+ok(S.gameEqual(prof(34,Object.assign({},home,{healFree:{day:'2026-11-06',n:0}}),{A:1},troop('A')),prof(34,home,{A:1},troop('A'))),'an idle free-heal day stamp with nothing used matches a missing counter');
+ok(S.gameEqual(prof(34,Object.assign({},home,{healFree:{day:'2026-11-05',n:0}}),{A:1},[]),prof(34,Object.assign({},home,{healFree:{day:'2026-11-06',n:0}}),{A:1},[])),'two unused free-heal days are the same allowance');
+ok(blocked(plan(prof(34,Object.assign({},home,{healFree:{day:'2026-11-06',n:5}}),{A:1},troop('A')),prof(23,Object.assign({},home,{healFree:{day:'2026-11-05',n:5}}),{B:1},troop('B')))),'a used free-heal on a different day stays different');
 ok(S.gameEqual(prof(34,Object.assign({},home,{returning:[{n:40,at:90,from:'1_1',why:'recalled',st:1}]}),{A:1},[]),prof(34,Object.assign({},home,{returning:[{n:40,at:90,from:'1_1',why:'recalled',st:50}]}),{A:1},[])),'a different travel-start stamp is not a different arrival');
 ok(blocked(plan(prof(34,home,{A:1},troop('A'),{cls:{id:'scout',next:'raider',nextT:1000}}),prof(23,home,{B:1},troop('B'),{cls:{id:'scout',next:'raider',nextT:5000}}))),'different class pending time');
 ok(blocked(plan(prof(34,home,{A:1},res('A')),prof(23,home,{B:1},res('B')))),'resource journals still conflict');
