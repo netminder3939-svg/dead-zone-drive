@@ -476,12 +476,19 @@
       if(!plan.upload)return {local:local,report:plan.reason,wrote:false,rev:rev,quota:false,held:plan.held||null,heldRev:loaded.rev||0};
       profile=plan.profile;rev=plan.rev;
     }
+    // The server already has this revision and the same progress. Another
+    // click must not pretend the copy never arrived, and must not burn a new number.
+    if(loaded&&(loaded.rev||0)===rev&&gameEqual(local,loaded.profile)){
+      return {local:local,report:'',wrote:false,already:true,rev:rev,savedAt:(loaded.profile&&loaded.profile._savedAt)||0,quota:false};
+    }
     const next=rev+1,savedAt=io.now?io.now():Date.now();
     const out=clone(profile);out._rev=next;out._savedAt=savedAt;
     try{await io.write({profile:out,rev:next,savedAt:savedAt});}
     catch(e){
       const blob=((e&&e.code)||'')+' '+((e&&e.message)||'');
-      return {local:local,report:cloudFailureText(e),wrote:false,rev:local._rev||0,quota:/quota|resource-exhausted|429/i.test(blob)};
+      const heldRev=loaded&&(loaded.rev||0)=== (local._rev||0)?(local._rev||0):0;
+      const report=heldRev?('Cloud save '+heldRev+' is already on the server. This send did not go through.'):cloudFailureText(e);
+      return {local:local,report:report,wrote:false,rev:local._rev||0,confirmedRev:heldRev,quota:/quota|resource-exhausted|429/i.test(blob)};
     }
     return {local:out,report:'',wrote:true,rev:next,quota:false};
   }

@@ -142,6 +142,7 @@ async function cloudSave(force){if(G.cloudLogin&&G.cloudLogin.pending)return;if(
     write:async function(doc){const body={data:JSON.stringify(doc.profile),rev:doc.rev,savedAt:doc.savedAt,name:doc.profile.name,lvl:doc.profile.lvl,v:2,fe:doc.profile.fullEpoch||P.fullEpoch||0,me:doc.profile.mapEpoch||P.mapEpoch||0};if(P.acct)body.acct=String(P.acct).slice(0,24);await NET.saveProfile(P.uid,body);}
   });
   if(result.quota)G.syncHoldUntil=Date.now()+SYNC26.SYNC_HOLD_MS;
+  if(result.already){CS.report='';CS.last=result.savedAt||Date.now();CS.lastStr=JSON.stringify(profileClean());CS.status='saved '+when(CS.last);return;}
   if(!result.wrote){
     if(result.held){P.sync26=P.sync26||{clock:{},ops:[],legacyAt:{}};P.sync26.heldRemote={rev:result.heldRev||0,at:Date.now(),profile:result.held};try{save();}catch(e){}}
     CS.report=result.report;CS.status=result.report;return;

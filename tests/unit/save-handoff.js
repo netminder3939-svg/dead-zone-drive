@@ -132,6 +132,19 @@ const quota={code:'resource-exhausted',message:'Quota exceeded.'};
   });
   ok(accepted.wrote&&server&&server.rev===2&&server.profile.res.scrap===2574&&server.profile.troops.home===1000&&server.profile.world.sh.upEnd===1793936908647,'a second client reads the accepted save, same balance, troops, and timer');
 
+  let again=0;
+  const same=await S.runCloudHandoff(server.profile,{
+    load:async()=>server,
+    write:async()=>{again++;}
+  });
+  ok(same.already===true&&same.wrote===false&&again===0&&same.rev===2,'the same revision and the same progress is not written again');
+  let rejected=0;
+  const newerFail=await S.runCloudHandoff(Object.assign(JSON.parse(JSON.stringify(server.profile)),{res:Object.assign({},server.profile.res,{scrap:1})}),{
+    load:async()=>server,
+    write:async()=>{rejected++;throw {code:'unavailable',message:'backend unavailable'};}
+  });
+  ok(newerFail.wrote===false&&newerFail.confirmedRev===2&&rejected===1&&/already on the server/.test(newerFail.report)&&!/still on this device/.test(newerFail.report),'a failed newer send still says cloud save 2 is already on the server');
+
   console.log(fail?fail+' failed':'all passed');
   process.exit(fail?1:0);
 })().catch(e=>{console.error('HARNESS',e);process.exit(1);});
