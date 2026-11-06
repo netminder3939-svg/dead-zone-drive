@@ -138,6 +138,7 @@ async function cloudSave(force){if(!NET.saveProfile||!P.name||window.__wiping)re
   // safety: never overwrite a newer save made on another device
   try{const c=await NET.loadProfile(P.uid);if(c&&(c.rev||0)>(P._rev||0)){CS.status='a newer save is in the cloud: reopen the app to load it';return;}}catch(e){}
   P._rev=(P._rev||0)+1;P._savedAt=Date.now();save();const doc={data:JSON.stringify(profileClean()),rev:P._rev,savedAt:P._savedAt,name:P.name,lvl:P.lvl,v:2,fe:P.fullEpoch||0,me:P.mapEpoch||0};
+  if(P.acct)doc.acct=String(P.acct).slice(0,24);
   try{await NET.saveProfile(P.uid,doc);CS.last=Date.now();CS.lastStr=s;CS.status='saved '+when(CS.last);}catch(e){CS.status='save failed: '+(e.message||e);}}
 function adoptProfile(o,why){localStorage.setItem('wl_p_backup',localStorage.getItem('wl_p')||'');const uid=P.uid;for(const k of Object.keys(P))delete P[k];Object.assign(P,P_DEFAULT(),o);P.uid=uid||o.uid;save();report('☁️ '+why,true);}
 async function cloudCheck(uid){if(!NET.loadProfile)return;try{const d=await NET.loadProfile(uid);if(!d||!d.data)return;let o;try{o=JSON.parse(d.data);}catch(e){return;}

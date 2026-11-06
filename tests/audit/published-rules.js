@@ -12,12 +12,12 @@ const net=fs.readFileSync(path.join(root,'js/net.js'),'utf8');
 
 function has(src,s){return src.includes(s);}
 for(const p of ['match /clock/{uid}','match /marches/{id}','match /meta/map','match /meta/horde']){
-  ok(has(published,p),'published allows path '+p);
-  ok(!has(committed,p),'committed file has no '+p);
+  ok(has(published,p)&&has(committed,p),'both published and canonical rules allow '+p);
 }
-ok(has(published,"team.matches('pv-.*')")&&!has(committed,'pv-.*'),'only the published rules allow a pv- team delete');
-ok(has(published,'fullEpoch')&&!has(committed,'fullEpoch'),'only the published save rule checks the wipe epoch');
-ok(has(published,'resource.data.hp - 1500')&&!has(committed,'1500'),'only the published raid rule caps one hit at 1500 HP');
+ok(has(published,"team.matches('pv-.*')")&&!has(committed,'pv-.*'),'canonical rules drop the pv- delete-everything rule');
+ok(has(committed,'match /meta/admins')&&has(committed,'allow create, update, delete: if false'),'clients cannot write the admin list');
+ok(has(committed,'isAdmin()')&&has(committed,'fullEpoch'),'map epoch moves only for an admin, and a save still checks fullEpoch');
+ok(has(published,'resource.data.hp - 1500')&&has(committed,'hp - 1500'),'the 1500 HP raid cap stays; the client chunks under it');
 
 ok(has(march,'minSec:120')&&has(march,'return Math.round(Math.max(M.minSec,hexDist(from,to)*M.secPerHex))*1000'),'a march duration is at least 120000 ms, above the 60000 ms create rule');
 ok(has(march,"setDoc(ref,{t:fs.serverTimestamp()})"),'the clock probe writes only {t: server timestamp} on the signed-in uid');

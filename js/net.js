@@ -1,5 +1,19 @@
 // Shared-state layer. LocalNet = offline demo (localStorage + fake teammates).
 // FirebaseNet = live crew sync via Firestore. Same interface for both.
+// The published raid rule rejects a single update that drops more than 1500 HP.
+// One fight is still one fight: chunks are only the HP writes. Fights, taken, heal, and loot stay once.
+function raidChunks(dmg,cap){
+  const n=Math.max(0,Math.round(Number(dmg))||0),c=Math.max(1,(cap|0)||1500),out=[];
+  for(let left=n;left>0;){const step=Math.min(c,left);out.push(step);left-=step;}
+  return out;
+}
+function foldRaidHit(prev,chunk,first,extra){
+  extra=extra||{};
+  const p=Object.assign({name:extra.name||'',dmg:0,fights:0},prev||{});
+  p.dmg=(p.dmg||0)+chunk;
+  if(first){p.fights=(p.fights||0)+1;p.taken=(p.taken||0)+(extra.taken||0);p.heal=(p.heal||0)+(extra.heal||0);if(extra.hp!=null){p.hp=extra.hp;p.max=extra.max;}}
+  return p;
+}
 function isMe(u){try{return !!u&&(u===P.uid||(P.alias||[]).includes(u));}catch(e){return false;}} // v24: same player across devices (name+PIN)
 const SIM_NAMES = [['Wife','#ff7ab6'],['Toni','#4ad7ff'],['Adam','#ffd24a']];
 
@@ -135,9 +149,15 @@ class FirebaseNet {
   createRaid(r){const {id,...rest}=r;return this.fs.setDoc(this.fs.doc(this.col('raids'),id),rest);}
   async hitRaid(id,uid,name,dmg,hp,max,taken,heal){
     const ref=this.fs.doc(this.col('raids'),id);
-    await this.fs.runTransaction(this.db,async tx=>{const s=await tx.get(ref);if(!s.exists())return;const r=s.data();if(r.done||Date.now()>r.endsAt)return;
-      const p=(r.participants||{})[uid]||{name,dmg:0};p.dmg+=dmg;p.fights=(p.fights||0)+1;p.taken=(p.taken||0)+(taken||0);p.heal=(p.heal||0)+(heal||0);if(hp!=null){p.hp=hp;p.max=max;}const left=Math.max(0,r.hp-dmg);
-      tx.update(ref,{hp:left,['participants.'+uid]:p,done:left<=0,won:left<=0});});
+    const parts=raidChunks(dmg,1500);
+    let step=0;
+    for(const chunk of parts){
+      const first=step===0;step++;
+      await this.fs.runTransaction(this.db,async tx=>{const s=await tx.get(ref);if(!s.exists())return;const r=s.data();if(r.done||Date.now()>r.endsAt)return;
+        const p=foldRaidHit((r.participants||{})[uid],chunk,first,{name,hp,max,taken,heal});
+        const left=Math.max(0,(r.hp|0)-chunk);
+        tx.update(ref,{hp:left,['participants.'+uid]:p,done:left<=0,won:left<=0});});
+    }
   }
   spawnTestBoss(){if(typeof spawnTestBossNear==='function')return spawnTestBossNear();}
 }

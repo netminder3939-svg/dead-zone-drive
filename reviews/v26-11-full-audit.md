@@ -174,4 +174,4 @@ The snapshot was not re-evaluated inside the Firebase rules emulator. The allows
 
 ### Safe plan
 
-Leave the published rules in place. Do not deploy `firestore.rules` from the repo. Do not edit the live rules to chase the skip-line or the 1500 HP raid cap until someone has played those two clicks on the test team and still wants them changed. The packed client `291e5653f8dd3db8c188b7f1076522c48e8c913bddd6410a4e577bdf5745c5cf` stays undeployed. QA-Test's save was not read or written.
+The fixes after this addendum are in the repo and are not deployed. Frontend pack `ddd-v26-11-test-overlay.tar.gz` SHA256 `b5c33193a87691ed98d25180c838dfd38b7954f7a78e1de4cd87a879f2a9e589`, cache `ddd-v26-11c`. It does not contain `firestore.rules`. The canonical rules are in the repo for a later, separate publish decision. The emulator on `demo-dead-zone-drive` passed. QA-Test's save was not read or written.
