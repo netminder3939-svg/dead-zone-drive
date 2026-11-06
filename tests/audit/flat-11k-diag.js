@@ -47,6 +47,33 @@ function preload(team){
   const env=await initializeTestEnvironment({projectId:'dead-zone-drive',firestore:{host:'127.0.0.1',port:8080,rules}});
   const puppeteer=require('puppeteer-core');
   const browser=await puppeteer.launch({executablePath:'/usr/bin/google-chrome',headless:'new',args:['--no-sandbox','--disable-dev-shm-usage']});
+  const swSrv=await serve(fixedRoot,8819);
+  const swPage=await browser.newPage();
+  await swPage.setRequestInterception(true);
+  swPage.on('request',req=>{
+    let u;try{u=new URL(req.url());}catch(e){return req.abort();}
+    if(u.hostname==='127.0.0.1'||u.hostname==='localhost')return req.continue();
+    return req.abort();
+  });
+  await swPage.goto('http://localhost:8819/',{waitUntil:'domcontentloaded',timeout:60000});
+  for(let i=0;i<4&&!(await swPage.evaluate(()=>!!(navigator.serviceWorker&&navigator.serviceWorker.controller)).catch(()=>false));i++){
+    await Promise.race([swPage.evaluate(()=>navigator.serviceWorker.ready),new Promise(r=>setTimeout(r,4000))]).catch(()=>{});
+    await swPage.reload({waitUntil:'domcontentloaded',timeout:60000});
+  }
+  function walk(dir,prefix=''){const out=[];for(const name of fs.readdirSync(dir)){const abs=path.join(dir,name),rel=prefix?prefix+'/'+name:name;if(fs.statSync(abs).isDirectory())out.push(...walk(abs,rel));else out.push(rel);}return out;}
+  const files=walk(fixedRoot);
+  const served=await swPage.evaluate(async(list)=>{
+    async function hex(buf){const bytes=new Uint8Array(await crypto.subtle.digest('SHA-256',buf));return [...bytes].map(b=>b.toString(16).padStart(2,'0')).join('');}
+    const out=[];
+    for(const u of list){const r=await fetch('/'+u,{cache:'no-store'});out.push({u,status:r.status,sha:await hex(await r.arrayBuffer())});}
+    let keys=[];
+    for(let i=0;i<30;i++){keys=await caches.keys();if(keys.indexOf('ddd-v26-11l')>=0)break;await new Promise(r=>setTimeout(r,50));}
+    return {sw:!!navigator.serviceWorker.controller,keys,out};
+  }, files);
+  let swBad=0;
+  for(const row of served.out){const disk=crypto.createHash('sha256').update(fs.readFileSync(path.join(fixedRoot,row.u))).digest('hex');if(row.status!==200||row.sha!==disk)swBad++;}
+  ok(files.length===125&&swBad===0&&served.sw&&served.keys.indexOf('ddd-v26-11l')>=0,'the 11l service worker served all 125 flat files');
+  await swPage.close(); swSrv.close();
   async function openRace(root,port,authFile){
     const srv=await serve(root,port);
     const page=await browser.newPage();
@@ -110,9 +137,23 @@ function preload(team){
       last=await page.evaluate(()=>{
         const d=[...document.querySelectorAll('details')].find(x=>/Save check/.test(((x.querySelector('summary')||{}).textContent)||''));
         if(d)d.open=true;
-        return {ready:!!(G&&G.sync26Ready),why:(typeof CS!=='undefined'&&CS.why)||'',report:(typeof CS!=='undefined'&&CS.report)||'',dom:d&&d.querySelector('small')?d.querySelector('small').textContent:''};
+        return {ready:!!(G&&G.sync26Ready),why:(typeof CS!=='undefined'&&CS.why)||'',report:(typeof CS!=='undefined'&&CS.report)||'',dom:d&&d.querySelector('small')?d.querySelector('small').textContent:'',uid:P&&P.uid||'',rev:P&&P._rev||0};
       });
-      if(/Safe to switch/.test(last.report||'')&&/wrote /.test(last.dom||''))break;
+      if(/Safe to switch/.test(last.report||'')&&/wrote /.test(last.dom||'')){
+        const safe=/Cloud save (\d+)/.exec(last.report||'');
+        const local=/local=(\d+)/.exec(last.why||'');
+        const server=/server=([^ ]*)/.exec((last.why||'')+' ');
+        let row=null;
+        await env.withSecurityRulesDisabled(async ctx=>{
+          const s=await getDoc(doc(ctx.firestore(),'teams',team,'saves',last.uid));
+          if(s.exists()){const o=JSON.parse(s.data().data||'{}');row={rev:s.data().rev||0,scrap:o.res&&o.res.scrap};}
+        });
+        last.safeN=safe?+safe[1]:-1;
+        last.localN=local?+local[1]:-1;
+        last.serverField=server?server[1]:null;
+        last.doc=row;
+        break;
+      }
     }
     await page.close(); srv.close();
     return {ms:Date.now()-t0,...last};
@@ -121,6 +162,9 @@ function preload(team){
   ok(stuck.why==='not-ready'&&stuck.ready===false&&!/wrote /.test(stuck.dom||''),'deployed 11k leaves that Save on not-ready');
   const healed=await earlyClick(fixedRoot,8825);
   ok(/Safe to switch/.test(healed.report)&&/wrote /.test(healed.dom)&&!/not-ready/.test(healed.dom)&&!/class=not-iterable/.test(healed.dom),'11l finishes that same early Save and paints the confirmation');
+  ok(healed.serverField==='','the wrote line leaves server blank when the read found no document');
+  if(!(healed.doc&&healed.doc.rev===healed.safeN&&healed.doc.rev!==healed.localN&&healed.doc.scrap===2566))console.log('early-doc',JSON.stringify({why:healed.why,report:healed.report,safeN:healed.safeN,localN:healed.localN,server:healed.serverField,doc:healed.doc,uid:healed.uid}));
+  ok(healed.doc&&healed.doc.rev===healed.safeN&&healed.doc.rev!==healed.localN&&healed.doc.scrap===2566,'Safe names the stored revision, not the old local number');
   await neu.page.close(); neu.srv.close();
 
   // Normal login, no-op, spend, second device, handback. Fast auth, real init.
@@ -164,19 +208,39 @@ function preload(team){
     return page.evaluate(()=>{
       G.syncHoldUntil=Date.now()+600000;
       const t=(document.getElementById('sheetBody')||{}).innerText||'';
-      return {text:t.replace(/\s+/g,' ').slice(0,200),rev:P._rev||0,scrap:P.res.scrap};
+      return {text:t.replace(/\s+/g,' ').slice(0,240),rev:P._rev||0,scrap:P.res.scrap,why:(typeof CS!=='undefined'&&CS.why)||'',report:(typeof CS!=='undefined'&&CS.report)||''};
     });
   }
   const source=await person();
-  await source.evaluate(()=>{P.res={scrap:2566,food:2855,water:2864,fuel:3000,parts:2992};P.troops={home:1000,queue:[],away:{}};P.stronghold={level:2};save();});
-  const first=await clickSave(source);
   const sourceUid=await source.evaluate(()=>P.uid);
-  let sourceDoc=null;
-  await env.withSecurityRulesDisabled(async ctx=>{
-    const s=await getDoc(doc(ctx.firestore(),'teams',team,'saves',sourceUid));
-    sourceDoc=s.exists()?{rev:s.data().rev,scrap:JSON.parse(s.data().data).res.scrap}:null;
-  });
-  ok(/Safe to switch/.test(first.text)&&sourceDoc&&sourceDoc.rev===first.rev&&sourceDoc.scrap===2566,'the source Save acks only its own accepted revision');
+  async function docOf(id){
+    let row=null;
+    await env.withSecurityRulesDisabled(async ctx=>{
+      const s=await getDoc(doc(ctx.firestore(),'teams',team,'saves',id));
+      if(!s.exists())return;
+      const o=JSON.parse(s.data().data||'{}');
+      row={rev:s.data().rev||0,scrap:o.res&&o.res.scrap,troops:o.troops&&o.troops.home};
+    });
+    return row;
+  }
+  await source.waitForFunction(()=>typeof G!=='undefined'&&G.sync26Ready,{timeout:15000});
+  await source.evaluate(()=>{G.syncHoldUntil=Date.now()+600000;});
+  let beforeFirst=null;
+  for(let i=0;i<15;i++){
+    const row=await docOf(sourceUid);
+    const local=await source.evaluate(()=>P._rev||0);
+    if(row&&row.rev===local){beforeFirst=row;break;}
+    if(!row&&i>=6)break;
+    await new Promise(r=>setTimeout(r,200));
+  }
+  await source.evaluate(()=>{P.res={scrap:2566,food:2855,water:2864,fuel:3000,parts:2992};P.troops={home:1000,queue:[],away:{}};P.stronghold={level:2};save();G.syncHoldUntil=Date.now()+600000;});
+  const first=await clickSave(source);
+  const sourceDoc=await docOf(sourceUid);
+  const firstSafe=/Cloud save (\d+)/.exec(first.report||'');
+  const firstServer=/server=([^ ]*)/.exec((first.why||'')+' ');
+  const firstAnchored=!!(firstSafe&&sourceDoc&&+firstSafe[1]===sourceDoc.rev&&sourceDoc.rev===first.rev&&sourceDoc.scrap===2566&&firstServer&&(beforeFirst?firstServer[1]===String(beforeFirst.rev)&&sourceDoc.rev===beforeFirst.rev+1:firstServer[1]===''));
+  if(!firstAnchored)console.log('first-doc',JSON.stringify({before:beforeFirst,after:sourceDoc,why:first.why,report:first.report,rev:first.rev}));
+  ok(firstAnchored,'the first Safe number is the stored revision, and server= is the revision that read returned');
   const tight=await source.evaluate(async()=>{
     G.syncHoldUntil=0;
     await cloudSave(true);
@@ -186,14 +250,22 @@ function preload(team){
     G.syncHoldUntil=Date.now()+600000;
     return {a,b};
   });
-  ok(tight.b===tight.a,'the same progress is not written again');
+  const noopDoc=await docOf(sourceUid);
+  if(!(tight.b===tight.a&&noopDoc&&noopDoc.rev===sourceDoc.rev&&noopDoc.scrap===2566))console.log('noop-doc',JSON.stringify({tight,noop:noopDoc,source:sourceDoc}));
+  ok(tight.b===tight.a&&noopDoc&&noopDoc.rev===sourceDoc.rev&&noopDoc.scrap===2566,'the same progress does not write a new stored revision');
+  const beforeSpend=await docOf(sourceUid);
   await source.evaluate(()=>{G.syncHoldUntil=0;P.res.scrap=2400;P.troops.home=900;save();});
   const spent=await clickSave(source);
-  ok(/Safe to switch/.test(spent.text)&&spent.rev===tight.b+1,'a real spend writes the next revision');
+  const spentDoc=await docOf(sourceUid);
+  const spentSafe=/Cloud save (\d+)/.exec(spent.report||'');
+  const spentServer=/server=(\d+)/.exec(spent.why||'');
+  const spendAnchored=!!(/Safe to switch/.test(spent.report)&&spentSafe&&spentDoc&&+spentSafe[1]===spentDoc.rev&&spentDoc.rev===beforeSpend.rev+1&&spentDoc.scrap===2400&&spentDoc.troops===900&&spentServer&&+spentServer[1]===beforeSpend.rev);
+  if(!spendAnchored)console.log('spend-doc',JSON.stringify({before:beforeSpend,after:spentDoc,why:spent.why,report:spent.report,rev:spent.rev}));
+  ok(spendAnchored,'the spend Safe number and its server= line match the stored document');
   const guest=await person();
   const guestReady=await guest.waitForFunction(()=>P&&P.res&&P.res.scrap===2400&&P.troops&&P.troops.home===900,{timeout:20000}).then(()=>true).catch(()=>false);
   const guestInfo=await guest.evaluate(src=>({same:P.uid===src,scrap:P.res&&P.res.scrap,troops:P.troops&&P.troops.home,rev:P._rev||0}), sourceUid);
-  ok(guestReady&&!guestInfo.same&&guestInfo.scrap===2400&&guestInfo.troops===900,'a second device with the same name reads the source revision');
+  ok(guestReady&&!guestInfo.same&&guestInfo.scrap===2400&&guestInfo.troops===900&&guestInfo.rev===spentDoc.rev,'a second device adopts the new stored revision and its changed progress');
   let sourceStill=null;
   await env.withSecurityRulesDisabled(async ctx=>{
     const s=await getDoc(doc(ctx.firestore(),'teams',team,'saves',sourceUid));
@@ -206,7 +278,7 @@ function preload(team){
   await source.waitForFunction(()=>P&&P.res&&P.res.scrap===2400&&NET.fs&&NET.fs.getDoc&&Array.isArray(NET.base),{timeout:20000});
   await source.evaluate(()=>{try{sessionStorage.setItem('wl_sync26_reloaded','1');}catch(e){}G.syncHoldUntil=Date.now()+600000;});
   const back=await source.evaluate(()=>({scrap:P.res.scrap,troops:P.troops.home,rev:P._rev||0}));
-  ok(back.scrap===2400&&back.troops===900&&back.rev>=spent.rev,'the source reads its saved progress back');
+  ok(back.scrap===2400&&back.troops===900&&back.rev===spentDoc.rev,'the source reads the stored revision back');
 
   let frozen=-1;
   await env.withSecurityRulesDisabled(async ctx=>{
@@ -214,7 +286,16 @@ function preload(team){
     frozen=s.exists()?s.data().rev:-1;
   });
   await source.evaluate(()=>{
-    const sdk=NET.fs; window.__sdk=sdk;
+    const sdk=window.__sdk||NET.fs; window.__sdk=sdk;
+    NET.fs=new Proxy(sdk,{get:function(t,p){if(p==='getDoc')return function(){const e=new Error('unavailable');e.code='unavailable';e.name='FirebaseError';return Promise.reject(e);};return t[p];}});
+    P.res.scrap=2350;save();G.syncHoldUntil=0;
+  });
+  const unread=await clickSave(source);
+  let afterUnread=-1;
+  await env.withSecurityRulesDisabled(async ctx=>{const s=await getDoc(doc(ctx.firestore(),'teams',team,'saves',sourceUid));afterUnread=s.data().rev;});
+  ok(/Do not switch yet/.test(unread.text)&&!/Safe to switch/.test(unread.text)&&afterUnread===frozen,'a failed read is not safe and does not write');
+  await source.evaluate(()=>{
+    const sdk=window.__sdk;
     NET.fs=new Proxy(sdk,{get:function(t,p){if(p==='getDoc')return function(){const e=new Error('quota');e.code='resource-exhausted';e.name='FirebaseError';return Promise.reject(e);};return t[p];}});
     P.res.scrap=2300;save();G.syncHoldUntil=0;
   });
@@ -241,6 +322,7 @@ function preload(team){
   const pending=(await source.evaluate(()=>(document.getElementById('sheetBody')||{}).innerText||''));
   ok(/Do not switch yet/.test(pending)&&!/Safe to switch/.test(pending),'a save that has not finished is not safe');
 
+  console.log('proof',JSON.stringify({early:{local:healed.localN,server:healed.serverField,safe:healed.safeN,stored:healed.doc},first:{before:beforeFirst,why:first.why,report:first.report,stored:sourceDoc},noop:noopDoc,spend:{before:beforeSpend,why:spent.why,report:spent.report,stored:spentDoc,guest:guestInfo,back}}));
   await browser.close(); srv.close(); await env.cleanup();
   console.log(fail?fail+' failed':'all passed');
   process.exit(fail?1:0);
