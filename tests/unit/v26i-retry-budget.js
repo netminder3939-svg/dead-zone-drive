@@ -13,8 +13,6 @@ const sw=read('sw.js');
 const net=read('js/net.js');
 const preview=read('js/preview.js');
 const cfg=read('firebase-config.js');
-// Byte-for-byte the v26-10 netKick. Compared on this machine against the v26-10 rollback before the assertion was locked.
-const V26_10_KICK="async function netKick(){if(NET.mode!=='firebase'||!NET.fs)return;try{await NET.fs.disableNetwork(NET.db);await NET.fs.enableNetwork(NET.db);}catch(e){}\n  try{const t=await withTO(NET.srvNow(),8000);G.srvOff=t-Date.now();netState(true);marchTick();}catch(e){netState(false);}}\n";
 
 ok(cfg.includes('projectId: "dead-zone-drive"'),'the client project id is dead-zone-drive');
 ok(preview.includes("hostname.indexOf('--')")&&preview.includes("const PX='pv-'"),'only a hostname containing -- is prefixed pv-');
@@ -23,9 +21,8 @@ ok(!preview.includes('localhost'),'localhost is not treated as a test host by th
 // Badge: only netState(false) changes the top-left chip. A listen error is not one of those callers.
 const falseCalls=[];
 const re=/netState\(false\)/g; let m; while((m=re.exec(march)))falseCalls.push(march.slice(m.index-80,m.index+16).replace(/\s+/g,' '));
-ok(falseCalls.length===3,'march.js sets the reconnect chip from exactly three sites');
-ok(falseCalls.some(s=>s.includes("addEventListener('offline'")),'one site is the browser offline event');
-ok(march.includes("catch(e){netState(false);}}"),'one site is a failed clock probe inside netKick');
+ok(march.includes('function armNetFail')&&march.includes("addEventListener('offline'"),'the chip is armed by a failed probe and by the browser offline event');
+ok(march.includes('G.netOk===false)return'),'while the chip is off, the 1s march tick does not start another probe');
 ok(march.includes('Retrying')&&!v26i.includes('Retrying')&&!sync.includes('Retrying'),'the only Retrying text is the march clock-probe toast');
 ok(!v26i.includes('netState')&&!v26i.includes('disableNetwork'),'v26-11 sync does not flip the chip or restart the Firestore network');
 ok(!sync.includes('onSnapshot')&&!v26i.includes('onSnapshot'),'v26-11 adds no listen streams');
@@ -57,16 +54,14 @@ ok(listenOnly.reads.save===4,'the new 20s sync is four save reads a minute, not 
 const oldListen=budget({listenError:true,v26i:false});
 ok(oldListen.writes.disable===0&&oldListen.reads.save===0,'v26-10 also leaves the chip alone, and does not add those reads');
 const stuck=budget({marches:1,clockFails:true,v26i:true});
-ok(stuck.netOk===false&&stuck.writes.disable===5,'a failing march clock probe arms five network restarts a minute');
-ok(stuck.writes.clock>=60,'that probe is already a once-a-second clock write while the march is due');
+ok(stuck.netOk===false&&stuck.writes.disable===5,'pre-fix schedule model: five network restarts a minute once the chip is off');
+ok(stuck.writes.clock>=60,'pre-fix schedule model: one clock write a second while a march is due');
 
 // The restart loop is the same text in the known-good v26-10 march file.
-function sliceKick(src){
-  const i=src.indexOf('async function netKick');
-  return src.slice(i,src.indexOf('window.addEventListener',i));
-}
-ok(sliceKick(march)===V26_10_KICK,'netKick is unchanged from v26-10');
-ok(sw.includes("const C='ddd-v26-11'")&&sw.includes('.catch(()=>caches.match'),'a failed fetch can still serve the previous file from the ddd-v26-11 cache');
+ok(march.includes('function netBackoffMs')&&march.includes('function clockProbe'),'clock recovery waits on a shared probe');
+ok(march.includes('if(_recover||_probe)return'),'a second recovery joins the one already running');
+ok(march.includes('if(G._netNext&&Date.now()<G._netNext)return'),'a failed probe is not retried on the next march tick');
+ok(sw.includes("const C='ddd-v26-11b'")&&sw.includes('.catch(()=>caches.match'),'cache name ddd-v26-11b will not reuse the ddd-v26-11 fallback');
 ok((net.match(/onSnapshot/g)||[]).length>=8,'the listen count lives in net.js and was not added by the sync fix');
 
 console.log(fail?fail+' failed':'all passed');

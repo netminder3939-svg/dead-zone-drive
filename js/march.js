@@ -79,8 +79,22 @@ async function sendMarch(to,opt){opt=opt||{};if(!opt.kind&&friendlyHex(to)){cons
 async function escortMarch(id){const m=G.marches[id];if(!m||m.uid===P.uid||marchPhase(m)[0]!=='out')return;const u=frozenMe();
   await NET.escortMarch(id,P.uid,{name:P.name,unit:u,power:unitPower(u)});allianceLog(`🛡️ ${P.name} escorted ${poss(m.name)} march`);UI.closeModal();toast('🛡️ Escort joined: your power is added');}
 const withTO=(pr,ms=8000)=>Promise.race([pr,new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),ms))]);
-async function resolveMarch(id,m){if(G._mBusy[id])return;G._mBusy[id]=1;try{
-  const srv=await withTO(NET.srvNow());G.srvOff=srv-Date.now();netState(true);if(srv<m.startT+m.dur)return; // honest server clock check
+// One clock probe at a time. After a failure the next try waits 15s, then 30s, then 60s.
+// A listen-stream warning does not enter this path. A failed probe must not run again
+// on the next 1s march tick, and two callers must not write the clock twice.
+function netBackoffMs(fails){return Math.min(60000,15000*(2**Math.max(0,(fails|0)-1)));}
+function armNetFail(e){if(e&&e._netArmed)return e;if(e)try{e._netArmed=1;}catch(x){}
+  G._netFail=(G._netFail||0)+1;G._netNext=Date.now()+netBackoffMs(G._netFail);netState(false);return e;}
+let _probe=null,_recover=null;
+function clockProbe(){
+  if(G._netNext&&Date.now()<G._netNext){const e=new Error('backoff');e.backoff=1;e._netArmed=1;return Promise.reject(e);}
+  if(_probe)return _probe;
+  _probe=(async()=>{try{const t=await withTO(NET.srvNow(),8000);G.srvOff=t-Date.now();G._netFail=0;G._netNext=0;netState(true);return t;}
+    catch(e){throw armNetFail(e);}finally{_probe=null;}})();
+  return _probe;
+}
+async function resolveMarch(id,m){if(G.netOk===false)return;if(G._netNext&&Date.now()<G._netNext)return;if(G._mBusy[id])return;G._mBusy[id]=1;try{
+  let srv;try{srv=await clockProbe();}catch(e){if(e&&e.backoff)return;throw e;}if(srv<m.startT+m.dur)return; // honest server clock check
   const units=marchUnits(m),ic=interceptor(m),out={state:'arrived'};let f;
   if(ic){const sp=squadPower(ic.f,ic.s,srv),d=fdef(ic.fid);f=runFight(marchUnits(m),[bandUnit(d.name+' squad',sp)]);
     out.intercept={gang:d.name,hex:ic.hex,power:sp,win:f.win};if(!f.win){out.win=false;out.loot={};out.result=`☠️ Intercepted by the ${d.name} near ${hexName(ic.hex)}. March lost.`;}}
@@ -110,10 +124,10 @@ async function resolveMarch(id,m){if(G._mBusy[id])return;G._mBusy[id]=1;try{
   marchNote(out.kind==='intercept'?out.result:out.win?out.result:`💀 March lost: ${out.result}`,out.win);
   if(ic)UI.raidAlert(`Raiders intercepted ${poss(m.name)} march!`,ic.hex);
   if(f)UI.replay({title:`🚩 March to ${hexName(m.to)}`,sub:out.result,f,good:out.win,result:out.result+(out.win&&Object.keys(out.loot).length?`<br>Loot banks when the march gets home (${fmtDur(m.startT+2*m.dur-srv)}).`:''),buttons:[['Continue',()=>UI.closeModal(),'big']]});
-  }catch(e){console.warn('march',e);netState(false);if(!G._mErrT||Date.now()-G._mErrT>30000){G._mErrT=Date.now();toast('📡 March arrived but the server isn\'t reachable yet. Retrying…');}}finally{delete G._mBusy[id];}}
-async function returnMarch(id,m){if(G._mBusy[id])return;G._mBusy[id]=1;try{const srv=await withTO(NET.srvNow());G.srvOff=srv-Date.now();if(srv<m.startT+2*m.dur)return;
+  }catch(e){console.warn('march',e);armNetFail(e);if(!G._mErrT||Date.now()-G._mErrT>30000){G._mErrT=Date.now();toast('📡 March arrived but the server isn\'t reachable yet. Retrying…');}}finally{delete G._mBusy[id];}}
+async function returnMarch(id,m){if(G.netOk===false)return;if(G._netNext&&Date.now()<G._netNext)return;if(G._mBusy[id])return;G._mBusy[id]=1;try{let srv;try{srv=await clockProbe();}catch(e){if(e&&e.backoff)return;throw e;}if(srv<m.startT+2*m.dur)return;
   P.marchPaid=P.marchPaid||{};if(m.win&&m.loot&&Object.keys(m.loot).length&&!P.marchPaid[id]){P.marchPaid[id]=1;const s0=typeof txSnap==='function'?txSnap():null;addRes(m.loot,1,true);if(s0)txAdd('march',`🚩 March loot (${hexName(m.to)})`,txDelta(s0));marchNote('🏠 March home: '+Object.entries(m.loot).map(([k,v])=>v+RES[k]).join(' '));}
-  await withTO(NET.updMarch(id,{state:'done'}));m.state='done';delete G.marches[id];if(G.followMarch===id)G.followMarch=null;drawMarches();save();UI.hud();}catch(e){console.warn(e);}finally{delete G._mBusy[id];}}
+  await withTO(NET.updMarch(id,{state:'done'}));m.state='done';delete G.marches[id];if(G.followMarch===id)G.followMarch=null;drawMarches();save();UI.hud();}catch(e){console.warn(e);armNetFail(e);}finally{delete G._mBusy[id];}}
 G._mBusy={};
 function marchTick(){const t=nowS();for(const [id,m] of myMarches()){if(m.state==='out'&&t>=m.startT+m.dur)resolveMarch(id,m);else if(m.state==='arrived'&&t>=m.startT+2*m.dur)returnMarch(id,m);}drawMarchFlags();}
 
@@ -174,8 +188,9 @@ function marchNote(txt,good){toast(txt);try{report(txt,!!good);}catch(e){}UI.hud
 // v15: connection status. iOS Safari often leaves the Firestore stream dead after the app is backgrounded; we detect it
 // (browser offline event or a failed server-clock probe), show RECONNECTING, and kick the connection when the app returns.
 function netState(ok){G.netOk=ok;const el=$('#mode');if(!el||NET.mode!=='firebase')return;el.textContent=ok?'● LIVE · team '+NET.team:'● RECONNECTING… · team '+NET.team;el.classList.toggle('netbad',!ok);}
-async function netKick(){if(NET.mode!=='firebase'||!NET.fs)return;try{await NET.fs.disableNetwork(NET.db);await NET.fs.enableNetwork(NET.db);}catch(e){}
-  try{const t=await withTO(NET.srvNow(),8000);G.srvOff=t-Date.now();netState(true);marchTick();}catch(e){netState(false);}}
+async function netKick(){if(NET.mode!=='firebase'||!NET.fs)return;if(_recover||_probe)return _recover||_probe;if(G._netNext&&Date.now()<G._netNext)return;
+  _recover=(async()=>{try{await NET.fs.disableNetwork(NET.db);await NET.fs.enableNetwork(NET.db);}catch(e){}try{await clockProbe();marchTick();}catch(e){}})();
+  try{return await _recover;}finally{_recover=null;}}
 window.addEventListener('online',()=>netKick());window.addEventListener('offline',()=>netState(false));
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){G._mBusy={};netKick();}});
 window.addEventListener('pageshow',e=>{if(e.persisted)netKick();});
