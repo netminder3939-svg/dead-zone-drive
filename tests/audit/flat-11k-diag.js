@@ -3,7 +3,8 @@ const http=require('http'),fs=require('fs'),path=require('path');
 const {initializeTestEnvironment}=require('@firebase/rules-unit-testing');
 const {doc,getDoc,getDocs,collection}=require('firebase/firestore');
 const brokenRoot=process.env.FLAT_11J||'/tmp/11j-clean/ddd-v26-11j-flat/public';
-const fixedRoot=process.env.FLAT_PUBLIC||'/tmp/11k-pack/ddd-v26-11k-flat/public';
+const fixedRoot=process.env.FLAT_PUBLIC||'/tmp/11l-pack/ddd-v26-11l-flat/public';
+const deployed11k=process.env.FLAT_11K||'/tmp/11k-deployed/ddd-v26-11k-flat/public';
 const repoRoot=path.join(__dirname,'../..');
 let fail=0;
 function ok(c,m){if(!c){console.error('FAIL',m);fail++;}else console.log('ok',m);}
@@ -39,7 +40,7 @@ function preload(team){
   const crypto=require('crypto');
   const index=fs.readFileSync(path.join(fixedRoot,'index.html'));
   ok(crypto.createHash('sha256').update(index).digest('hex')==='bde3c418529d3a6d0de17cb4c007bf803e5a15df2e47c0bc30915eb8b324ed52','11k index bytes are unchanged');
-  ok(/const C='ddd-v26-11k';/.test(fs.readFileSync(path.join(fixedRoot,'sw.js'),'utf8')),'11k cache name');
+  ok(/const C='ddd-v26-11l';/.test(fs.readFileSync(path.join(fixedRoot,'sw.js'),'utf8')),'11l cache name');
   ok(/!Array.isArray\(NET\.base\)/.test(fs.readFileSync(path.join(fixedRoot,'v26i.js'),'utf8')),'11k waits until the team path exists');
   sdk();
   const rules=fs.readFileSync(path.join(repoRoot,'tests/fixtures/published-firestore-rules.rules'),'utf8');
@@ -83,7 +84,43 @@ function preload(team){
 
   const neu=await openRace(fixedRoot,8822,'/tmp/auth-emu-delay.js');
   ok(!/class=not-iterable/.test(neu.snap.check)&&neu.snap.base==='array'&&neu.snap.hold<=0,'11k does not fail or hold while init is still signing in');
-  ok(neu.prod.length===0,'11k race did not call production Firebase');
+  ok(neu.prod.length===0,'11l race did not call production Firebase');
+  async function earlyClick(root,port){
+    const srv=await serve(root,port);
+    const page=await browser.newPage();
+    await page.setRequestInterception(true);
+    page.on('request',req=>{
+      const u=req.url();
+      const cors={'access-control-allow-origin':'*','content-type':'text/javascript'};
+      if(u.indexOf('firebase-firestore.js')>=0)return req.respond({status:200,headers:cors,body:fs.readFileSync('/tmp/firestore-emu-11k.js')});
+      if(u.indexOf('firebase-auth.js')>=0)return req.respond({status:200,headers:cors,body:fs.readFileSync('/tmp/auth-emu-delay.js')});
+      let host=''; try{host=new URL(u).hostname;}catch(e){}
+      if(host==='www.gstatic.com'||host==='127.0.0.1'||host==='localhost')return req.continue();
+      return req.abort();
+    });
+    const team='early'+port.toString(36);
+    await page.evaluateOnNewDocument((t,profile)=>{localStorage.setItem('wl_team',t);localStorage.setItem('wl_p',JSON.stringify(profile));}, team, preload(team));
+    const t0=Date.now();
+    await page.goto('http://127.0.0.1:'+port+'/',{waitUntil:'domcontentloaded',timeout:60000});
+    await new Promise(r=>setTimeout(r,700));
+    await page.evaluate(()=>{try{UI.sub.player='save';UI.open('player');}catch(e){} const b=[...document.querySelectorAll('button')].find(x=>/Save to the cloud/.test(x.textContent)); if(b)b.click();});
+    let last={};
+    for(let i=0;i<16;i++){
+      await new Promise(r=>setTimeout(r,400));
+      last=await page.evaluate(()=>{
+        const d=[...document.querySelectorAll('details')].find(x=>/Save check/.test(((x.querySelector('summary')||{}).textContent)||''));
+        if(d)d.open=true;
+        return {ready:!!(G&&G.sync26Ready),why:(typeof CS!=='undefined'&&CS.why)||'',report:(typeof CS!=='undefined'&&CS.report)||'',dom:d&&d.querySelector('small')?d.querySelector('small').textContent:''};
+      });
+      if(/Safe to switch/.test(last.report||'')&&/wrote /.test(last.dom||''))break;
+    }
+    await page.close(); srv.close();
+    return {ms:Date.now()-t0,...last};
+  }
+  const stuck=await earlyClick(deployed11k,8824);
+  ok(stuck.why==='not-ready'&&stuck.ready===false&&!/wrote /.test(stuck.dom||''),'deployed 11k leaves that Save on not-ready');
+  const healed=await earlyClick(fixedRoot,8825);
+  ok(/Safe to switch/.test(healed.report)&&/wrote /.test(healed.dom)&&!/not-ready/.test(healed.dom)&&!/class=not-iterable/.test(healed.dom),'11l finishes that same early Save and paints the confirmation');
   await neu.page.close(); neu.srv.close();
 
   // Normal login, no-op, spend, second device, handback. Fast auth, real init.
