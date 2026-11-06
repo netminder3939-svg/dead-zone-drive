@@ -106,9 +106,21 @@ async function syncNow(){
         o.uid=o.uid||u;
         if(u===myUid()&&JSON.stringify(o.tiles||{})===JSON.stringify(P.tiles||{})&&(o._savedAt||0)<=(P._savedAt||0)&&SYNC26.gameEqual(o,snap()))continue;
         scrub();
-        const m=SYNC26.merge(snap(),o,{uid:myUid(),remoteUid:u,now:Date.now()});
-        if(m.changed){changed=true;Gref._sync26merged=true;try{adoptProfile(o,'Synced this player across your devices');}finally{Gref._sync26merged=false;}}
-        else if(m.clockWrite){P.sync26=m.profile.sync26;try{save();}catch(e){}try{showSyncNotices26();}catch(e){}}
+        const before=snap();
+        const plan=SYNC26.uploadPlan(before,o,d.rev||0);
+        if(!plan.upload){
+          P.sync26=P.sync26||{clock:{},ops:[],legacyAt:{}};
+          P.sync26.heldRemote={rev:d.rev||0,at:Date.now(),profile:plan.held||o};
+          if(typeof CS!=='undefined'){CS.report=plan.reason;CS.status=plan.reason;}
+          try{save();}catch(e){}
+          continue;
+        }
+        if(!SYNC26.gameEqual(before,plan.profile)){
+          const src=plan.profile,keepUid=P.uid,keepAcct=P.acct,keepAlias=P.alias;
+          ['res','troops','world','dr26','tiles','stats','badges','pipeUnlock26','sync26','stronghold','lvl','xp','sp','skills','contrib'].forEach(function(k){if(src[k]!==undefined)P[k]=src[k];});
+          P._rev=Math.max(P._rev||0,plan.rev||0);P.uid=keepUid;if(keepAcct)P.acct=keepAcct;if(keepAlias)P.alias=keepAlias;
+          changed=true;try{save();}catch(e){}
+        }
       }
       Gref.sync26Ready=true;
       if(changed){

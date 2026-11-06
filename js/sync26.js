@@ -435,15 +435,33 @@
     return 'not saved yet';
   }
   function syncAllowed(now,holdUntil){return !(holdUntil&&now<holdUntil);}
-  // Merge first. The number written is one higher than the higher revision, and
-  // only after the write is acknowledged. A higher cloud revision does not
-  // discard a journaled spend, a building timer, troops, or a real drive.
+  function unseenKind(profile,other,kind){
+    return unseen(profile&&profile.sync26&&profile.sync26.ops,clockOf(other)).some(function(op){return op&&op.k===kind;});
+  }
+  function withBothDrives(body,a,b){
+    body.dr26=unionDrives(a.dr26,b.dr26);
+    const st=Object.assign({},body.stats||{});
+    st.meters=Math.max(meters(a),meters(b));
+    st.kills=Math.max(kills(a),kills(b));
+    body.stats=st;
+    return body;
+  }
+  // A higher revision is not "local spent wins". Offline work on only one side
+  // keeps that side's resources and troops. Work on both sides is not blended
+  // and is not uploaded. Drives from both sides stay on any copy we do write.
   function uploadPlan(local,remote,remoteRev){
     if(!remote||remote.wiped||!remote.name)return {upload:false,reason:'A newer cloud save is present. This device was not overwritten.'};
-    const m=merge(local,remote,{uid:local.uid||remote.uid,remoteUid:remote.uid||local.uid,now:Date.now()});
-    const profile=m.profile;
-    profile._rev=Math.max(local._rev||0,remoteRev||0);
-    return {upload:true,profile:profile,rev:profile._rev};
+    const remoteHigher=(remoteRev||0)>=(local._rev||0);
+    const hi=remoteHigher?remote:local,lo=remoteHigher?local:remote;
+    const loWork=unseenKind(lo,hi,'res')||unseenKind(lo,hi,'troops');
+    const hiWork=unseenKind(hi,lo,'res')||unseenKind(hi,lo,'troops');
+    if(loWork&&hiWork){
+      return {upload:false,held:clone(remote),reason:'Both devices changed this save. Neither copy was overwritten.'};
+    }
+    const body=clone((loWork&&!hiWork)?lo:hi);
+    withBothDrives(body,local,remote);
+    body._rev=Math.max(local._rev||0,remoteRev||0);
+    return {upload:true,profile:body,rev:body._rev};
   }
   async function runCloudHandoff(local,io){
     let loaded=null;
@@ -455,7 +473,7 @@
     let profile=clone(local),rev=local._rev||0;
     if(loaded&&(loaded.rev||0)>rev){
       const plan=uploadPlan(local,loaded.profile,loaded.rev||0);
-      if(!plan.upload)return {local:local,report:plan.reason,wrote:false,rev:rev,quota:false};
+      if(!plan.upload)return {local:local,report:plan.reason,wrote:false,rev:rev,quota:false,held:plan.held||null,heldRev:loaded.rev||0};
       profile=plan.profile;rev=plan.rev;
     }
     const next=rev+1,savedAt=io.now?io.now():Date.now();

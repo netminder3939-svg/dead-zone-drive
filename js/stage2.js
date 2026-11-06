@@ -142,7 +142,10 @@ async function cloudSave(force){if(!NET.saveProfile||!P.name||window.__wiping)re
     write:async function(doc){const body={data:JSON.stringify(doc.profile),rev:doc.rev,savedAt:doc.savedAt,name:doc.profile.name,lvl:doc.profile.lvl,v:2,fe:doc.profile.fullEpoch||P.fullEpoch||0,me:doc.profile.mapEpoch||P.mapEpoch||0};if(P.acct)body.acct=String(P.acct).slice(0,24);await NET.saveProfile(P.uid,body);}
   });
   if(result.quota)G.syncHoldUntil=Date.now()+SYNC26.SYNC_HOLD_MS;
-  if(!result.wrote){CS.report=result.report;CS.status=result.report;return;}
+  if(!result.wrote){
+    if(result.held){P.sync26=P.sync26||{clock:{},ops:[],legacyAt:{}};P.sync26.heldRemote={rev:result.heldRev||0,at:Date.now(),profile:result.held};try{save();}catch(e){}}
+    CS.report=result.report;CS.status=result.report;return;
+  }
   const src=result.local,keepUid=P.uid,keepAcct=P.acct,keepAlias=P.alias;
   ['res','troops','world','dr26','tiles','stats','badges','pipeUnlock26','sync26','stronghold','lvl','xp','sp','skills','contrib'].forEach(function(k){if(src[k]!==undefined)P[k]=src[k];});
   P._rev=result.rev;P._savedAt=src._savedAt;P.uid=keepUid;if(keepAcct)P.acct=keepAcct;if(keepAlias)P.alias=keepAlias;save();
