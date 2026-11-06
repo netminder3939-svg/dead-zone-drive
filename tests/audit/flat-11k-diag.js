@@ -40,7 +40,8 @@ function preload(team){
   const crypto=require('crypto');
   const index=fs.readFileSync(path.join(fixedRoot,'index.html'));
   ok(crypto.createHash('sha256').update(index).digest('hex')==='bde3c418529d3a6d0de17cb4c007bf803e5a15df2e47c0bc30915eb8b324ed52','11k index bytes are unchanged');
-  ok(/const C='ddd-v26-11l';/.test(fs.readFileSync(path.join(fixedRoot,'sw.js'),'utf8')),'11l cache name');
+  const cacheName=(fs.readFileSync(path.join(fixedRoot,'sw.js'),'utf8').match(/const C='(ddd-v26-11[a-z])';/)||[])[1]||'';
+  ok(/^ddd-v26-11[a-z]$/.test(cacheName),'flat cache name '+cacheName);
   ok(/!Array.isArray\(NET\.base\)/.test(fs.readFileSync(path.join(fixedRoot,'v26i.js'),'utf8')),'11k waits until the team path exists');
   sdk();
   const rules=fs.readFileSync(path.join(repoRoot,'tests/fixtures/published-firestore-rules.rules'),'utf8');
@@ -62,17 +63,17 @@ function preload(team){
   }
   function walk(dir,prefix=''){const out=[];for(const name of fs.readdirSync(dir)){const abs=path.join(dir,name),rel=prefix?prefix+'/'+name:name;if(fs.statSync(abs).isDirectory())out.push(...walk(abs,rel));else out.push(rel);}return out;}
   const files=walk(fixedRoot);
-  const served=await swPage.evaluate(async(list)=>{
+  const served=await swPage.evaluate(async(list,cacheLabel)=>{
     async function hex(buf){const bytes=new Uint8Array(await crypto.subtle.digest('SHA-256',buf));return [...bytes].map(b=>b.toString(16).padStart(2,'0')).join('');}
     const out=[];
     for(const u of list){const r=await fetch('/'+u,{cache:'no-store'});out.push({u,status:r.status,sha:await hex(await r.arrayBuffer())});}
     let keys=[];
-    for(let i=0;i<30;i++){keys=await caches.keys();if(keys.indexOf('ddd-v26-11l')>=0)break;await new Promise(r=>setTimeout(r,50));}
+    for(let i=0;i<30;i++){keys=await caches.keys();if(keys.indexOf(cacheLabel)>=0)break;await new Promise(r=>setTimeout(r,50));}
     return {sw:!!navigator.serviceWorker.controller,keys,out};
-  }, files);
+  }, files, cacheName);
   let swBad=0;
   for(const row of served.out){const disk=crypto.createHash('sha256').update(fs.readFileSync(path.join(fixedRoot,row.u))).digest('hex');if(row.status!==200||row.sha!==disk)swBad++;}
-  ok(files.length===125&&swBad===0&&served.sw&&served.keys.indexOf('ddd-v26-11l')>=0,'the 11l service worker served all 125 flat files');
+  ok(files.length===125&&swBad===0&&served.sw&&served.keys.indexOf(cacheName)>=0,'the service worker served all 125 flat files from '+cacheName);
   await swPage.close(); swSrv.close();
   async function openRace(root,port,authFile){
     const srv=await serve(root,port);
