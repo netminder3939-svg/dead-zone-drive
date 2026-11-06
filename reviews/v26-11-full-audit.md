@@ -63,9 +63,9 @@ Rollback of this piece alone is restoring `js/march.js` and setting `sw.js` cach
 
 The save merge stays in `js/sync26.js` and is a different diff. A higher revision fills resources only when the local balance is still all zeros and this device has not journaled a refill or spend. A training queue, a stronghold timer, and a real drive stay. That was executed in `tests/unit/v26i-sync-claim.js`, not against QA-Test's cloud document.
 
-### High, from the committed rules file, not from the live console
+### High, from the committed rules file
 
-`tests/audit/rules-and-zones.js` compared client paths with `firestore.rules`. These client paths are not matched: `clock`, `marches`, `meta/horde`, `meta/map`. Rules v2 denies unmatched paths. If the rules published in the Firebase console are this file, every clock probe and every march write is permission-denied, the chip goes to RECONNECTING, and the backoff above is what retries it. This run did not read the console, so it is not proven that the published rules are this file. Player docs reject `lat` / `lng` / `pos` / `location`. A save write requires the signed-in uid. Any signed-in player can read any save in the team (restore-code read). The bank can be withdrawn by any member. Those are in the file.
+Superseded by the addendum at the bottom. The committed `firestore.rules` omits `clock`, `marches`, `meta/horde`, and `meta/map`. The published rules, retrieved read-only after that note, do allow those paths. Do not publish the committed file. Player docs reject `lat` / `lng` / `pos` / `location`. A save write requires the signed-in uid. Any signed-in player can read any save in the team (restore-code read). The bank can be withdrawn by any member. Those are in the file.
 
 ### Executed and holding
 
@@ -123,3 +123,55 @@ Do these on `https://dead-zone-drive--test-edax914d.web.app`, not on localhost.
 5. Send one short march on a test account that is not QA-Test. On a healthy link it should leave and return once. Scrap or troops from that return should not double if the tab is jiggled.
 6. Pope's existing drive distance and hexes should still be there after a refresh.
 7. Do not open the live host as part of this check.
+
+## Addendum: published rules (read-only snapshot)
+
+The coordinator retrieved the active project `dead-zone-drive` rules. The snapshot is `tests/fixtures/published-firestore-rules.rules` (8.8 KB, the attached 151-line console text). `tests/audit/published-rules.js` compares it with `firestore.rules` and with the client writes. 18 checks, 0 failures. No rules were published. No user document was read.
+
+### Proven
+
+The committed file and the published rules are not the same file. The published rules allow:
+
+| Path | Published rule | Client write | Result |
+| --- | --- | --- | --- |
+| `clock/{uid}` | owner, `t == request.time` | `setDoc({t: serverTimestamp()})` on the signed-in uid | allowed |
+| `marches` create | own uid, `startT == request.time`, `state == 'out'`, `dur` int ≥ 60000 | `marchDur` is at least 120 seconds (120000 ms), state `out` | allowed |
+| `marches` update to `arrived` | was `out`, caller is the owner, server time ≥ start + dur | `resolveMarch` sends `state:'arrived'` after the clock check | allowed when that timing holds |
+| `marches` update to `done` | owner, server time ≥ start + 2×dur | return sends `state:'done'` (plus `paid` / `paidBy`) | allowed when that timing holds |
+| escort | other player's march, still `out`, only the `escorts` field, before arrival | `escorts.{uid}` while the march is outbound | allowed |
+| `meta/horde` | `last` int and strictly newer, `fx` string under 900000 | transaction writes that shape and skips a stale `last` | allowed when `last` moves forward |
+| `meta/map` | read; create/update if `epoch` is an int and increases | wipe sets `epoch+1` and `fullEpoch` | allowed, and `fullEpoch` is not limited |
+| `saves` | owner, string under 900000, `rev` int, `fe` ≥ `meta/map.fullEpoch` when that doc exists | `cloudSave` sends `fe` | allowed for a current player; an older `fe` is refused |
+| own territory claim | `uid` is the signer, not `ai`, not released | `{by, uid, color, t}` | allowed |
+| own release / horde capture with `by`, `capBy`, `prevUid` | the published claim functions | `released:true` on your hex; capture sets `ai:true` | allowed |
+| normal activity, bank log kinds `deposit` / `withdraw` / `auto-share` / `research`, explored `ids` only, own player doc without lat/lng | as written | those payloads | allowed |
+
+These client writes do not match an allow:
+
+| Write | Why the published rule rejects it | What the player sees |
+| --- | --- | --- |
+| `updMarch({result})` in `js/v26i.js` (the "Skipped …" line) | not a transition to `arrived` or `done`, and not an escorts-only update | the call is caught and ignored. Local text can still show. Other phones may not get that sentence. It does not start the reconnect chip |
+| `updMarch` that sets `arrived` again when the march is already `arrived` (`repairClaim`) | the arrived rule requires the stored state to still be `out` | same: caught, ignored |
+| claiming a hex an ally already holds | update requires your uid, a released hex, or a raider hex | the write fails. Their hex stays |
+| one raid hit that drops boss HP by more than 1500 | published raid update; boss HP in `js/data.js` is 4000–9000, and one button runs the whole fight | that hit does not land on the server. Not measured in a live raid this pass |
+| a save whose `fe` is below `meta/map.fullEpoch` | the wipe guard | the old save is not uploaded. Current `fe` still uploads |
+| a chat line whose escaped text is 200 characters or more | `text.size() < 200` after `<` becomes `&lt;` | that one message is not stored. Ordinary text under the 150-character trim is under the cap |
+| deleting a document on a team whose id does not start with `pv-` | the wildcard delete does not match | delete is refused |
+
+Publishing the committed `firestore.rules` over these live rules would remove `clock`, `marches`, `meta/map`, and `meta/horde`. Those writes would then be denied, and marches and the clock probe would fail. Do not publish that file.
+
+### Security already in the published rules
+
+These are properties of the rules that are live now. They are not a reason to push a new ruleset in this pass.
+
+- Any signed-in member can raise `meta/map.epoch` and can set `fullEpoch` in the same update. Phones treat a higher `fullEpoch` as a full reset and a higher `epoch` as a hex clear.
+- On a team id matching `pv-.*`, any signed-in member can delete any document in that team. The per-path `allow delete: if false` does not win, because rules OR the matching allows. A live team id that does not start with `pv-` is not covered by that delete.
+- Any signed-in member can read every save in the team and can withdraw the bank. The file says that is intentional for this friends-and-family setup. Anonymous sign-in plus the team code is the gate.
+
+### Uncertain
+
+The snapshot was not re-evaluated inside the Firebase rules emulator. The allows and denies above are the rule text applied to the payloads the client builds. A nested `escorts.{uid}` update is treated as the field `escorts`; that is how Firestore diffs are defined, and it was not executed against the emulator. No live march or raid was sent.
+
+### Safe plan
+
+Leave the published rules in place. Do not deploy `firestore.rules` from the repo. Do not edit the live rules to chase the skip-line or the 1500 HP raid cap until someone has played those two clicks on the test team and still wants them changed. The packed client `291e5653f8dd3db8c188b7f1076522c48e8c913bddd6410a4e577bdf5745c5cf` stays undeployed. QA-Test's save was not read or written.
