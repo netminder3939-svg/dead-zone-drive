@@ -1,6 +1,6 @@
 // Desktop Hero panel: Save must be the control under its own label.
 const http=require('http'),fs=require('fs'),path=require('path');
-const root=process.env.FLAT_PUBLIC||'/tmp/11q-pack/ddd-v26-11q-flat/public';
+const root=process.env.FLAT_PUBLIC||'/tmp/11r-pack/ddd-v26-11r-flat/public';
 const puppeteer=require('puppeteer-core');
 function serve(port){
   const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.woff2':'font/woff2'};

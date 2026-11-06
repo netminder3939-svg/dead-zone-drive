@@ -1,5 +1,5 @@
 // Semantic troop state for the extracted 11o archive. No production Firebase.
-const S=require('/tmp/11q-pack/ddd-v26-11q-flat/public/sync26.js');
+const S=require('/tmp/11r-pack/ddd-v26-11r-flat/public/sync26.js');
 let fail=0;
 function ok(c,m){if(!c){console.error('FAIL',m);fail++;}else console.log('ok',m);}
 const RES={scrap:2566,food:2855,water:2864,fuel:3000,parts:2992};
