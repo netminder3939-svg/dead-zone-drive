@@ -160,14 +160,54 @@
     }
     return tiles;
   }
-  function pickBody(A,B){
-    const aLater=(A._savedAt||0)>=(B._savedAt||0);
-    const later=aLater?A:B,earlier=aLater?B:A;
-    if(landAhead(earlier,later))return earlier; // newer timestamp is a stale overwrite of a richer land save
-    return later;
+  function uniqueRealDrive(A,B){
+    const have=new Set(realDrives(B.dr26).map(driveKey));
+    return realDrives(A.dr26).some(function(r){return !have.has(driveKey(r));});
+  }
+  // Land evidence, not the save timestamp. A newer clock-less timestamp must not
+  // beat a phone that actually drove and claimed.
+  function preferLand(A,B){
+    const da=realDrives(A.dr26).length,db=realDrives(B.dr26).length;
+    if(da!==db)return da>db?A:B;
+    const ma=meters(A),mb=meters(B);
+    if(ma!==mb)return ma>mb?A:B;
+    return (A._savedAt||0)>=(B._savedAt||0)?A:B;
+  }
+  // Extras that exist only on the older alias are quarantined, not owned.
+  // Extras on a device that has its own real drive are kept: those are unsynced
+  // claims, and dropping them would discard a drive.
+  function legacyTiles(auth,other){
+    const tiles={...(auth.tiles||{})};
+    const q=[];
+    if(uniqueRealDrive(other,auth)){
+      for(const id of Object.keys(other.tiles||{}))if(!(id in tiles))tiles[id]=clone(other.tiles[id]);
+      return {tiles:tiles,quarantine:q};
+    }
+    for(const id of Object.keys(other.tiles||{}))if(!(id in tiles))q.push(id);
+    return {tiles:tiles,quarantine:q};
+  }
+  function stashQuarantine(profile,ids,source,now){
+    if(!ids||!ids.length)return 0;
+    const s=ensure(profile);
+    s.quarantine=s.quarantine||{tiles:{},shown:0};
+    let n=0;
+    for(const id of ids){
+      if(profile.tiles&&profile.tiles[id])continue;
+      if(s.quarantine.tiles[id])continue;
+      s.quarantine.tiles[id]={t:(source&&source[id]&&source[id].t)||now,why:'older-device'};
+      n++;
+    }
+    if(n)s.quarantine.shown=0;
+    return n;
+  }
+  function noteTroopDrop(profile,otherTroops,now){
+    if(JSON.stringify(profile.troops||null)===JSON.stringify(otherTroops||null))return;
+    const s=ensure(profile);
+    if(s.troopNotice)return;
+    s.troopNotice={t:now,shown:0,text:'Troops on your other device were assigned differently. This assignment was kept. The other was not added.'};
   }
   function mergeConcurrent(A,B,now){
-    const body=pickBody(A,B),other=body===A?B:A;
+    const body=preferLand(A,B),other=body===A?B:A;
     const profile=clone(body);
     overlayMono(profile,A);overlayMono(profile,B);
     const journals=!((A.sync26&&A.sync26.truncated)||(B.sync26&&B.sync26.truncated));
@@ -175,12 +215,16 @@
     const opsBody=journals?unseen(body.sync26&&body.sync26.ops,clockOf(other)):[];
     if(journals&&(opsOther.some(o=>o.k==='res')||opsBody.some(o=>o.k==='res')))profile.res=applyRes(body.res,opsOther.filter(o=>o.k==='res'));
     else profile.res=normRes(body.res);
+    let tileQ=[];
     if(journals&&(opsOther.some(o=>o.k==='tiles')||opsBody.some(o=>o.k==='tiles')))profile.tiles=applyTiles(body.tiles,opsOther.filter(o=>o.k==='tiles'));
-    else profile.tiles={...(A.tiles||{}),...(B.tiles||{})}; // legacy: keep both claims; a loss without a journal can come back once
+    else {const lt=legacyTiles(body,other);profile.tiles=lt.tiles;tileQ=lt.quarantine;}
     const aT=opsBody.some(o=>o.k==='troops'),bT=opsOther.some(o=>o.k==='troops');
     if(aT&&bT)profile.troops=clone(body.troops)||{};
-    else if(bT)profile.troops=clone(other.troops)||{};
+    else if(bT&&!aT)profile.troops=clone(other.troops)||{};
     else profile.troops=clone(body.troops)||{};
+    if(aT&&bT)noteTroopDrop(profile,other.troops,now);
+    else if(!aT&&!bT)noteTroopDrop(profile,other.troops,now);
+    stashQuarantine(profile,tileQ,other.tiles,now);
     profile._merged=journals?'concurrent':'concurrent-legacy';
     profile._mergedAt=now;
     return profile;
@@ -205,6 +249,7 @@
       profile=clone(win);
       overlayMono(profile,lose);
       profile.res=normRes(profile.res);
+      noteTroopDrop(profile,lose.troops,now);
       profile._merged=mode==='A'?'local':'remote';
     }else profile=mergeConcurrent(A,B,now);
     absorb(profile,A);absorb(profile,B);

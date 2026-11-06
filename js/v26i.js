@@ -79,6 +79,7 @@ try{
     forceFields(m.profile);
     try{if(typeof syncSP==='function')syncSP();}catch(e){}
     try{save();}catch(e){}
+    try{showSyncNotices26();}catch(e){}
     return r;
   };
 }catch(e){console.warn('v26i adopt',e);}
@@ -105,7 +106,7 @@ async function syncNow(){
         scrub();
         const m=SYNC26.merge(snap(),o,{uid:myUid(),remoteUid:u,now:Date.now()});
         if(m.changed){changed=true;Gref._sync26merged=true;try{adoptProfile(o,'Synced this player across your devices');}finally{Gref._sync26merged=false;}}
-        else if(m.clockWrite){P.sync26=m.profile.sync26;try{save();}catch(e){}}
+        else if(m.clockWrite){P.sync26=m.profile.sync26;try{save();}catch(e){}try{showSyncNotices26();}catch(e){}}
       }
       Gref.sync26Ready=true;
       if(changed){
@@ -123,6 +124,38 @@ async function syncNow(){
   })();
   return syncing;
 }
+function showSyncNotices26(){
+  const s=P&&P.sync26;if(!s)return;
+  if(s.troopNotice&&!s.troopNotice.shown){
+    s.troopNotice.shown=Date.now();
+    try{toast(s.troopNotice.text);}catch(e){}
+    try{if(typeof report==='function')report('🪖 '+s.troopNotice.text,false);}catch(e){}
+  }
+  const q=s.quarantine&&s.quarantine.tiles;
+  const n=q?Object.keys(q).length:0;
+  if(n&&s.quarantine.shown===0){
+    const msg=n+' hex'+(n===1?'':'es')+' from your other device '+(n===1?'was':'were')+' set aside. '+(n===1?'It was':'They were')+' not on the newer save, so '+(n===1?'it is':'they are')+' not back on the map.';
+    try{
+      if(UI&&UI.notice)UI.notice('<b>Hexes set aside</b><br><small>'+msg+' Restore them only if they were still yours.</small>',[['Restore',function(){restoreQuarantine26();}],['Leave them',function(){}]]);
+      else toast(msg);
+    }catch(e){try{toast(msg);}catch(e2){}}
+    s.quarantine.shown=Date.now();
+    try{save();}catch(e){}
+  }
+}
+window.showSyncNotices26=showSyncNotices26;
+window.restoreQuarantine26=function(){
+  const q=P.sync26&&P.sync26.quarantine&&P.sync26.quarantine.tiles;
+  const ids=q?Object.keys(q):[];
+  if(!ids.length){try{toast('No hexes set aside');}catch(e){}return;}
+  P.tiles=P.tiles||{};
+  for(const id of ids)if(!P.tiles[id])P.tiles[id]={t:(q[id]&&q[id].t)||Date.now()};
+  P.sync26.quarantine.tiles={};
+  P.sync26.quarantine.shown=Date.now();
+  try{save();}catch(e){}
+  try{if(typeof drawWorld==='function')drawWorld();}catch(e){}
+  try{toast('Restored '+ids.length+' hex'+(ids.length===1?'':'es')+' from your other device');}catch(e){}
+};
 window.syncNow26=syncNow;
 try{acctSync=function(){try{sessionStorage.removeItem('wl_acct24_sync');}catch(e){}return syncNow();};}catch(e){}
 try{sessionStorage.removeItem('wl_acct24_sync');}catch(e){}

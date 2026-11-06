@@ -86,6 +86,33 @@ const older=prof({uid:'vXcZ',tiles:{a:{t:1},b:{t:2}},sync26:{clock:{'7qg8':1,'vX
 const keptLoss=S.merge(lost,older,{uid:'7qg8',remoteUid:'vXcZ',now:6000});
 ok(keptLoss.mode==='A'&&keptLoss.profile.tiles.a&&!keptLoss.profile.tiles.b,'a newer clock keeps a lost hex lost');
 
+// First sync, no clocks: a hex the newer drive no longer has must not come back from an older alias,
+// even when that alias was saved later. The phone's new claim stays.
+const phoneLost=prof({uid:'7qg8',_savedAt:2000,
+  tiles:{home:{t:1},claimed:{t:5}},
+  stats:{meters:47500,kills:4},
+  dr26:[{km:'15.1',newHex:64,t:5000,t0:4000}],
+  res:{...RES,scrap:173,food:90,water:60,fuel:12,parts:9},
+  troops:{home:500,away:{m1:392},stationed:{},returning:[],queue:[]}});
+const oldAlias=prof({uid:'vXcZ',_savedAt:9000,
+  tiles:{home:{t:1},lost:{t:2}},
+  stats:{meters:32400,kills:2},
+  dr26:[{restored:1,km:'32.4',newHex:30,t:1500,t0:1400}],
+  troops:{home:0,away:{},stationed:{conoco:{n:892,at:1}},returning:[],queue:[]}});
+const held=S.merge(oldAlias,phoneLost,{uid:'vXcZ',remoteUid:'7qg8',now:12000});
+ok(held.profile.tiles.claimed&&held.profile.tiles.home,'unsynced phone claim stays on the map');
+ok(!held.profile.tiles.lost,'a hex missing from the newer save does not come back from the older alias');
+ok(held.profile.sync26.quarantine.tiles.lost&&held.profile.sync26.quarantine.tiles.lost.why==='older-device','the old hex is set aside for an explicit restore');
+ok(held.profile.dr26.some(r=>r.km==='15.1'),'the phone drive recap is not discarded');
+ok(held.profile.troops.home===500&&held.profile.troops.away.m1===392,'the phone troop split is kept over the older van assignment');
+ok(held.profile.sync26.troopNotice&&/not added/.test(held.profile.sync26.troopNotice.text),'dropping the other troop assignment produces a notice');
+const heldAgain=S.merge(held.profile,oldAlias,{uid:'vXcZ',remoteUid:'7qg8',now:13000});
+ok(!heldAgain.profile.tiles.lost,'refreshing does not put the set-aside hex back');
+const phoneDrive=prof({uid:'7qg8',_savedAt:2000,tiles:{a:{t:1},p:{t:3}},stats:{meters:20000,kills:1},dr26:[{km:'4.0',newHex:1,t:3,t0:2}]});
+const deskDrive=prof({uid:'vXcZ',_savedAt:2500,tiles:{a:{t:1},d:{t:4}},stats:{meters:18000,kills:1},dr26:[{km:'3.0',newHex:1,t:4,t0:1}]});
+const bothDrives=S.merge(deskDrive,phoneDrive,{uid:'vXcZ',remoteUid:'7qg8',now:3000});
+ok(bothDrives.profile.tiles.p&&bothDrives.profile.tiles.d,'when both devices have their own drive recap, neither claim is dropped');
+
 // ---- offline concurrent journals: deltas add once, troops do not ----
 function withSnap(p){p.sync26=p.sync26||{clock:{'7qg8':1,'vXcZ':1},ops:[],legacyAt:{}};p.sync26.snap=S.snapOf(p);return p;}
 const p0=withSnap(prof({uid:'7qg8',res:{...RES,scrap:100,food:50,water:50,fuel:5,parts:5},troops:{home:100,away:{},stationed:{},returning:[],queue:[]},tiles:{a:{t:1}}}));
