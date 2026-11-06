@@ -156,7 +156,12 @@ function drawRaids(){const g=G.layers.raids;g.clearLayers();
       .on('click',()=>UI.infoRaid(r.id)).addTo(g);});drawLandmarks();}
 async function raidHit(id){const r=G.raids[id];if(!r||r.done)return null;const s=stats(),B=MONSTERS[r.bossId];
   let tot=0,crits=0;for(let i=0;i<3;i++){const x=simulateRound(s,B);tot+=x.dmg;if(x.crit)crits++;}
-  await NET.hitRaid(id,P.uid,P.name,tot);if(!P.raidLoot[id+'_j']){P.raidLoot[id+'_j']=1;questProg('raids');P.contrib.raids++;allianceLog(`${P.name} joined the raid on ${B.name}`);}save();return{tot,crits};}
+  const fk='wl_raidf_'+id;let fightId='';try{fightId=localStorage.getItem(fk)||'';if(!fightId){fightId=(P.uid||'me')+':'+Date.now();localStorage.setItem(fk,fightId);}}catch(e){fightId=(P.uid||'me')+':'+Date.now();}
+  let res=null;try{res=await NET.hitRaid(id,P.uid,P.name,tot,null,null,0,0,fightId);}catch(e){res={complete:false};}
+  const plan=typeof settleRaidBlow==='function'?settleRaidBlow({complete:res&&res.complete,fightId:fightId,settled:P._raidSettled,alreadyJoined:!!(P.raidLoot&&P.raidLoot[id+'_j']),ko:false}):{apply:!!(res&&res.complete),join:true,charge:false};
+  if(!plan.apply)return{tot:tot,crits:crits,landed:false};
+  P._raidSettled=P._raidSettled||{};P._raidSettled[fightId]=1;try{localStorage.removeItem(fk);}catch(e){}
+  if(plan.join){P.raidLoot[id+'_j']=1;questProg('raids');P.contrib.raids++;allianceLog(`${P.name} joined the raid on ${B.name}`);}save();return{tot,crits,landed:true};}
 function raidClaim(id){const r=G.raids[id];if(!r||!r.won||P.raidLoot[id])return;const me=r.participants[P.uid];if(!me)return;
   P.raidLoot[id]=1;const total=Object.values(r.participants).reduce((a,p)=>a+p.dmg,0),share=Math.max(.15,me.dmg/total);
   addRes(MONSTERS[r.bossId].drops,share*Object.keys(r.participants).length*.6);const g=rollGear(P.lvl+3,2);P.inv.push(g);

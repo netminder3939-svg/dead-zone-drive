@@ -161,9 +161,14 @@ UI.refreshRaid=function(){if(this.tab==='raids')this.render();const id=this.raid
 // One tap = one full automatic fight: you and the boss trade blows until one of you drops (or the round cap).
 async function raidAttack(id){const r=G.raids[id];if(!r||r.done)return;if(P.hp<=1||cooldownLeft())return toast('You are knocked out. Heal up first');
   const B=MONSTERS[r.bossId],me=playerUnit(),f=runFight([me],[bossUnit(r)],BAL.fight.maxRounds),mt=fightMeter(f,f.events.length)[me.uid],dmg=mt.dealt;
-  P.hp=Math.max(0,f.A[0].hp);await NET.hitRaid(id,P.uid,P.name,dmg,P.hp,stats().hp,mt.taken,mt.heal);
-  if(!P.raidLoot[id+'_j']){P.raidLoot[id+'_j']=1;questProg('raids');P.contrib.raids++;allianceLog(`${P.name} joined the raid on ${B.name}`);}
-  let ko=false;if(P.hp<=0){P.hp=1;lossPenalty();ko=true;}save();UI.hud();
+  const fk='wl_raidf_'+id;let fightId='';try{fightId=localStorage.getItem(fk)||'';if(!fightId){fightId=(P.uid||'me')+':'+Date.now();localStorage.setItem(fk,fightId);}}catch(e){fightId=(P.uid||'me')+':'+Date.now();}
+  const hp0=P.hp;let res=null;try{res=await NET.hitRaid(id,P.uid,P.name,dmg,Math.max(0,f.A[0].hp),stats().hp,mt.taken,mt.heal,fightId);}catch(e){res={complete:false,error:true};}
+  const plan=settleRaidBlow({complete:res&&res.complete,fightId:fightId,settled:P._raidSettled,alreadyJoined:!!(P.raidLoot&&P.raidLoot[id+'_j']),ko:f.A[0].hp<=0});
+  if(!plan.apply){P.hp=hp0;toast(res&&res.alreadyDead?'That boss is already down. Nothing was lost.':res&&res.busy?'That blow is already resolving. Nothing was lost.':'The blow did not finish. Nothing was lost.');return;}
+  P._raidSettled=P._raidSettled||{};P._raidSettled[fightId]=1;try{localStorage.removeItem(fk);}catch(e){}
+  P.hp=Math.max(0,f.A[0].hp);
+  if(plan.join){P.raidLoot[id+'_j']=1;questProg('raids');P.contrib.raids++;allianceLog(`${P.name} joined the raid on ${B.name}`);}
+  let ko=false;if(plan.charge){P.hp=1;lossPenalty();ko=true;}save();UI.hud();
   UI.replay({title:`☠️ Raid: ${B.name}`,sub:r.place,f,good:!ko,result:(f.win?`💀 ${B.name} is down! You landed the final blow.`:`You dealt <b>${dmg}</b> damage to ${B.name}.`)+(ko?` You were knocked out and are knocked out: rest ${BAL.fight.lossCooldownMin} min before your next fight.`:''),
     buttons:[['⬅️ Back to raid',()=>UI.raid(id),'big']],autostart:true});}
 

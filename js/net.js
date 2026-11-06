@@ -14,6 +14,60 @@ function foldRaidHit(prev,chunk,first,extra){
   if(first){p.fights=(p.fights||0)+1;p.taken=(p.taken||0)+(extra.taken||0);p.heal=(p.heal||0)+(extra.heal||0);if(extra.hp!=null){p.hp=extra.hp;p.max=extra.max;}}
   return p;
 }
+// One step of a boss hit, read from the raid doc the transaction just loaded.
+// openFight / doneFight live on the participant, which the published raid update
+// already allows. A retry of the same fight id continues. A second id waits.
+// This does not stop a modified client from ignoring the marker.
+function stepRaid(raid,uid,name,fightId,target,extra,cap){
+  extra=extra||{};
+  cap=Math.max(1,(cap|0)||1500);
+  target=Math.max(0,Math.round(Number(target))||0);
+  const now=extra.now||Date.now();
+  const r=raid||{};
+  const prev=Object.assign({name:name||'',dmg:0,fights:0},(r.participants||{})[uid]||{});
+  const base={applied:prev.openFight===fightId?(prev.openDmg|0):0,complete:false,alreadyDead:false,busy:false,write:false,action:'noop'};
+  if(prev.doneFight===fightId)return Object.assign(base,{action:'complete',complete:true,applied:prev.openDmg|0});
+  const open=prev.openFight||'';
+  if(open&&open!==fightId)return Object.assign(base,{action:'busy',busy:true,applied:prev.openDmg|0});
+  const have=open===fightId?(prev.openDmg|0):0;
+  const room=Math.max(0,r.hp|0);
+  const expired=!!(r.done||(r.endsAt&&now>r.endsAt)||room<=0);
+  if(expired&&have<=0)return Object.assign(base,{action:'dead',alreadyDead:true});
+  if(expired)return Object.assign(base,{action:'partial',applied:have,alreadyDead:true});
+  if(target<=0||have>=target)return Object.assign(base,{action:'complete',complete:true,applied:have});
+  const chunk=Math.min(cap,target-have,room);
+  const p=foldRaidHit(prev,chunk,have===0,extra);
+  const left=room-chunk;
+  const finished=have+chunk>=target||left<=0;
+  p.openFight=finished?'':fightId;
+  p.openDmg=have+chunk;
+  p.openTarget=target;
+  p.doneFight=finished?fightId:(prev.doneFight||'');
+  const participants=Object.assign({},r.participants||{});
+  participants[uid]=p;
+  const patch={hp:left,done:left<=0,won:left<=0};
+  patch['participants.'+uid]=p;
+  return {action:finished?'complete':'wrote',applied:have+chunk,complete:finished,alreadyDead:false,busy:false,write:true,patch:patch,next:Object.assign({},r,{hp:left,done:left<=0,won:left<=0,participants:participants})};
+}
+function settleRaidBlow(o){
+  o=o||{};
+  if(!o.complete)return {apply:false,charge:false,join:false};
+  if(o.settled&&o.settled[o.fightId])return {apply:false,charge:false,join:false};
+  return {apply:true,charge:!!o.ko,join:!o.alreadyJoined};
+}
+// readCommit(fn) loads the committed raid, runs fn(raid)=stepRaid, and commits
+// only if that step asks for a write. A throw leaves the last committed step.
+async function runRaidSteps(readCommit,uid,name,fightId,target,extra,cap){
+  let last={complete:false,alreadyDead:false,applied:0,busy:false,action:'noop'};
+  for(let n=0;n<30;n++){
+    let step;
+    try{step=await readCommit(function(raid){return stepRaid(raid,uid,name,fightId,target,extra,cap);});}
+    catch(e){return {complete:false,alreadyDead:!!last.alreadyDead,applied:last.applied|0,busy:false,error:true};}
+    last=step||last;
+    if(!step||!step.write||step.complete||step.busy||step.alreadyDead)break;
+  }
+  return {complete:!!last.complete,alreadyDead:!!last.alreadyDead,applied:last.applied|0,busy:!!last.busy,error:false};
+}
 function isMe(u){try{return !!u&&(u===P.uid||(P.alias||[]).includes(u));}catch(e){return false;}} // v24: same player across devices (name+PIN)
 const SIM_NAMES = [['Wife','#ff7ab6'],['Toni','#4ad7ff'],['Adam','#ffd24a']];
 
@@ -80,9 +134,9 @@ class LocalNet {
   updatePlayer(){}
   async claimHex(id,data){this.terr[id]=data;this._save();this._emit('territory',this.terr);}
   async createRaid(r){this.raids[r.id]=r;this._save();this._emit('raids',this.raids);}
-  async hitRaid(id,uid,name,dmg,hp,max,taken,heal){const r=this.raids[id];if(!r||r.done)return;
-    const p=r.participants[uid]||{name,dmg:0};p.dmg+=dmg;p.fights=(p.fights||0)+1;p.taken=(p.taken||0)+(taken||0);p.heal=(p.heal||0)+(heal||0);if(hp!=null){p.hp=hp;p.max=max;}r.participants[uid]=p;r.hp=Math.max(0,r.hp-dmg);
-    if(r.hp<=0){r.done=true;r.won=true;} this._save();this._emit('raids',this.raids);}
+  async hitRaid(id,uid,name,dmg,hp,max,taken,heal,fightId){const r=this.raids[id];if(!r)return {complete:false,alreadyDead:false,applied:0,busy:false};
+    const fid=fightId||(uid+':'+id);const extra={name:name,hp:hp,max:max,taken:taken,heal:heal};const self=this;
+    return runRaidSteps(async function(fn){const step=fn(r);if(step.write){r.hp=step.next.hp;r.done=step.next.done;r.won=step.next.won;r.participants=step.next.participants;self._save();self._emit('raids',self.raids);}return step;},uid,name,fid,dmg,extra,1500);}
   // dev helper: a teammate "finds" a boss near you
   spawnTestBoss(lat,lng){
     const ids=['boss_crystal','boss_queen','boss_warden'];const b=ids[Math.floor(Math.random()*3)];
@@ -147,17 +201,15 @@ class FirebaseNet {
   async loadProfile(uid){const fs=this.fs,d=await fs.getDoc(fs.doc(this.col('saves'),uid));return d.exists()?d.data():null;}
   claimHex(id,data){return this.fs.setDoc(this.fs.doc(this.col('territory'),id),data);}
   createRaid(r){const {id,...rest}=r;return this.fs.setDoc(this.fs.doc(this.col('raids'),id),rest);}
-  async hitRaid(id,uid,name,dmg,hp,max,taken,heal){
+  async hitRaid(id,uid,name,dmg,hp,max,taken,heal,fightId){
     const ref=this.fs.doc(this.col('raids'),id);
-    const parts=raidChunks(dmg,1500);
-    let step=0;
-    for(const chunk of parts){
-      const first=step===0;step++;
-      await this.fs.runTransaction(this.db,async tx=>{const s=await tx.get(ref);if(!s.exists())return;const r=s.data();if(r.done||Date.now()>r.endsAt)return;
-        const p=foldRaidHit((r.participants||{})[uid],chunk,first,{name,hp,max,taken,heal});
-        const left=Math.max(0,(r.hp|0)-chunk);
-        tx.update(ref,{hp:left,['participants.'+uid]:p,done:left<=0,won:left<=0});});
-    }
+    const fid=fightId||(uid+':'+Date.now());
+    const extra={name:name,hp:hp,max:max,taken:taken,heal:heal,now:Date.now()};
+    const fs=this.fs,db=this.db;
+    return runRaidSteps(async function(fn){
+      return fs.runTransaction(db,async function(tx){const s=await tx.get(ref);if(!s.exists())return {write:false,complete:false,alreadyDead:false,applied:0};
+        const got=fn(s.data());if(got.write)tx.update(ref,got.patch);return got;});
+    },uid,name,fid,dmg,extra,1500);
   }
   spawnTestBoss(){if(typeof spawnTestBossNear==='function')return spawnTestBossNear();}
 }

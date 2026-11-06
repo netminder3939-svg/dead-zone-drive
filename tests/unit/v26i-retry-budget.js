@@ -61,7 +61,7 @@ ok(stuck.writes.clock>=60,'pre-fix schedule model: one clock write a second whil
 ok(march.includes('function netBackoffMs')&&march.includes('function clockProbe'),'clock recovery waits on a shared probe');
 ok(march.includes('if(_recover||_probe)return'),'a second recovery joins the one already running');
 ok(march.includes('if(G._netNext&&Date.now()<G._netNext)return'),'a failed probe is not retried on the next march tick');
-ok(sw.includes("const C='ddd-v26-11c'")&&sw.includes('.catch(()=>caches.match'),'cache name ddd-v26-11c will not reuse an older ddd-v26-11 cache');
+ok(sw.includes("const C='ddd-v26-11d'")&&sw.includes('.catch(()=>caches.match'),'cache name ddd-v26-11d will not reuse an older ddd-v26-11 cache');
 ok((net.match(/onSnapshot/g)||[]).length>=8,'the listen count lives in net.js and was not added by the sync fix');
 
 console.log(fail?fail+' failed':'all passed');
