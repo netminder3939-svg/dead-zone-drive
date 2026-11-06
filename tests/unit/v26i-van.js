@@ -30,9 +30,10 @@ const afterFight=V.vanCount({id:'conoco',own:true,guard25:{hex:'h',esc:true}},{
 ok(afterFight.n===120,'deaths shrink the badge to the survivors');
 
 const recalled=V.vanCount({id:'conoco',own:true,guard25:{hex:'h',esc:true},guardN:500},{
-  selfUid:'phone',stationed:{},members:[]
+  selfUid:'phone',stationed:{},
+  members:[{uid:'phone',me:true,pipes:[{id:'conoco',guardN:500,guardUid:'phone'}]}]
 });
-ok(recalled.n===0,'recall removes the moving badge count');
+ok(recalled.n===0,'recall clears the badge; a stale guardN does not bring the troops back');
 
 // Ally pipes: synced guardN, no double count with the same player's gar row.
 const ally=V.vanCount({id:'conoco',own:false},{

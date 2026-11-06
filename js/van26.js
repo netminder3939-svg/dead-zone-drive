@@ -50,7 +50,7 @@
   function escortHexes(list){
     const hide={};
     for(const p of list||[]){
-      const h=p&&p.guard25&&p.guard25.hex;
+      const h=(p&&p.guard25&&p.guard25.hex)||(p&&p.guardHex);
       if(h)hide[h]=p.id||1;
     }
     return hide;
@@ -80,6 +80,9 @@
       return r;
     };
     window.drawPipes=drawPipes;
+    // Keep the number stuck to the truck, and drop it within a second of a recall,
+    // a death, or the other device publishing a new guard count. Does not redraw the whole pipe layer.
+    setInterval(function(){try{if(document.visibilityState==='visible')paintVans();}catch(e){}},1000);
   }
   function members(){
     const out=[];

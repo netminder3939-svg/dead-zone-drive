@@ -172,7 +172,13 @@ function realFort(id){try{return typeof enemyAt==='function'&&enemyAt(id)&&!(W()
 // Claim walks use these. allied() itself stays as v26a left it, so horde steps still
 // fight on a guarded pipeline. A global flag around the async march resolve would have
 // turned that off during the server-clock wait.
-window.claimRoute26=function(from,to){return SYNC26.hexLine(from,to);};
+window.claimRoute26=function(from,to){
+  if(typeof hexCenter!=='function'||typeof hexAt!=='function'||typeof idQR!=='function')return SYNC26.hexLine(from,to);
+  let a,b;
+  try{a=hexCenter.apply(null,idQR(from));b=hexCenter.apply(null,idQR(to));}
+  catch(e){return SYNC26.hexLine(from,to);}
+  return SYNC26.crossedHexes(from,to,function(t){return hexAt(a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t).id;});
+};
 window.claimSkip26=function(id){return realOwned(id);};
 try{
   myMarches=function(){return Object.entries(Gref.marches||{}).filter(([,m])=>m&&typeof isMe==='function'&&isMe(m.uid));};
@@ -195,7 +201,7 @@ function annotate(id,m,line){
 function repairClaim(id,m){
   // Only after the march has actually arrived. An early return (still on the road) must not grant hexes.
   if(!m||m.state!=='arrived'||m.kind==='intercept'||m.kind==='patrol'||m.kind==='mob')return;
-  const line=SYNC26.hexLine(m.from,m.to).slice(1);
+  const line=(typeof claimRoute26==='function'?claimRoute26(m.from,m.to):SYNC26.hexLine(m.from,m.to)).slice(1);
   if(m.win===false||/Stopped by defenders|Daily claim limit/.test(m.result||'')){annotate(id,m,line);return;}
   const missed=[];
   for(const hx of line){

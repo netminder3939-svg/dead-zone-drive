@@ -262,7 +262,27 @@
     const [q1,r1]=a.split('_').map(Number),[q2,r2]=b.split('_').map(Number),dq=q1-q2,dr=r1-r2;
     return (Math.abs(dq)+Math.abs(dr)+Math.abs(dq+dr))/2;
   }
-  // Exact hex line, one step at a time. Includes both ends. No corner skips.
+  // Hexes a straight march enters, in order. `at(t)` is the hex under the
+  // straight line at fraction t. A sample that jumps a hex is filled, so a
+  // defender cannot be stepped over. Start and destination are always included.
+  function crossedHexes(fromId,toId,at){
+    const base=hexLine(fromId,toId);
+    const steps=Math.max(8,(base.length-1)*8);
+    const raw=[];
+    function pushRaw(id){if(!id)return;if(raw.length&&raw[raw.length-1]===id)return;raw.push(id);}
+    pushRaw(fromId);
+    if(typeof at==='function'){for(let i=0;i<=steps;i++)pushRaw(at(i/steps));}
+    pushRaw(toId);
+    const out=[];
+    for(const id of raw){
+      if(!out.length){out.push(id);continue;}
+      const prev=out[out.length-1];
+      if(prev===id)continue;
+      if(hexDist(prev,id)>1){const fill=hexLine(prev,id);for(let k=1;k<fill.length;k++)if(out[out.length-1]!==fill[k])out.push(fill[k]);}
+      else out.push(id);
+    }
+    return out;
+  }
   function hexLine(fromId,toId){
     const [aq,ar]=String(fromId).split('_').map(Number),[bq,br]=String(toId).split('_').map(Number);
     const as=-aq-ar,bs=-bq-br;
@@ -321,7 +341,7 @@
     return now>=start+dur+g;
   }
 
-  const api={clone,cmpClock,clockOf,merge,gameEqual,recordChange,snapOf,shouldUpload,hexLine,hexDist,planClaimRoute,explainClaim,aliasMayResolve,driveKey,unionDrives,landAhead,decide};
+  const api={clone,cmpClock,clockOf,merge,gameEqual,recordChange,snapOf,shouldUpload,hexLine,hexDist,crossedHexes,planClaimRoute,explainClaim,aliasMayResolve,driveKey,unionDrives,landAhead,decide};
   root.SYNC26=api;
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

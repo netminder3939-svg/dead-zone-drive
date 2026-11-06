@@ -128,6 +128,10 @@ ok(plan.stop&&plan.stop.id==='8_0'&&/Rad Rat/.test(plan.stop.why),'defenders sto
 ok(!plan.claim.includes('9_0'),'hexes past the loss are not taken');
 ok(guarded.has('4_0')&&plan.claim.includes('4_0'),'a guarded pipeline hex is still claimable when nobody owns it');
 const allPipe=S.planClaimRoute('0_0','9_0',{owned:()=>false,ally:()=>false,fort:()=>false,defender:()=>null,room:Infinity});
+const crossed=S.crossedHexes('0_0','4_-2',function(t){return t<0.99?'0_0':'4_-2';});
+ok(crossed[0]==='0_0'&&crossed[crossed.length-1]==='4_-2'&&crossed.length>2,'a route that only sampled the ends still includes the hexes between');
+for(let i=1;i<crossed.length;i++)ok(S.hexDist(crossed[i-1],crossed[i])===1,'crossed step '+i+' is one hex');
+ok(crossed.includes('2_-1')||crossed.includes('1_0')||crossed.includes('2_0'),'an intermediate hex is on the route, not only the destination');
 ok(allPipe.claim.length===9&&allPipe.stop==null,'a whole unowned 9-hex route is claimed, not returned empty');
 ok(allPipe.claim[0]==='1_0'&&allPipe.claim.includes('4_0')&&allPipe.claim.includes('8_0')&&allPipe.claim[8]==='9_0','every crossed hex is claimed, not only the destination');
 ok(S.explainClaim(allPipe).indexOf('Claimed 9')===0,'the report says how many hexes were claimed');
