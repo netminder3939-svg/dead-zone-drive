@@ -1,8 +1,12 @@
 // Fresh-uid startup against the Firestore emulator. No production host is contacted.
 // A preview hostname (contains "--") is what turns on the test-kit path.
 const http=require('http'),fs=require('fs'),path=require('path');
+const crypto=require('crypto');
 const {initializeTestEnvironment}=require('@firebase/rules-unit-testing');
 const {doc,setDoc,getDoc,getDocs,collection,Timestamp}=require('firebase/firestore');
+const FIXTURE_PIN='4821';
+const WRONG_PIN='7036';
+function fixtureHash(pin,salt,k){return crypto.createHash('sha256').update(salt+':'+k+':'+pin).digest('hex');}
 const root=path.join(__dirname,'../..');
 const port=8767;
 const TEAM='pv-rathdrum-crew';
@@ -76,6 +80,7 @@ const PHONE=profile({
     const row=rows.find(r=>r.id===id);
     return !!row&&row.rev===body.rev&&row.data===body.data;
   }
+  await env.clearFirestore();
   await writeAlliance({qatest:{name:'QA-Test',s:'testsalt',h:null,uids:['qa-source'],t:1}});
   const sourceBody=saveDoc(SOURCE,7,1700000000000);
   await writeSave('qa-source',sourceBody);
@@ -84,7 +89,7 @@ const PHONE=profile({
   const puppeteer=require('puppeteer-core');
   const browser=await puppeteer.launch({
     executablePath:'/usr/bin/google-chrome',headless:'new',
-    args:['--no-sandbox','--disable-dev-shm-usage','--host-resolver-rules=MAP dead-zone-drive--test.example 127.0.0.1']
+    args:['--no-sandbox','--disable-dev-shm-usage','--host-resolver-rules=MAP dead-zone-drive--test.example 127.0.0.1','--unsafely-treat-insecure-origin-as-secure=http://dead-zone-drive--test.example:8767']
   });
   async function openGuest(){
     const context=await browser.createBrowserContext();
@@ -99,43 +104,67 @@ const PHONE=profile({
       req.continue();
     });
     page.on('pageerror',e=>errors.push(String(e)));
-    await page.goto('http://dead-zone-drive--test.example:'+port+'/?team=rathdrum-crew',{waitUntil:'domcontentloaded',timeout:60000});
-    await page.evaluate(()=>{
-      NET.init=async function(profile){
-        window.__bootInitEntered=Date.now();
-        await new Promise(r=>setTimeout(r,1000));
-        const V='https://www.gstatic.com/firebasejs/10.12.2/';
-        const appMod=await import(V+'firebase-app.js');
-        const authMod=await import(V+'firebase-auth.js');
-        const fsMod=await import(V+'firebase-firestore.js');
-        const name='emu-'+Math.random().toString(36).slice(2);
-        const a=appMod.initializeApp({apiKey:'demo',authDomain:'demo.firebaseapp.com',projectId:'demo-dead-zone-drive'},name);
-        this.fs=fsMod;
-        try{this.db=fsMod.initializeFirestore(a,{experimentalForceLongPolling:true});}
-        catch(e){this.db=fsMod.getFirestore(a);}
-        fsMod.connectFirestoreEmulator(this.db,'127.0.0.1',8080);
-        const au=authMod.getAuth(a);
-        authMod.connectAuthEmulator(au,'http://127.0.0.1:9099',{disableWarnings:true});
-        this.authMod=authMod;this.auth=au;
-        const user=(await authMod.signInAnonymously(au)).user;
-        this.mode='firebase';this.uid=user.uid;this.isAnon=true;this.email='';this.me=profile;
-        this.team=localStorage.getItem('wl_team')||this.team;
-        this.base=['teams',this.team];
-        P.uid=this.uid;
-        if(typeof cloudCheck==='function')await cloudCheck(this.uid);
-        return this.uid;
-      };
+    await page.evaluateOnNewDocument(()=>{
+      document.addEventListener('DOMContentLoaded',function(){
+        if(typeof NET==='undefined'||NET.__emuInit)return;
+        NET.__emuInit=true;
+        NET.init=async function(profile){
+          window.__bootInitEntered=Date.now();
+          await new Promise(r=>setTimeout(r,1000));
+          const V='https://www.gstatic.com/firebasejs/10.12.2/';
+          const appMod=await import(V+'firebase-app.js');
+          const authMod=await import(V+'firebase-auth.js');
+          const fsMod=await import(V+'firebase-firestore.js');
+          const name='emu-'+Math.random().toString(36).slice(2);
+          const a=appMod.initializeApp({apiKey:'demo',authDomain:'demo.firebaseapp.com',projectId:'demo-dead-zone-drive'},name);
+          this.fs=fsMod;
+          try{this.db=fsMod.initializeFirestore(a,{experimentalForceLongPolling:true});}
+          catch(e){this.db=fsMod.getFirestore(a);}
+          fsMod.connectFirestoreEmulator(this.db,'127.0.0.1',8080);
+          const au=authMod.getAuth(a);
+          authMod.connectAuthEmulator(au,'http://127.0.0.1:9099',{disableWarnings:true});
+          this.authMod=authMod;this.auth=au;
+          const user=(await authMod.signInAnonymously(au)).user;
+          this.mode='firebase';this.uid=user.uid;this.isAnon=true;this.email='';this.me=profile;
+          this.team=localStorage.getItem('wl_team')||this.team;
+          this.base=['teams',this.team];
+          P.uid=this.uid;
+          if(typeof cloudCheck==='function')await cloudCheck(this.uid);
+          return this.uid;
+        };
+      },true);
     });
+    await page.goto('http://dead-zone-drive--test.example:'+port+'/?team=rathdrum-crew',{waitUntil:'domcontentloaded',timeout:60000});
     return {context,page,hits,errors};
   }
-  async function enter(page,name){
+  async function enter(page,name,pin){
     await page.waitForFunction(()=>document.querySelector('#onboard')&&!document.querySelector('#onboard').classList.contains('hidden')&&document.querySelector('#obPin'),{timeout:20000});
     const team=await page.$eval('#obTeam',e=>e.value);
     await page.click('#obName',{clickCount:3});
     await page.type('#obName',name);
-    await page.evaluate(()=>{const p=document.querySelector('#obPin');if(p)p.value='';});
+    await page.evaluate(v=>{const p=document.querySelector('#obPin');if(p)p.value=v||'';
+      if(!window.__pinWrapped){window.__pinWrapped=true;const real=pinLogin;pinLogin=async function(){try{return await real.apply(this,arguments);}catch(e){window.__pinErr=String((e&&e.code)||'')+' '+String((e&&e.message)||e);throw e;}};}
+    },pin||'');
     await page.click('#obGo');
     return team;
+  }
+  async function armFail(page,code){
+    await page.evaluate(code=>{
+      window.__acctFail=code;
+      const real=acctGet;
+      acctGet=async function(k){
+        if(window.__acctFail){const err=new Error(window.__acctFail);err.code=window.__acctFail;throw err;}
+        return real.apply(this,arguments);
+      };
+    },code);
+  }
+  async function alliance(){
+    let data=null;
+    await env.withSecurityRulesDisabled(async ctx=>{
+      const s=await getDoc(doc(ctx.firestore(),`${base}/meta/alliance`));
+      data=s.exists()?s.data():null;
+    });
+    return data&&data.acct24||{};
   }
 
   const guest=await openGuest();
@@ -186,6 +215,17 @@ const PHONE=profile({
   ok(same(after1,'qa-source',sourceBody)&&after1.length===1,'the source cloud document is unchanged and no blank save was written');
   ok(guest.hits.length===0,'the page did not call the hosted project ('+guest.hits.length+')');
   if(guest.errors.length)console.log('page errors',guest.errors.slice(0,8));
+  await guest.page.reload({waitUntil:'domcontentloaded',timeout:60000});
+  const kept=await guest.page.waitForFunction(()=>P&&P.name==='QA-Test'&&P.troops&&P.troops.home===1000&&P._rev===7&&P.acct==='qatest'&&!(G.cloudLogin&&G.cloudLogin.pending),{timeout:30000}).then(()=>guest.page.evaluate(()=>{
+    const scrap=P.res.scrap,home=P.troops.home;
+    P.kit8=0;
+    const ran=giveStartKit();
+    return {troops:P.troops.home,rev:P._rev,acct:P.acct,scrap:P.res.scrap,ran:!!ran,wiped:P.res.scrap!==scrap||P.troops.home!==home,onboard:!!(document.querySelector('#onboard')&&!document.querySelector('#onboard').classList.contains('hidden'))};
+  })).catch(()=>null);
+  ok(!!kept&&kept.troops===1000&&kept.rev===7&&kept.acct==='qatest'&&kept.onboard===false,'a reload of the already signed-in device keeps the 1000 troops and does not open a new hero');
+  ok(!!kept&&kept.ran===false&&kept.wiped===false,'the test kit does not zero an already loaded cloud revision');
+  const afterReload=await saves();
+  ok(same(afterReload,'qa-source',sourceBody),'that reload does not write the source cloud document');
   await guest.context.close();
 
   const phoneBody=saveDoc(PHONE,8,1700000100000);
@@ -221,6 +261,88 @@ const PHONE=profile({
   const after3=await saves();
   ok(same(after3,'qa-source',sourceBody)&&same(after3,'qa-phone',phoneBody),'a refused login does not change either cloud profile');
   await guest3.context.close();
+
+  const pinLow=profile({name:'QA-Pin',acct:'qapin',_rev:4,_savedAt:1700000200000,res:{scrap:1000,food:1000,water:1000,fuel:1000,parts:1000},troops:{home:1000,queue:[],away:{}},sync26:{clock:{'pin-low':1},ops:[],snap:null}});
+  const pinHigh=profile({name:'QA-Pin',acct:'qapin',_rev:9,_savedAt:1700000300000,res:{scrap:4242,food:100,water:100,fuel:100,parts:100},troops:{home:777,queue:[],away:{}},sync26:{clock:{'pin-high':2},ops:[],snap:null}});
+  const pinLowBody=saveDoc(pinLow,4,1700000200000);
+  const pinHighBody=saveDoc(pinHigh,9,1700000300000);
+  const pinRow={name:'QA-Pin',s:'pinsalt',h:fixtureHash(FIXTURE_PIN,'pinsalt','qapin'),uids:['pin-low','pin-high'],t:4};
+  await writeSave('pin-low',pinLowBody);
+  await writeSave('pin-high',pinHighBody);
+  await writeAlliance({
+    qatest:{name:'QA-Test',s:'testsalt',h:null,uids:['qa-source','qa-phone'],t:2},
+    qapin:pinRow
+  });
+  const pinOkPage=await openGuest();
+  await enter(pinOkPage.page,'QA-Pin',FIXTURE_PIN);
+  const pinReady=await pinOkPage.page.waitForFunction(()=>P&&P.name==='QA-Pin'&&P._rev===9&&P.troops&&P.troops.home===777&&P.res.scrap===4242,{timeout:30000}).then(()=>true).catch(async()=>{
+    const snap=await pinOkPage.page.evaluate(()=>{
+      const el=document.getElementById('loginHold');
+      return {name:P&&P.name,rev:P&&P._rev,troops:P&&P.troops&&P.troops.home,lookup:G.cloudLogin&&G.cloudLogin.lookup,pending:!!(G.cloudLogin&&G.cloudLogin.pending),hold:el?el.textContent.replace(/\d{4}/g,'####'):'',err:String(window.__pinErr||'').replace(/\d{4}/g,'####')};
+    }).catch(e=>({err:String(e)}));
+    console.log('pin diag',JSON.stringify(snap).replace(/\d{4}/g,'####'));
+    if(pinOkPage.errors.length)console.log('pin errors',pinOkPage.errors.slice(0,6).map(e=>e.replace(/\d{4}/g,'####')));
+    return false;
+  });
+  ok(pinReady,'the correct fixture PIN reaches the highest revision');
+  if(!pinReady){await pinOkPage.context.close();await browser.close();srv.close();await env.cleanup();process.exit(1);}
+  const pinLoaded=await pinOkPage.page.evaluate(()=>({rev:P._rev,troops:P.troops.home,scrap:P.res.scrap,lookup:G.cloudLogin&&G.cloudLogin.lookup}));
+  ok(pinLoaded.rev===9&&pinLoaded.troops===777&&pinLoaded.scrap===4242&&pinLoaded.lookup==='found','the correct fixture PIN loads the highest revision on a fresh uid');
+  const afterPin=await saves();
+  ok(same(afterPin,'qa-source',sourceBody)&&same(afterPin,'qa-phone',phoneBody)&&same(afterPin,'pin-low',pinLowBody)&&same(afterPin,'pin-high',pinHighBody),'a correct PIN load leaves every seeded save unchanged');
+  const linked=await alliance();
+  const linkedUids=(linked.qapin&&linked.qapin.uids||[]).slice().sort().join();
+  ok(linked.qatest&&linked.qapin&&linked.qapin.uids.indexOf('pin-low')>=0&&linked.qapin.uids.indexOf('pin-high')>=0,'a correct PIN links this device and keeps the other account');
+  await pinOkPage.context.close();
+
+  for(const how of ['blank','wrong']){
+    const pg=await openGuest();
+    await enter(pg.page,'QA-Pin',how==='wrong'?WRONG_PIN:'');
+    await pg.page.waitForFunction(()=>{
+      const el=document.getElementById('loginHold');
+      return el&&el.style.display!=='none'&&/PIN/.test(el.textContent)&&G.cloudLogin&&G.cloudLogin.pending;
+    },{timeout:30000});
+    const blocked=await pg.page.evaluate(()=>({kit:P.kit8||0,troops:(P.troops&&P.troops.home)||0,rev:P._rev||0,pending:!!G.cloudLogin.pending,lookup:G.cloudLogin.lookup}));
+    ok(blocked.pending&&blocked.lookup==='found'&&blocked.kit===0&&blocked.troops===0&&blocked.rev===0,'a '+how+' PIN on a protected name stays closed and does not start a hero');
+    await pg.context.close();
+  }
+  const afterBadPin=await saves();
+  ok(same(afterBadPin,'pin-low',pinLowBody)&&same(afterBadPin,'pin-high',pinHighBody)&&same(afterBadPin,'qa-source',sourceBody)&&same(afterBadPin,'qa-phone',phoneBody),'a rejected PIN writes no save');
+  const acctsAfterPin=await alliance();
+  ok(acctsAfterPin.qatest&&acctsAfterPin.qapin&&acctsAfterPin.qapin.uids.slice().sort().join()===linkedUids,'a rejected PIN does not change the account row, and the other account remains');
+
+  const freshName=await openGuest();
+  await enter(freshName.page,'QA-New');
+  const freshPending=await freshName.page.waitForFunction(()=>{
+    const el=document.getElementById('loginHold');
+    return !!(el&&el.style.display!=='none'&&window.__bootInitEntered&&!P.uid&&G.cloudLogin&&G.cloudLogin.pending&&G.cloudLogin.lookup!=='absent');
+  },{timeout:15000}).then(()=>true).catch(()=>false);
+  ok(freshPending,'while sign-in is still waiting a new name is not treated as available');
+  await freshName.page.waitForFunction(()=>G.cloudLogin&&G.cloudLogin.lookup==='absent'&&!G.cloudLogin.pending&&P.name==='QA-New',{timeout:30000});
+  const born=await freshName.page.evaluate(()=>({lookup:G.cloudLogin.lookup,pending:!!G.cloudLogin.pending,acct:P.acct,rev:P._rev||0}));
+  ok(born.lookup==='absent'&&born.pending===false&&born.acct==='qanew'&&born.rev===0,'a name the crew list does not have becomes a new player only after that read');
+  const afterNew=await saves();
+  ok(same(afterNew,'qa-source',sourceBody)&&same(afterNew,'qa-phone',phoneBody)&&same(afterNew,'pin-low',pinLowBody)&&same(afterNew,'pin-high',pinHighBody),'starting that new name does not write any existing save');
+  const acctsAfterNew=await alliance();
+  ok(acctsAfterNew.qanew&&acctsAfterNew.qatest&&acctsAfterNew.qapin,'the new account row is added beside the existing ones');
+  await freshName.context.close();
+
+  for(const code of ['permission-denied','unavailable','resource-exhausted']){
+    const pg=await openGuest();
+    await armFail(pg.page,code);
+    await enter(pg.page,'QA-Miss');
+    await pg.page.waitForFunction(()=>{
+      const el=document.getElementById('loginHold');
+      return el&&el.style.display!=='none'&&/did not answer/.test(el.textContent)&&G.cloudLogin&&G.cloudLogin.lookup==='error'&&G.cloudLogin.pending;
+    },{timeout:30000});
+    const stuck=await pg.page.evaluate(()=>({kit:P.kit8||0,pending:!!G.cloudLogin.pending,lookup:G.cloudLogin.lookup,hazmat:/Hazmat set|Resources start at 0/.test(document.body.innerText)}));
+    ok(stuck.lookup==='error'&&stuck.pending&&stuck.kit===0&&stuck.hazmat===false,'a '+code+' read is not treated as a free name');
+    await pg.context.close();
+  }
+  const afterErr=await saves();
+  ok(same(afterErr,'qa-source',sourceBody)&&same(afterErr,'qa-phone',phoneBody)&&same(afterErr,'pin-low',pinLowBody)&&same(afterErr,'pin-high',pinHighBody),'those failed reads write no save');
+  const acctsAfterErr=await alliance();
+  ok(!acctsAfterErr.qamiss&&acctsAfterErr.qatest&&acctsAfterErr.qapin&&acctsAfterErr.qanew,'those failed reads do not claim a name or remove an existing account');
 
   await browser.close();
   srv.close();

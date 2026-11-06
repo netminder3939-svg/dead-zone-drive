@@ -9,7 +9,8 @@ function pinOk(p){return p===''||/^\d{4}$/.test(p);}
 async function acctGet(k){if(NET.mode!=='firebase'){const a=JSON.parse(localStorage.getItem('wl_acct24')||'{}');return a[k]||null;}
   const fs=NET.fs,d=await fs.getDoc(fs.doc(NET.db,...NET.base,'meta','alliance'));return ((d.exists()?d.data():{})[ACCT24.field]||{})[k]||null;}
 async function acctPut(k,a){if(NET.mode!=='firebase'){const all=JSON.parse(localStorage.getItem('wl_acct24')||'{}');all[k]=a;localStorage.setItem('wl_acct24',JSON.stringify(all));return;}
-  const fs=NET.fs;await fs.setDoc(fs.doc(NET.db,...NET.base,'meta','alliance'),{[ACCT24.field]:{[k]:a}},{merge:true});}
+  const fs=NET.fs,ref=fs.doc(NET.db,...NET.base,'meta','alliance');
+  await fs.runTransaction(NET.db,async tx=>{const d=await tx.get(ref);const prev=d.exists()?d.data():{};const map=Object.assign({},(prev&&prev[ACCT24.field])||{});map[k]=a;tx.set(ref,{[ACCT24.field]:map},{merge:true});});}
 function rosterNameClash(k){for(const [uid,m] of Object.entries((G.al&&G.al.members)||{}))if(!isMe(uid)&&acctKey(m.name)===k)return m;return null;}
 // Set or change the PIN for the player on THIS device (keeps all progress). Also claims the name.
 async function pinSet(pin){pin=String(pin||'').trim();if(!pinOk(pin))return {err:'PIN must be 4 digits (or empty for no PIN).'};const k=acctKey(P.name);if(!k)return {err:'Set a player name first.'};
@@ -99,8 +100,10 @@ function loginOpened(r){
     const n=($('#obName').value||'').trim();localStorage.setItem('wl_ob24',JSON.stringify({n:n,p:p}));
     G.cloudLogin={pending:true,failed:false,loaded:false,name:n};
     loginHold(true);return h&&h.apply(this,arguments);};}})();
-// After auth: same name + blank PIN loads the cloud revision. A lookup that
-// does not answer does not claim the name or start the zeroed starter kit.
+// After auth: an existing name loads the cloud revision and does not write.
+// A brand-new name is started only after the account read succeeds and the
+// name is absent. A refused read, a quota error, or a wait for sign-in does
+// not count as "no such player" and does not start the zeroed kit.
 (function(){
   if(NET&&NET.onAlliance){const prev=NET.onAlliance.bind(NET);NET.onAlliance=function(f){return prev(function(a){try{G.allianceSeen=true;}catch(e){}return f(a);});};}
   const t=setInterval(async()=>{
@@ -110,9 +113,11 @@ function loginOpened(r){
     if(!ob){clearInterval(t);try{acctSync();}catch(e){}return;}
     let n,p;try{const parsed=JSON.parse(ob);n=parsed.n;p=parsed.p;}catch(e){localStorage.removeItem('wl_ob24');loginFail('The name on this screen could not be read.');clearInterval(t);return;}
     if(G.cloudLogin)G.cloudLogin.resolving=true;
-    let a=null,getErr=null;try{a=await acctGet(acctKey(n));}catch(e){getErr=e;}
-    if(getErr){if(G.cloudLogin)G.cloudLogin.resolving=false;loginFail('The crew list did not answer. This device did not start a new player.');clearInterval(t);return;}
-    if(a){
+    let a=null,lookup='error';
+    try{a=await acctGet(acctKey(n));lookup=a?'found':'absent';}catch(e){lookup='error';}
+    if(G.cloudLogin)G.cloudLogin.lookup=lookup;
+    if(lookup!=='found'&&lookup!=='absent'){if(G.cloudLogin)G.cloudLogin.resolving=false;loginFail('The crew list did not answer. This device did not start a new player.');clearInterval(t);return;}
+    if(lookup==='found'){
       localStorage.removeItem('wl_ob24');
       let r;try{r=await pinLogin(n,p);}catch(e){r={err:'The cloud save could not be read. This device did not start a new player.'};}
       if(r&&r.ok)loginOpened(r);
@@ -123,10 +128,11 @@ function loginOpened(r){
     localStorage.removeItem('wl_ob24');
     const c=rosterNameClash(acctKey(n));
     if(c){loginFail('"'+c.name+'" is already in this crew. This device did not start a new player.');clearInterval(t);return;}
-    const r=await pinSet(p);
+    let r;try{r=await pinSet(p);}catch(e){loginFail('The crew list did not answer. This device did not start a new player.');clearInterval(t);return;}
+    if(r&&r.err){loginFail(r.err);clearInterval(t);return;}
     if(G.cloudLogin){G.cloudLogin.pending=false;G.cloudLogin.resolving=false;}
     loginHold(false);
-    if(r.err)toast('⚠️ '+r.err);else toast(p?'🔑 Name + PIN saved':'Name saved. Add a PIN in your Profile so nobody else can load you.');
+    toast(p?'🔑 Name + PIN saved':'Name saved. Add a PIN in your Profile so nobody else can load you.');
     clearInterval(t);
   },700);
 })();
