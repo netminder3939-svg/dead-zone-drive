@@ -85,7 +85,7 @@ try{
 }catch(e){console.warn('v26i adopt',e);}
 
 let syncing=null;
-function needFirebase(){return typeof NET!=='undefined'&&NET.mode==='firebase'&&NET.loadProfile&&P&&P.acct;}
+function needFirebase(){return typeof NET!=='undefined'&&NET.mode==='firebase'&&NET.loadProfile&&P&&(P.uid||P.acct);}
 async function syncNow(){
   if(syncing)return syncing;
   syncing=(async()=>{
@@ -98,10 +98,11 @@ async function syncNow(){
       let changed=false;
       for(const u of uids){
         let d=null;try{d=await NET.loadProfile(u);}catch(e){continue;}
-        if(!d||!d.data)continue;
-        let o=null;try{o=JSON.parse(d.data);}catch(e){continue;}
+        if(!d||d.data==null)continue;
+        let o=SYNC26.profileFromSaveDoc(d);
+        if(o&&o.res&&!o.name&&!o.wiped&&(d.rev||0)>(P._rev||0))o=SYNC26.overlayResGrant(snap(),o.res,d.rev,d.savedAt);
         if(!o||o.wiped||!o.name)continue;
-        o.uid=o.uid||u;o._savedAt=o._savedAt||d.savedAt||0;o._rev=d.rev||o._rev||0;
+        o.uid=o.uid||u;
         if(u===myUid()&&JSON.stringify(o.tiles||{})===JSON.stringify(P.tiles||{})&&(o._savedAt||0)<=(P._savedAt||0)&&SYNC26.gameEqual(o,snap()))continue;
         scrub();
         const m=SYNC26.merge(snap(),o,{uid:myUid(),remoteUid:u,now:Date.now()});

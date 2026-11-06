@@ -171,7 +171,31 @@
     if(da!==db)return da>db?A:B;
     const ma=meters(A),mb=meters(B);
     if(ma!==mb)return ma>mb?A:B;
+    const ra=A._rev||0,rb=B._rev||0;
+    if(ra!==rb)return ra>rb?A:B;
     return (A._savedAt||0)>=(B._savedAt||0)?A:B;
+  }
+  // The client stores the whole player as one JSON string in the save doc's
+  // `data` field. A dotted write like data.res is not that string. Accept
+  // either a string or a map so a grant the console can read is not ignored.
+  function profileFromSaveDoc(d){
+    if(!d||d.data==null)return null;
+    let o=null;
+    if(typeof d.data==='string'){try{o=JSON.parse(d.data);}catch(e){return null;}}
+    else if(typeof d.data==='object')o=clone(d.data);
+    if(!o||typeof o!=='object'||Array.isArray(o))return null;
+    if(d.rev)o._rev=Math.max(o._rev||0,d.rev|0);
+    if(d.savedAt)o._savedAt=Math.max(o._savedAt||0,d.savedAt|0);
+    return o;
+  }
+  // A grant that replaced the string with only {res:{...}} must not wipe the player.
+  function overlayResGrant(local,res,rev,savedAt){
+    if(!local||!res||typeof res!=='object')return null;
+    const o=clone(local);
+    o.res=Object.assign({},local.res||{},res);
+    o._rev=Math.max(local._rev||0,rev||0);
+    o._savedAt=Math.max(local._savedAt||0,savedAt||0);
+    return o;
   }
   // Extras that exist only on the older alias are quarantined, not owned.
   // Extras on a device that has its own real drive are kept: those are unsynced
@@ -386,7 +410,7 @@
     return now>=start+dur+g;
   }
 
-  const api={clone,cmpClock,clockOf,merge,gameEqual,recordChange,snapOf,shouldUpload,hexLine,hexDist,crossedHexes,planClaimRoute,explainClaim,aliasMayResolve,driveKey,unionDrives,landAhead,decide};
+  const api={clone,cmpClock,clockOf,merge,gameEqual,recordChange,snapOf,shouldUpload,hexLine,hexDist,crossedHexes,planClaimRoute,explainClaim,aliasMayResolve,driveKey,unionDrives,landAhead,decide,profileFromSaveDoc,overlayResGrant,preferLand};
   root.SYNC26=api;
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

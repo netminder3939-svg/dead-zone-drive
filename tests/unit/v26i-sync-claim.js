@@ -113,6 +113,23 @@ const deskDrive=prof({uid:'vXcZ',_savedAt:2500,tiles:{a:{t:1},d:{t:4}},stats:{me
 const bothDrives=S.merge(deskDrive,phoneDrive,{uid:'vXcZ',remoteUid:'7qg8',now:3000});
 ok(bothDrives.profile.tiles.p&&bothDrives.profile.tiles.d,'when both devices have their own drive recap, neither claim is dropped');
 
+// Admin grant: resources live inside the JSON string. A higher doc rev must win when
+// land is tied, even if the string's own _savedAt was not bumped. A real drive still wins.
+const fresh=prof({uid:'Vc6L',_rev:1,_savedAt:1000,res:{...RES},stats:{meters:0,kills:0},dr26:[],tiles:{}});
+const granted=prof({uid:'Vc6L',_rev:2,_savedAt:1000,res:{scrap:3000,food:3000,water:3000,fuel:3000,parts:3000},stats:{meters:0,kills:0},dr26:[],tiles:{}});
+const sawGrant=S.merge(fresh,granted,{uid:'Vc6L',remoteUid:'Vc6L',now:2000});
+ok(sawGrant.profile.res.scrap===3000&&sawGrant.profile.res.parts===3000,'higher rev grant is kept when nothing else was played');
+const drove=prof({uid:'Vc6L',_rev:1,_savedAt:3000,res:{...RES,scrap:10},stats:{meters:5000,kills:1},dr26:[{km:'5.0',newHex:4,t:9,t0:8}],tiles:{a:{t:1}}});
+const staleGrant=prof({uid:'Vc6L',_rev:9,_savedAt:9000,res:{scrap:3000,food:3000,water:3000,fuel:3000,parts:3000},stats:{meters:0,kills:0},dr26:[],tiles:{}});
+const keepDrive=S.merge(staleGrant,drove,{uid:'Vc6L',remoteUid:'Vc6L',now:4000});
+ok(keepDrive.profile.tiles.a&&keepDrive.profile.dr26.some(r=>r.km==='5.0'),'a higher rev with no drive does not discard the phone drive');
+const parsed=S.profileFromSaveDoc({data:JSON.stringify({name:'QA-Test',lvl:1,res:{scrap:0},_rev:1,_savedAt:1000}),rev:2,savedAt:1888});
+ok(parsed.res.scrap===0&&parsed._rev===2&&parsed._savedAt===1888,'doc rev and savedAt are applied onto the parsed string');
+const asMap=S.profileFromSaveDoc({data:{name:'QA-Test',lvl:1,res:{scrap:3000}},rev:2,savedAt:1888});
+ok(asMap&&asMap.res.scrap===3000&&asMap.name==='QA-Test','a map-shaped data field is accepted');
+const onlyRes=S.overlayResGrant(fresh,{scrap:3000,food:3000,water:3000,fuel:3000,parts:3000},2,1888);
+ok(onlyRes.name==='pope'&&onlyRes.lvl===5&&onlyRes.res.scrap===3000&&onlyRes._rev===2,'a res-only grant keeps the player and applies the amounts');
+
 // ---- offline concurrent journals: deltas add once, troops do not ----
 function withSnap(p){p.sync26=p.sync26||{clock:{'7qg8':1,'vXcZ':1},ops:[],legacyAt:{}};p.sync26.snap=S.snapOf(p);return p;}
 const p0=withSnap(prof({uid:'7qg8',res:{...RES,scrap:100,food:50,water:50,fuel:5,parts:5},troops:{home:100,away:{},stationed:{},returning:[],queue:[]},tiles:{a:{t:1}}}));
