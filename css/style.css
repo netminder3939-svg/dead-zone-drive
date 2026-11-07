@@ -169,3 +169,5 @@ table.roster td,table.roster th{padding:4px 3px;font-size:12px}
 .dmg.heal{color:#6fe07a}
 .unit.boss{width:180px}.unit.boss .uart{height:180px}.unit.boss .uart img{max-width:180px;max-height:180px}
 .ico.boss.emb img{border-radius:50%;filter:drop-shadow(0 0 8px #9a7aff)}
+
+#a12out{flex:0 0 auto;min-height:32px;padding:6px 10px;font-size:14px;font-weight:700;background:#3a2418;border:1px solid #c9a24a;color:#f3e6d0}

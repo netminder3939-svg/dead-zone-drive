@@ -7,9 +7,13 @@ service cloud.firestore {
   match /databases/{db}/documents {
     match /teams/{team} {
       function signedIn() { return request.auth != null; }
-      // PREVIEW ONLY: test teams (pv-*) can be fully wiped from the test build's Wipe button. Never matches live teams.
-      match /{doc=**} {
-        allow delete: if signedIn() && team.matches('pv-.*');
+      // PREVIEW ONLY: test teams (pv-*) can be wiped from the test build's Wipe button. Never matches live teams.
+      // Character saves are excluded. Only the owner can delete their own preview save, in match /saves/{uid}.
+      match /{collection}/{id} {
+        allow delete: if signedIn() && team.matches('pv-.*') && collection != 'saves';
+      }
+      match /{collection}/{id}/{sub=**} {
+        allow delete: if signedIn() && team.matches('pv-.*') && collection != 'saves';
       }
       function nonNegBank(b) {
         return b.keys().hasOnly(['scrap','food','water','fuel','parts'])
@@ -66,11 +70,10 @@ service cloud.firestore {
         allow create: if signedIn() && request.resource.data.uid == request.auth.uid && request.resource.data.hex is string;
       }
 
-      // Cloud saves. Read is any signed-in player. Create and update stay owner-only.
-      // On a preview team (name starts with pv-) an update must name the revision it read
-      // and move it forward by one. A legacy client that omits that loses the race instead
-      // of writing over a newer save. Live team names are unchanged.
-      // Deletes were already impossible: the old write rule required request.resource.data.
+      // Cloud saves. On a live team, any signed-in member can read and the owner writes.
+      // On a preview team (name starts with pv-) only that character's email account can
+      // read, create, update, or delete the document. An update must name the revision it
+      // read and move it forward by one. Live team names skip the preview checks.
       match /saves/{uid} {
         function saveBytesOk() {
           return signedIn() && request.auth.uid == uid
@@ -92,9 +95,14 @@ service cloud.firestore {
           return !team.matches('^pv-.+')
             || request.auth.token.firebase.sign_in_provider == 'password';
         }
-        allow read: if signedIn();
+        function previewOwnerRead() {
+          return !team.matches('^pv-.+') || request.auth.uid == uid;
+        }
+        allow read: if signedIn() && previewOwnerRead();
         allow create: if saveBytesOk() && previewPassword();
         allow update: if saveBytesOk() && previewSaveUpdate() && previewPassword();
+        allow delete: if team.matches('^pv-.+') && signedIn() && request.auth.uid == uid
+          && request.auth.token.firebase.sign_in_provider == 'password';
       }
 
 

@@ -688,6 +688,19 @@
     return /^class=(failed-to-fetch|not-iterable|not-a-function|property|other) step=(before-getDoc|before-exists|before-data) collection=(function|undefined|object|string|number|boolean|symbol|bigint|other) doc=(function|undefined|object|string|number|boolean|symbol|bigint|other) getDoc=(function|undefined|object|string|number|boolean|symbol|bigint|other) base=(array|missing|function|undefined|object|string|number|boolean|symbol|bigint|other)$/.test(s)?' readfail '+s:'';
   }
 
+  function keptLocal(local,remote){
+    if(!local||!remote)return false;
+    if(missingCamps(local,remote).length||spentLess(local,remote))return true;
+    const ta=local.troops||{},tb=remote.troops||{};
+    if((ta.home|0)<(tb.home|0)||(ta.wounded|0)>(tb.wounded|0))return true;
+    if(kills(local)>kills(remote))return true;
+    if(!supersetKeys(remote.tiles,local.tiles)||!supersetKeys(remote.pipeUnlock26,local.pipeUnlock26)||!supersetKeys(remote.badges,local.badges)||!skillsCover(remote.skills,local.skills))return true;
+    const have=new Set(realDrives(remote.dr26).map(driveKey));
+    for(const r of realDrives(local.dr26))if(!have.has(driveKey(r)))return true;
+    if(JSON.stringify(local.equip||null)!==JSON.stringify(remote.equip||null))return true;
+    if(JSON.stringify(local.inv||null)!==JSON.stringify(remote.inv||null))return true;
+    return false;
+  }
   function handoffDecide(local,remote,remoteRev,opt){
     opt=opt||{};
     remoteRev=remoteRev|0;
@@ -714,15 +727,16 @@
       return {action:'adopt',profile:adopted,rev:remoteRev,why:'adopt'};
     }
     if(remoteRev>acked&&dirty){
-      // Map drift on an open tab (tiles, distance, xp) must not block the other
-      // device's saved building or spend, and must not be written back over it.
-      const passive=!missingCamps(local,remote).length&&!spentLess(local,remote)&&((local.troops&&local.troops.home)|0)>=((remote.troops&&remote.troops.home)|0)&&((local.troops&&local.troops.wounded)|0)<=((remote.troops&&remote.troops.wounded)|0);
+      // Higher resources or travel drift can follow the other device's save.
+      // A kill, claim, pipeline, badge, drive, or gear change on this device stays.
+      const kept=keptLocal(local,remote);
+      const passive=!kept;
       if(passive&&realAhead(remote,local)){
         const adopted=clone(remote);
         adopted._handoff=1;adopted._ackedRev=remoteRev;adopted._userEdit=local._userEdit|0;adopted._userBase=local._userEdit|0;adopted._tab=remote._tab||local._tab||'';adopted._rev=remoteRev;
         return {action:'adopt',profile:adopted,rev:remoteRev,why:'adopt-passive'};
       }
-      if(aheadProgress(local,remote)&&!aheadProgress(remote,local))return {action:'upload',profile:clone(local),why:'takeover'};
+      if((aheadProgress(local,remote)||kept)&&!realAhead(remote,local)&&!keptLocal(remote,local))return {action:'upload',profile:clone(local),why:'takeover'};
       return {action:'hold',profile:local,held:clone(remote),reason:'Both devices changed this save. Neither copy was overwritten.',why:'dirty-behind'};
     }
     if(dirty||owner){
