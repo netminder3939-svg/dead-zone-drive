@@ -138,16 +138,28 @@ async function cloudSave(force){if(G.cloudLogin&&G.cloudLogin.pending)return;if(
   const local=profileClean();if(!force&&JSON.stringify(local)===CS.lastStr)return;
   if(force&&JSON.stringify(local)!==CS.lastStr){CS.report='Do not switch yet. This send has not been confirmed.';CS.status=CS.report;try{if(typeof UI!=='undefined'&&UI.render)UI.render();}catch(e){}}
   if(typeof SYNC26==='undefined'||!SYNC26.runCloudHandoff){CS.report='Cloud save did not go through. Your progress is still on this device.';CS.status=CS.report;return;}
+  let _tab='tab';try{_tab=sessionStorage.getItem('wl_tab');if(!_tab){_tab=Math.random().toString(36).slice(2,10);sessionStorage.setItem('wl_tab',_tab);}}catch(e){}
   const result=await SYNC26.runCloudHandoff(local,{
+    arm:true,tab:_tab,background:!!(G._saveBackground||document.visibilityState==='hidden'),
     load:async function(){const c=await NET.loadProfile(P.uid);if(!c)return null;return {rev:c.rev||0,profile:SYNC26.profileFromSaveDoc(c)};},
-    write:async function(doc){const body={data:JSON.stringify(doc.profile),rev:doc.rev,savedAt:doc.savedAt,name:doc.profile.name,lvl:doc.profile.lvl,v:2,fe:doc.profile.fullEpoch||P.fullEpoch||0,me:doc.profile.mapEpoch||P.mapEpoch||0};if(P.acct)body.acct=String(P.acct).slice(0,24);await NET.saveProfile(P.uid,body);}
+    write:async function(doc){const body={data:JSON.stringify(doc.profile),rev:doc.rev,savedAt:doc.savedAt,baseRev:doc.baseRev||0,name:doc.profile.name,lvl:doc.profile.lvl,v:doc.v||2,fe:doc.profile.fullEpoch||P.fullEpoch||0,me:doc.profile.mapEpoch||P.mapEpoch||0};if(P.acct)body.acct=String(P.acct).slice(0,24);await NET.saveProfile(P.uid,body);}
   });
   if(result.quota){G.syncHoldUntil=Date.now()+SYNC26.SYNC_HOLD_MS;G.syncHoldQuota=true;}
+  ['_handoff','_ackedRev','_userEdit','_userBase','_tab'].forEach(function(k){if(result.local&&result.local[k]!==undefined)P[k]=result.local[k];});
   CS.why=[result.why||'none',result.code||'', 'local='+(P._rev||0), 'server='+(result.serverRev==null?'':result.serverRev)].filter(Boolean).join(' ');
+  if(result.why==='hp-regen'||result.why==='background')return;
   if(result.already){const n=result.rev||P._rev||0;CS.report='Safe to switch. Cloud save '+n+' is on the server.';CS.status=CS.report;CS.last=result.savedAt||Date.now();CS.lastStr=JSON.stringify(profileClean());return;}
+  if(result.adopt){
+    const src=result.local,keepUid=P.uid,keepAcct=P.acct,keepAlias=P.alias;
+    ['res','troops','world','dr26','tiles','stats','badges','pipeUnlock26','sync26','stronghold','lvl','xp','sp','skills','contrib','marchDone','marchPaid','claimDay','hp','inv','equip','killed','quests','cards','cls'].forEach(function(k){if(src[k]!==undefined)P[k]=src[k];});
+    P._rev=result.rev;P._ackedRev=result.rev;P._handoff=1;P._userBase=P._userEdit|0;P.uid=keepUid;if(keepAcct)P.acct=keepAcct;if(keepAlias)P.alias=keepAlias;if(src._tab)P._tab=src._tab;save();
+    CS.last=Date.now();CS.lastStr=JSON.stringify(profileClean());CS.report='Safe to switch. Cloud save '+result.rev+' is on the server.';CS.status=CS.report;return;
+  }
   if(!result.wrote){
     if(result.held){P.sync26=P.sync26||{clock:{},ops:[],legacyAt:{}};P.sync26.heldRemote={rev:result.heldRev||0,at:Date.now(),profile:result.held};try{save();}catch(e){}}
-    CS.report=result.report;CS.status=result.report;return;
+    if(result.report){CS.report=result.report;CS.status=result.report;}
+    try{save();}catch(e){}
+    return;
   }
   const src=result.local,keepUid=P.uid,keepAcct=P.acct,keepAlias=P.alias;
   ['res','troops','world','dr26','tiles','stats','badges','pipeUnlock26','sync26','stronghold','lvl','xp','sp','skills','contrib'].forEach(function(k){if(src[k]!==undefined)P[k]=src[k];});
@@ -160,7 +172,7 @@ async function cloudRestore(code){code=(code||'').trim();if(!code)return toast('
   const o=JSON.parse(d.data);if(!profileValid(o))return toast('That save looks damaged, not loaded');if(!confirm(`Load ${o.name} (Lv${o.lvl})? Your current progress is backed up first.`))return;adoptProfile(o,'Restored a cloud save');location.reload();}catch(e){toast('Restore failed: '+(e.message||e));}}
 function undoRestore(){const b=localStorage.getItem('wl_p_backup');if(!b)return toast('No backup');if(!confirm('Go back to the copy saved before the last restore?'))return;localStorage.setItem('wl_p',b);location.reload();}
 const _ninit=NET.init.bind(NET);NET.init=async function(p){const uid=await _ninit(p);P.uid=uid;await cloudCheck(uid);return uid;};
-setInterval(()=>cloudSave(false),BAL.cloud.autosaveSec*1000);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){opsFlush();cloudSave(false);}});
+setInterval(()=>cloudSave(false),BAL.cloud.autosaveSec*1000);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){opsFlush();G._saveBackground=true;Promise.resolve(cloudSave(false)).finally(function(){G._saveBackground=false;});}});
 
 // ================= boot hooks =================
 const _cua=catchUpAI;catchUpAI=function(){try{factionCatchUp();outpostTick();}catch(e){console.error(e);}};

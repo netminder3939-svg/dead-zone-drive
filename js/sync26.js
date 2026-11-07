@@ -107,6 +107,54 @@
     profile.skills=profile.skills||{};
   }
   function emptyObj(v){return !v||(typeof v==='object'&&!Array.isArray(v)&&!Object.keys(v).length);}
+  function campMap(m){
+    if(!m||typeof m!=='object')return null;
+    const o={};
+    Object.keys(m).sort().forEach(function(k){if(m[k])o[k]=m[k];});
+    return Object.keys(o).length?o:null;
+  }
+  function liveCamps(p){
+    const w=p&&p.world||{},ids=[];
+    const sh=w.sh;
+    if(sh&&sh.hex&&sh.state!=='down')ids.push('sh:'+sh.hex);
+    Object.keys(w.outposts||{}).forEach(function(id){const o=w.outposts[id];if(o&&o.state!=='down')ids.push('op:'+id);});
+    Object.keys(w.towers||{}).forEach(function(id){const o=w.towers[id];if(o&&o.state!=='down')ids.push('tw:'+id);});
+    return ids.sort();
+  }
+  function missingCamps(from,to){
+    const have={};
+    liveCamps(to).forEach(function(id){have[id]=1;});
+    return liveCamps(from).filter(function(id){return !have[id];});
+  }
+  function progressEqual(a,b){
+    const x=clone(a)||{},y=clone(b)||{};
+    x.hp=0;y.hp=0;
+    return gameEqual(x,y);
+  }
+  function userDirty(p){return !!p&&(p._userEdit|0)!==(p._userBase|0);}
+  function notePlay(p){if(p)p._userEdit=(p._userEdit|0)+1;}
+  // A live building or a lower balance is unsent progress. A stale tab's extra income is not.
+  function hasUnsentProgress(local,remote){
+    if(!local||!remote)return false;
+    if(missingCamps(local,remote).length)return true;
+    const lr=normRes(local.res),rr=normRes(remote.res);
+    for(let i=0;i<RES.length;i++)if(lr[RES[i]]<rr[RES[i]])return true;
+    if((local.lvl|0)>(remote.lvl|0)||(local.xp|0)>(remote.xp|0))return true;
+    return false;
+  }
+  function armHandoff(local,remote,remoteRev){
+    if(!local||local._handoff===1)return local;
+    local._handoff=1;
+    const same=remote&&progressEqual(local,remote);
+    if(remote&&same){
+      local._ackedRev=remoteRev|0;
+      local._userBase=local._userEdit|0;
+      return local;
+    }
+    local._ackedRev=local._rev|0;
+    if(remote&&!same&&(remoteRev|0)>(local._rev|0)&&hasUnsentProgress(local,remote))local._userEdit=(local._userBase|0)+1;
+    return local;
+  }
   function sig(o){
     return JSON.stringify(stable({
       lvl:(o&&o.lvl)||1,xp:(o&&o.xp)||0,sp:(o&&o.sp)||0,skills:(o&&o.skills)||{},
@@ -116,6 +164,7 @@
       claim:(o&&o.claimDay)||null,paid:emptyObj(o&&o.marchPaid)?null:o.marchPaid,done:emptyObj(o&&o.marchDone)?null:o.marchDone,
       hp:(o&&o.hp)||0,sh:(o&&o.stronghold)||null,
       worldSh:o&&o.world&&o.world.sh||null,barracks:o&&o.world&&o.world.barracks||null,
+      outposts:campMap(o&&o.world&&o.world.outposts),towers:campMap(o&&o.world&&o.world.towers),
       contrib:(o&&o.contrib)||null
     }));
   }
@@ -464,38 +513,124 @@
     body._rev=Math.max(local._rev||0,remoteRev||0);
     return {upload:true,profile:body,rev:body._rev};
   }
+  // One device plays at a time. The tab that last saved owns passive ticks.
+  // A larger revision is not the winner. A stale tab adopts. A real unsent
+  // edit is kept and is not overwritten, and it is not written over a newer save.
+  function handoffDecide(local,remote,remoteRev,opt){
+    opt=opt||{};
+    remoteRev=remoteRev|0;
+    if(!local||local._handoff!==1){
+      const plan=uploadPlan(local,remote,remoteRev);
+      return {action:plan.upload?'upload':'hold',legacy:true,upload:plan.upload,profile:plan.profile||local,held:plan.held||null,reason:plan.reason||'',rev:plan.rev||0};
+    }
+    if(!remote||remote.wiped||!remote.name){
+      return {action:'upload',profile:clone(local),why:'first'};
+    }
+    const acked=local._ackedRev|0;
+    const dirty=userDirty(local);
+    const owner=!!opt.tab&&opt.tab===local._tab;
+    const same=progressEqual(local,remote);
+    const localHp=local.hp|0,remoteHp=remote.hp|0;
+    if(remoteRev===acked&&same){
+      if(localHp<remoteHp)return {action:'hold',profile:local,reason:'Do not switch yet. Cloud save '+acked+' is on the server. The latest change is still on this device.',why:'hp-lower'};
+      if(localHp>remoteHp&&owner&&!opt.background)return {action:'keep',profile:local,why:'hp-regen'};
+      return {action:'already',profile:local,why:'already'};
+    }
+    if(remoteRev<acked){
+      return {action:'hold',profile:local,held:clone(remote),reason:'Do not switch yet. Cloud save '+remoteRev+' is on the server. The latest change is still on this device.',why:'server-behind'};
+    }
+    if(remoteRev>acked&&!dirty){
+      const adopted=clone(remote);
+      adopted._handoff=1;adopted._ackedRev=remoteRev;adopted._userEdit=local._userEdit|0;adopted._userBase=local._userEdit|0;adopted._tab=remote._tab||local._tab||'';adopted._rev=remoteRev;
+      return {action:'adopt',profile:adopted,rev:remoteRev,why:'adopt'};
+    }
+    if(remoteRev>acked&&dirty){
+      return {action:'hold',profile:local,held:clone(remote),reason:'Both devices changed this save. Neither copy was overwritten.',why:'dirty-behind'};
+    }
+    if(dirty||owner){
+      if(opt.background&&!dirty)return {action:'keep',profile:local,why:'background'};
+      return {action:'upload',profile:clone(local),why:'tip'};
+    }
+    const adopted=clone(remote);
+    adopted._handoff=1;adopted._ackedRev=remoteRev;adopted._userEdit=local._userEdit|0;adopted._userBase=local._userEdit|0;adopted._tab=remote._tab||'';adopted._rev=remoteRev;
+    return {action:'adopt',profile:adopted,rev:remoteRev,why:'stale-drift'};
+  }
+  function seal(profile,rev,tab){
+    profile._rev=rev;profile._ackedRev=rev;profile._handoff=1;profile._userBase=profile._userEdit|0;
+    if(tab)profile._tab=tab;
+    return profile;
+  }
+  function buildingBlock(local,chosen,loaded){
+    const droppedLocal=missingCamps(local,chosen);
+    const droppedServer=loaded&&missingCamps(loaded.profile,chosen);
+    if(!droppedLocal.length&&!(droppedServer&&droppedServer.length))return null;
+    return {local:local,report:'Both devices changed this save. Neither copy was overwritten.',wrote:false,rev:local._rev||0,quota:false,held:loaded?clone(loaded.profile):null,heldRev:loaded&&loaded.rev||0,why:'building',serverRev:loaded?loaded.rev||0:null};
+  }
   async function runCloudHandoff(local,io){
+    io=io||{};
     let loaded=null;
     try{loaded=await io.load();}
     catch(e){
       const blob=((e&&e.code)||'')+' '+((e&&e.message)||'');
-      return {local:local,report:cloudFailureText(e),wrote:false,rev:local._rev||0,quota:/quota|resource-exhausted|429/i.test(blob),why:'load-error',code:String((e&&(e.code||e.name))||'unknown').slice(0,40)};
+      return {local:local,report:cloudFailureText(e),wrote:false,adopt:false,rev:local._rev||0,quota:/quota|resource-exhausted|429/i.test(blob),why:'load-error',code:String((e&&(e.code||e.name))||'unknown').slice(0,40)};
     }
+    if(io.arm)armHandoff(local,loaded&&loaded.profile,loaded&&loaded.rev||0);
+    if(local&&local._handoff===1)return runArmedHandoff(local,loaded,io);
     let profile=clone(local),rev=local._rev||0;
     if(loaded&&(loaded.rev||0)>rev){
       const plan=uploadPlan(local,loaded.profile,loaded.rev||0);
-      if(!plan.upload)return {local:local,report:plan.reason,wrote:false,rev:rev,quota:false,held:plan.held||null,heldRev:loaded.rev||0};
+      if(!plan.upload)return {local:local,report:plan.reason,wrote:false,adopt:false,rev:rev,quota:false,held:plan.held||null,heldRev:loaded.rev||0};
       profile=plan.profile;rev=plan.rev;
     }
     // The server already has this revision and the same progress. Another
     // click must not pretend the copy never arrived, and must not burn a new number.
     if(loaded&&(loaded.rev||0)===rev&&gameEqual(local,loaded.profile)){
-      return {local:local,report:'',wrote:false,already:true,rev:rev,savedAt:(loaded.profile&&loaded.profile._savedAt)||0,quota:false,why:'already',serverRev:rev};
+      return {local:local,report:'',wrote:false,adopt:false,already:true,rev:rev,savedAt:(loaded.profile&&loaded.profile._savedAt)||0,quota:false,why:'already',serverRev:rev};
     }
+    const blocked=buildingBlock(local,profile,loaded);
+    if(blocked)return blocked;
     const next=rev+1,savedAt=io.now?io.now():Date.now();
     const out=clone(profile);out._rev=next;out._savedAt=savedAt;
-    try{await io.write({profile:out,rev:next,savedAt:savedAt});}
+    try{await io.write({profile:out,rev:next,savedAt:savedAt,baseRev:loaded?loaded.rev||0:0,v:2});}
     catch(e){
       const blob=((e&&e.code)||'')+' '+((e&&e.message)||'');
       const heldRev=loaded&&(loaded.rev||0)=== (local._rev||0)?(local._rev||0):0;
       const quota=/quota|resource-exhausted|429/i.test(blob);
       const why=quota?'The server said quota exceeded.':(/unavailable|deadline-exceeded|aborted|cancelled/i.test(blob)?'The server did not answer.':'This send did not go through.');
       const report=heldRev?('Do not switch yet. Cloud save '+heldRev+' is on the server. '+why+' The latest change is still on this device.'):cloudFailureText(e);
-      return {local:local,report:report,wrote:false,rev:local._rev||0,confirmedRev:heldRev,quota:quota,why:heldRev?'write-error-same-rev':'write-error',code:String((e&&(e.code||e.name))||'unknown').slice(0,40),serverRev:loaded?(loaded.rev||0):0};
+      return {local:local,report:report,wrote:false,adopt:false,rev:local._rev||0,confirmedRev:heldRev,quota:quota,why:heldRev?'write-error-same-rev':'write-error',code:String((e&&(e.code||e.name))||'unknown').slice(0,40),serverRev:loaded?(loaded.rev||0):0};
     }
-    return {local:out,report:'',wrote:true,rev:next,quota:false,why:'wrote',serverRev:loaded?(loaded.rev||0):0};
+    return {local:out,report:'',wrote:true,adopt:false,rev:next,quota:false,why:'wrote',serverRev:loaded?(loaded.rev||0):0};
   }
-  const api={clone,cmpClock,clockOf,merge,gameEqual,recordChange,snapOf,shouldUpload,hexLine,hexDist,crossedHexes,planClaimRoute,explainClaim,aliasMayResolve,driveKey,unionDrives,landAhead,decide,profileFromSaveDoc,overlayResGrant,preferLand,cloudFailureText,saveStatusLine,syncAllowed,uploadPlan,runCloudHandoff,SYNC_HOLD_MS};
+  async function runArmedHandoff(local,loaded,io){
+    const remote=loaded&&loaded.profile;
+    const remoteRev=loaded?loaded.rev||0:0;
+    const decision=handoffDecide(local,remote,remoteRev,{tab:io.tab||'',background:!!io.background});
+    if(decision.action==='already'||decision.why==='hp-regen'||decision.why==='background'){
+      return {local:decision.profile||local,report:'',wrote:false,adopt:false,already:decision.action==='already',rev:remoteRev||local._rev||0,savedAt:(remote&&remote._savedAt)||0,quota:false,why:decision.why,serverRev:remote?remoteRev:null};
+    }
+    if(decision.action==='adopt'){
+      return {local:decision.profile,report:'',wrote:false,adopt:true,rev:decision.rev||remoteRev,quota:false,why:decision.why,serverRev:remoteRev};
+    }
+    if(decision.action!=='upload'){
+      return {local:decision.profile||local,report:decision.reason||'Do not switch yet. The latest change is still on this device.',wrote:false,adopt:false,rev:local._rev||0,quota:false,held:decision.held||null,heldRev:remoteRev,why:decision.why||'hold',serverRev:remote?remoteRev:null};
+    }
+    const blocked=buildingBlock(local,decision.profile,loaded);
+    if(blocked){blocked.local=local;return blocked;}
+    const base=loaded?remoteRev:0;
+    const next=(loaded?remoteRev:local._rev||0)+1;
+    const savedAt=io.now?io.now():Date.now();
+    const out=seal(clone(decision.profile),next,io.tab||local._tab||'');
+    out._savedAt=savedAt;
+    try{await io.write({profile:out,rev:next,savedAt:savedAt,baseRev:base,v:3});}
+    catch(e){
+      const blob=((e&&e.code)||'')+' '+((e&&e.message)||'');
+      const quota=/quota|resource-exhausted|429/i.test(blob);
+      return {local:local,report:cloudFailureText(e),wrote:false,adopt:false,rev:local._rev||0,quota:quota,why:'write-error',code:String((e&&(e.code||e.name))||'unknown').slice(0,40),serverRev:loaded?remoteRev:null};
+    }
+    return {local:out,report:'',wrote:true,adopt:false,rev:next,quota:false,why:'wrote',serverRev:loaded?remoteRev:null,baseRev:base};
+  }
+  const api={clone,cmpClock,clockOf,merge,gameEqual,recordChange,snapOf,shouldUpload,hexLine,hexDist,crossedHexes,planClaimRoute,explainClaim,aliasMayResolve,driveKey,unionDrives,landAhead,decide,profileFromSaveDoc,overlayResGrant,preferLand,cloudFailureText,saveStatusLine,syncAllowed,uploadPlan,runCloudHandoff,handoffDecide,armHandoff,notePlay,progressEqual,missingCamps,SYNC_HOLD_MS};
   root.SYNC26=api;
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

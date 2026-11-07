@@ -1,4 +1,6 @@
-// v26i (TEST · ddd-v26-11) Two separate fixes. Not deployed.
+// v26i (TEST · ddd-v26-12a) Whole-profile handoff. Not deployed.
+// A stale tab adopts the acknowledged save. It does not write spent resources back.
+// The tab that saved owns later passive ticks. A higher revision is not the winner.
 // 1) Phone ↔ computer saves. v26e's "higher score wins" and one-shot acctSync let a stale
 //    desktop upload, or refuse a drive that did not move the score by 100,000. Reports were
 //    kept by list length, so one restored summary replaced a real recap of the same length.
@@ -35,6 +37,9 @@ function revertHeal(){
 }
 function scrub(){if(!Gref.sync26Ready&&typeof NET!=='undefined'&&NET.mode==='firebase'&&healMutated())revertHeal();}
 function myUid(){return (typeof NET!=='undefined'&&NET.uid)||P.uid||'local';}
+function tabId(){try{let s=sessionStorage.getItem('wl_tab');if(!s){s=Math.random().toString(36).slice(2,10);sessionStorage.setItem('wl_tab',s);}return s;}catch(e){return 'tab';}}
+try{const _pay=pay;pay=function(c){const r=_pay.apply(this,arguments);try{SYNC26.notePlay(P);}catch(e){}return r;};}catch(e){}
+try{const _claim=claimTile;claimTile=function(id){const r=_claim.apply(this,arguments);try{SYNC26.notePlay(P);}catch(e){}return r;};}catch(e){}
 function snap(){try{return JSON.parse(JSON.stringify(P));}catch(e){return {};}}
 function storedGen(){try{return +(localStorage.getItem('wl_sync_gen')||0);}catch(e){return memGen;}}
 
@@ -105,23 +110,48 @@ async function syncNow(){
         if(o&&o.res&&!o.name&&!o.wiped&&(d.rev||0)>(P._rev||0))o=SYNC26.overlayResGrant(snap(),o.res,d.rev,d.savedAt);
         if(!o||o.wiped||!o.name)continue;
         o.uid=o.uid||u;
-        if(u===myUid()&&JSON.stringify(o.tiles||{})===JSON.stringify(P.tiles||{})&&(o._savedAt||0)<=(P._savedAt||0)&&SYNC26.gameEqual(o,snap())){if(typeof CS!=='undefined'&&(d.rev||0)>0&&(d.rev||0)===(P._rev||0)){CS.report='Safe to switch. Cloud save '+(P._rev||0)+' is on the server.';CS.status=CS.report;CS.last=Date.now();}continue;}
         scrub();
         const before=snap();
-        const plan=SYNC26.uploadPlan(before,o,d.rev||0);
-        if(!plan.upload){
-          P.sync26=P.sync26||{clock:{},ops:[],legacyAt:{}};
-          P.sync26.heldRemote={rev:d.rev||0,at:Date.now(),profile:plan.held||o};
-          if(typeof CS!=='undefined'){CS.report=plan.reason;CS.status=plan.reason;}
+        if(u!==myUid()){
+          SYNC26.armHandoff(before,o,d.rev||0);
+          const linked=SYNC26.handoffDecide(before,o,d.rev||0,{tab:tabId(),background:true});
+          if(linked.action!=='adopt')continue;
+          const src=linked.profile,keepUid=P.uid,keepAcct=P.acct,keepAlias=P.alias;
+          ['res','troops','world','dr26','tiles','stats','badges','pipeUnlock26','sync26','stronghold','lvl','xp','sp','skills','contrib','marchDone','marchPaid','claimDay','hp','inv','equip','killed','quests','cards','cls'].forEach(function(k){if(src[k]!==undefined)P[k]=src[k];});
+          P._rev=linked.rev;P._ackedRev=linked.rev;P._handoff=1;P._userBase=P._userEdit|0;P.uid=keepUid;if(keepAcct)P.acct=keepAcct;if(keepAlias)P.alias=keepAlias;if(src._tab)P._tab=src._tab;
           try{save();}catch(e){}
+          if(typeof CS!=='undefined'){CS.report='Safe to switch. Cloud save '+linked.rev+' is on the server.';CS.status=CS.report;CS.last=Date.now();}
           continue;
         }
-        if(!SYNC26.gameEqual(before,plan.profile)){
-          const src=plan.profile,keepUid=P.uid,keepAcct=P.acct,keepAlias=P.alias;
-          ['res','troops','world','dr26','tiles','stats','badges','pipeUnlock26','sync26','stronghold','lvl','xp','sp','skills','contrib'].forEach(function(k){if(src[k]!==undefined)P[k]=src[k];});
-          P._rev=Math.max(P._rev||0,plan.rev||0);P.uid=keepUid;if(keepAcct)P.acct=keepAcct;if(keepAlias)P.alias=keepAlias;
-          changed=true;try{save();}catch(e){}
+        const result=await SYNC26.runCloudHandoff(before,{
+          arm:true,tab:tabId(),background:document.visibilityState==='hidden'||!!Gref._saveBackground,
+          load:async function(){return {rev:d.rev||0,profile:o,savedAt:d.savedAt||0};},
+          write:async function(doc){const body={data:JSON.stringify(doc.profile),rev:doc.rev,savedAt:doc.savedAt,baseRev:doc.baseRev||0,name:doc.profile.name,lvl:doc.profile.lvl,v:doc.v||2,fe:doc.profile.fullEpoch||P.fullEpoch||0,me:doc.profile.mapEpoch||P.mapEpoch||0};if(P.acct)body.acct=String(P.acct).slice(0,24);await NET.saveProfile(myUid(),body);}
+        });
+        if(result.quota){Gref.syncHoldUntil=Date.now()+SYNC26.SYNC_HOLD_MS;Gref.syncHoldQuota=true;}
+        ['_handoff','_ackedRev','_userEdit','_userBase','_tab'].forEach(function(k){if(result.local&&result.local[k]!==undefined)P[k]=result.local[k];});
+        if(typeof CS!=='undefined')CS.why=[result.why||'none','local='+(P._rev||0),'server='+(result.serverRev==null?'':result.serverRev)].join(' ');
+        if(result.why==='hp-regen'||result.why==='background')continue;
+        if(result.already){if(typeof CS!=='undefined'&&result.rev){CS.report='Safe to switch. Cloud save '+result.rev+' is on the server.';CS.status=CS.report;CS.last=Date.now();}continue;}
+        if(result.adopt){
+          const src=result.local,keepUid=P.uid,keepAcct=P.acct,keepAlias=P.alias;
+          ['res','troops','world','dr26','tiles','stats','badges','pipeUnlock26','sync26','stronghold','lvl','xp','sp','skills','contrib','marchDone','marchPaid','claimDay','hp','inv','equip','killed','quests','cards','cls'].forEach(function(k){if(src[k]!==undefined)P[k]=src[k];});
+          P._rev=result.rev;P._ackedRev=result.rev;P._handoff=1;P._userBase=P._userEdit|0;P.uid=keepUid;if(keepAcct)P.acct=keepAcct;if(keepAlias)P.alias=keepAlias;if(src._tab)P._tab=src._tab;
+          changed=false;try{save();}catch(e){}
+          if(typeof CS!=='undefined'){CS.report='Safe to switch. Cloud save '+result.rev+' is on the server.';CS.status=CS.report;CS.last=Date.now();}
+          continue;
         }
+        if(result.wrote){
+          const src=result.local,keepUid=P.uid,keepAcct=P.acct,keepAlias=P.alias;
+          ['res','troops','world','dr26','tiles','stats','badges','pipeUnlock26','sync26','stronghold','lvl','xp','sp','skills','contrib','marchDone','marchPaid','claimDay','hp','inv','equip','killed','quests','cards','cls'].forEach(function(k){if(src[k]!==undefined)P[k]=src[k];});
+          P._rev=result.rev;P._savedAt=src._savedAt;P._ackedRev=result.rev;P._handoff=1;P._userBase=src._userBase|0;P.uid=keepUid;if(keepAcct)P.acct=keepAcct;if(keepAlias)P.alias=keepAlias;if(src._tab)P._tab=src._tab;
+          changed=false;try{save();}catch(e){}
+          if(typeof CS!=='undefined'){CS.report='Safe to switch. Cloud save '+result.rev+' is on the server.';CS.status=CS.report;CS.last=Date.now();}
+          continue;
+        }
+        if(result.held){P.sync26=P.sync26||{clock:{},ops:[],legacyAt:{}};P.sync26.heldRemote={rev:result.heldRev||0,at:Date.now(),profile:result.held};}
+        if(result.report&&typeof CS!=='undefined'){CS.report=result.report;CS.status=result.report;}
+        try{save();}catch(e){}
       }
       Gref.sync26Ready=true;
       if(changed){

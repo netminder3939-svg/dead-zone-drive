@@ -72,11 +72,11 @@ function findSquad(fid,sid){const f=(FX().f||{})[fid];if(!f||f.routedUntil)retur
 function marchFrom(){const h=hexAt(...G.pos).id;return h;}
 
 // ---------- send / escort / resolve ----------
-async function sendMarch(to,opt){opt=opt||{};if(!opt.kind&&friendlyHex(to)){const sq=squadAt(to);const mb=sq?null:mobAt(to);opt=sq?{kind:'intercept',fid:sq.fid,sid:sq.sid}:mb?{kind:'mob',mid:mb.mid,lvl:mb.lvl,key:mb.key}:{kind:'patrol'};}const why=(opt.kind==='intercept'||opt.kind==='mob')?(myMarches().length>=BAL.march.maxActive?`Max ${BAL.march.maxActive} marches at a time`:!G.pos?'Waiting for GPS':null):canMarch(to);if(why)return toast('🚫 '+why);const from=marchFrom(),dur=marchDur(from,to),unit=frozenMe();
+async function sendMarch(to,opt){opt=opt||{};if(!opt.kind&&friendlyHex(to)){const sq=squadAt(to);const mb=sq?null:mobAt(to);opt=sq?{kind:'intercept',fid:sq.fid,sid:sq.sid}:mb?{kind:'mob',mid:mb.mid,lvl:mb.lvl,key:mb.key}:{kind:'patrol'};}const why=(opt.kind==='intercept'||opt.kind==='mob')?(myMarches().length>=BAL.march.maxActive?`Max ${BAL.march.maxActive} marches at a time`:!G.pos?'Waiting for GPS':null):canMarch(to);if(why)return toast('🚫 '+why);try{if(typeof SYNC26!=='undefined')SYNC26.notePlay(P);}catch(e){}const from=marchFrom(),dur=marchDur(from,to),unit=frozenMe();
   if(!opt.kind)claimsToday().n++;save();const localT=Date.now();
   const id=await NET.addMarch({uid:P.uid,name:P.name,color:P.color,flag:P.flag||null,from,to,dur,unit,power:unitPower(unit),escorts:{},state:'out',localT,...(opt.kind==='intercept'?{kind:'intercept',fid:opt.fid,sid:opt.sid}:opt.kind==='patrol'?{kind:'patrol'}:opt.kind==='mob'?{kind:'mob',mid:opt.mid,lvl:opt.lvl,key:opt.key}:{})});
   UI.closeModal();toast(`🚩 March sent · arrives in ${fmtDur(dur)}`);G._mSent=G._mSent||{};G._mSent[id]=localT;showMarch({from,to});}
-async function escortMarch(id){const m=G.marches[id];if(!m||m.uid===P.uid||marchPhase(m)[0]!=='out')return;const u=frozenMe();
+async function escortMarch(id){const m=G.marches[id];if(!m||m.uid===P.uid||marchPhase(m)[0]!=='out')return;try{if(typeof SYNC26!=='undefined')SYNC26.notePlay(P);}catch(e){}const u=frozenMe();
   await NET.escortMarch(id,P.uid,{name:P.name,unit:u,power:unitPower(u)});allianceLog(`🛡️ ${P.name} escorted ${poss(m.name)} march`);UI.closeModal();toast('🛡️ Escort joined: your power is added');}
 const withTO=(pr,ms=8000)=>Promise.race([pr,new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),ms))]);
 // One clock probe at a time. After a failure the next try waits 15s, then 30s, then 60s.
