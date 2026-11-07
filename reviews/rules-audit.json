@@ -1,0 +1,42 @@
+{
+  "score": 3,
+  "summary": "Canonical rules were executed in the Firestore emulator on demo-dead-zone-drive, not against production. Clock, marches, horde, and map paths accept the real client payloads. Map reset and blanket pv- deletes are closed. A crew member can still deposit and withdraw the shared bank. The name+PIN check still happens in the client, so a modified client can add its own uid to an account list.",
+  "findings": [
+    {
+      "id": "reset-admin",
+      "severity": "closed-in-candidate",
+      "check": "authority source",
+      "detail": "meta/map epoch and fullEpoch change only if the uid is already in meta/admins. Clients cannot create that doc. The uid is not hardcoded. Until the console writes it, wipes fail closed and ordinary play continues."
+    },
+    {
+      "id": "pv-delete",
+      "severity": "closed-in-candidate",
+      "check": "create/update bypass",
+      "detail": "The published match /{doc=**} delete on pv-* teams is removed. Emulator: a teammate delete of another save is denied."
+    },
+    {
+      "id": "save-read",
+      "severity": "partial",
+      "check": "identity",
+      "detail": "List of saves is denied. Get is allowed for the owner and for a uid that shares the save's acct key in acct24. A stranger get is denied. Rules cannot verify the 4-digit PIN, so a modified client that inserts its uid into acct24 can then read that one save. Paste-any-uid restore of an unlinked save is denied."
+    },
+    {
+      "id": "bank-coop",
+      "severity": "accepted",
+      "check": "business rules",
+      "detail": "Deposit, withdraw, research, and the 25% auto-share are crew actions in the client. Members can still change a non-negative bank. They cannot attach a reset field to the alliance doc, and a negative balance is denied."
+    },
+    {
+      "id": "raid-cap",
+      "severity": "closed-on-client",
+      "check": "type/storage bounds",
+      "detail": "The 1500 HP cap stays. One 4000 drop is denied by the emulator. Three legal steps reach 0. The client sends those steps for one fight and increments fights, taken, and heal once."
+    },
+    {
+      "id": "march-clock",
+      "severity": "closed-in-candidate",
+      "check": "type/storage bounds",
+      "detail": "Own clock write is allowed. Another uid's clock is denied. A 1 second march is denied. A 120 second march, a due arrival, a skip-line update, and a return are allowed."
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "tests",
+  "version": "1.0.0",
+  "description": "``` npm i playwright && npx playwright install chromium   # once node tests/run.js            # all scenarios (~4 min) node tests/run.js zn pp br   # just some ``` The runner serves `game/` on port 8765 (`PORT=8766` to change), opens the game with `?local` (no Firebase), and runs each file in `scenarios/`. A scenario passes when it exits cleanly with no page errors. Screenshots land in `/tmp/dzd-tests` (`OUT=` to change).",
+  "main": "run.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "playwright": "^1.48.0"
+  }
+}

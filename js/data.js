@@ -1,4 +1,5 @@
 // Static game data: monsters, gear, quests, landmark types. Edit freely.
+function poss(n){n=String(n==null?'':n);return /s$/i.test(n)?n+"'":n+"'s";} // possessive: "QA-Nits'" not "QA-Nits's"
 const RARITY = [
   {id:'common',name:'Common',color:'#9aa4a8',mult:1},
   {id:'uncommon',name:'Uncommon',color:'#5fd068',mult:1.25},
@@ -18,7 +19,7 @@ const MONSTERS = {
   // bosses
   boss_tank:   {name:'Rust Behemoth',  hp:7200,atk:28,def:10,lvl:10,boss:true, drops:{scrap:60,parts:12,fuel:10}},
   boss_queen:  {name:'Hive Queen',     hp:6000,atk:34,def:8, lvl:10,boss:true, drops:{food:50,water:40,parts:8}},
-  boss_crystal:{name:'Crystal Knight', hp:8000,atk:30,def:12,lvl:11,boss:true, drops:{scrap:70,parts:14,fuel:12}},
+  boss_crystal:{name:'Crystal Knight', hp:4000,atk:26,def:12,lvl:11,boss:true, drops:{scrap:70,parts:14,fuel:12}},
   boss_warden: {name:'The Warden',     hp:9000,atk:24,def:14,lvl:12,boss:true, drops:{scrap:80,fuel:20,parts:15}},
 };
 const GEAR_BASES = [
@@ -40,6 +41,7 @@ const LANDMARK_KINDS = {
   water:{icon:'🌊',label:'Toxic Shore',biome:'water'},
   fuel:{icon:'⛽',label:'Gas Station Ruins',biome:'urban'},
   townhall:{icon:'🏛️',label:'Old Town Hall',biome:'urban'},
+  grocery:{icon:'🛒',label:'Looted Grocery',biome:'urban'}, // v20 supply site
 };
 const QUEST_POOL = [
   {id:'kill5',text:'Defeat 5 mutants',type:'kills',goal:5,reward:{scrap:20}},
