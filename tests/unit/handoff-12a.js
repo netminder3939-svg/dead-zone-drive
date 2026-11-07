@@ -78,18 +78,35 @@ function io(local,opt){
   r=await S.runCloudHandoff(ph,io(ph,{tab:'phone'}));
   ok(r.wrote&&server.profile.world.towers.T.state==='up'&&server.profile.res.scrap===ph.res.scrap,'a tower with no resource change is in the next save');
 
-  // Both devices changed after the acknowledged save. Neither is blended.
+  // The desktop adopted, then the player spent and built there. That device becomes the one that saves.
+  writes=0;
+  let switched=JSON.parse(JSON.stringify(server.profile));
+  const scrapBefore=switched.res.scrap;
+  S.notePlay(switched);
+  switched.res.scrap-=40;
+  switched.world.outposts.H2={state:'up',hpPct:1};
+  r=await S.runCloudHandoff(switched,io(switched,{tab:'desk'}));
+  ok(r.wrote&&server.profile._tab==='desk'&&server.profile.res.scrap===scrapBefore-40&&server.profile.world.outposts.H&&server.profile.world.outposts.H2,'after adopting, the second device can spend, build, and save');
+  writes=0;
+  ph=JSON.parse(JSON.stringify(server.profile));
+  ph._tab='desk';
+  const back=JSON.parse(JSON.stringify(ph));
+  back._ackedRev=ph._rev-1;back._tab='phone';
+  r=await S.runCloudHandoff(back,io(back,{tab:'phone'}));
+  ok(r.adopt&&r.local.res.scrap===scrapBefore-40&&r.local.world.outposts.H2&&writes===0,'the first device then receives that spend and both buildings');
+
+  // Two real edits that each have progress the other lacks are not blended.
   const base=JSON.parse(JSON.stringify(server.profile));
   let left=JSON.parse(JSON.stringify(base));
-  S.notePlay(left);left.res.scrap-=10;left._userEdit=left._userBase+1;
+  S.notePlay(left);left.world.towers=Object.assign({},left.world.towers,{Z:{state:'up'}});
   let right=JSON.parse(JSON.stringify(base));
-  S.notePlay(right);right.res.scrap-=30;right.troops.home=400;
+  S.notePlay(right);right.res.scrap-=30;
   writes=0;
   r=await S.runCloudHandoff(left,io(left,{tab:'phone'}));
-  ok(r.wrote&&server.profile.res.scrap===base.res.scrap-10,'the first real edit is written');
+  ok(r.wrote&&server.profile.world.towers.Z,'the first real edit is written');
   writes=0;
   r=await S.runCloudHandoff(right,{arm:true,tab:'desk',load:async()=>({rev:server.rev,profile:JSON.parse(JSON.stringify(server.profile))}),write:async()=>{writes++;}});
-  ok(r.wrote===false&&writes===0&&r.why==='dirty-behind'&&r.local.res.scrap===base.res.scrap-30&&r.local.troops.home===400,'a second device with its own edit does not upload or take the other balance');
+  ok(r.wrote===false&&writes===0&&r.why==='dirty-behind'&&r.local.res.scrap===base.res.scrap-30&&server.profile.world.towers.Z,'a second real edit does not erase the building the server already has');
 
   // Failed read leaves the local outpost and balance alone.
   writes=0;
@@ -124,6 +141,23 @@ function io(local,opt){
   writes=0;
   r=await S.runCloudHandoff(desk,io(desk,{tab:'desk'}));
   ok(r.adopt&&r.local.troops.home===600&&writes===0,'the other device receives the loss and does not restore the old army');
+
+  // The other tab wins the same base revision. This device reads again and keeps its real spend.
+  let race=prof(4,{_handoff:1,_ackedRev:4,_userEdit:1,_userBase:1,_tab:'phone',res:{scrap:400,food:300,water:200,fuel:90,parts:70}});
+  let box={rev:4,profile:JSON.parse(JSON.stringify(race))};
+  let tries=0;
+  const player=JSON.parse(JSON.stringify(race));
+  S.notePlay(player);player.res.scrap=360;player.world.outposts={H:{state:'up'}};
+  r=await S.runCloudHandoff(player,{
+    arm:true,tab:'phone',
+    load:async()=>({rev:box.rev,profile:JSON.parse(JSON.stringify(box.profile))}),
+    write:async(doc)=>{
+      tries++;
+      if(tries===1){box={rev:5,profile:Object.assign(JSON.parse(JSON.stringify(race)),{res:Object.assign({},race.res,{food:305})})};const err=new Error('denied');err.code='permission-denied';throw err;}
+      box={rev:doc.rev,profile:JSON.parse(JSON.stringify(doc.profile))};
+    }
+  });
+  ok(r.wrote&&tries===2&&box.rev===6&&box.profile.res.scrap===360&&box.profile.world.outposts.H&&box.profile.res.food===300,'after a lost race the real spend and outpost replace the other tab\'s income');
 
   console.log(fail?fail+' failed':'all passed');
   process.exit(fail?1:0);

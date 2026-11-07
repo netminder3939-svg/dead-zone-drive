@@ -132,6 +132,25 @@
     return gameEqual(x,y);
   }
   function userDirty(p){return !!p&&(p._userEdit|0)!==(p._userBase|0);}
+  function spentLess(a,b){
+    const ar=normRes(a&&a.res),br=normRes(b&&b.res);
+    for(let i=0;i<RES.length;i++)if(ar[RES[i]]<br[RES[i]])return true;
+    return false;
+  }
+  // True when A has player progress B does not: a building, a lower balance, a level, or fewer troops at home.
+  function aheadProgress(a,b){
+    if(!a||!b)return false;
+    if(missingCamps(a,b).length)return true;
+    if(spentLess(a,b))return true;
+    if((a.lvl|0)>(b.lvl|0)||(a.xp|0)>(b.xp|0))return true;
+    if(((a.troops&&a.troops.home)|0)<((b.troops&&b.troops.home)|0))return true;
+    if(((a.troops&&a.troops.wounded)|0)>((b.troops&&b.troops.wounded)|0))return true;
+    return false;
+  }
+  function conflictWrite(e){
+    const blob=((e&&e.code)||'')+' '+((e&&e.message)||'');
+    return /permission-denied|failed-precondition|aborted|already-exists/i.test(blob);
+  }
   function notePlay(p){if(p)p._userEdit=(p._userEdit|0)+1;}
   // A live building or a lower balance is unsent progress. A stale tab's extra income is not.
   function hasUnsentProgress(local,remote){
@@ -545,6 +564,9 @@
       return {action:'adopt',profile:adopted,rev:remoteRev,why:'adopt'};
     }
     if(remoteRev>acked&&dirty){
+      // The other tab moved the revision. Take this device's real edit when the
+      // server copy has no progress this device lacks. Two real edits still wait.
+      if(aheadProgress(local,remote)&&!aheadProgress(remote,local))return {action:'upload',profile:clone(local),why:'takeover'};
       return {action:'hold',profile:local,held:clone(remote),reason:'Both devices changed this save. Neither copy was overwritten.',why:'dirty-behind'};
     }
     if(dirty||owner){
@@ -626,6 +648,12 @@
     catch(e){
       const blob=((e&&e.code)||'')+' '+((e&&e.message)||'');
       const quota=/quota|resource-exhausted|429/i.test(blob);
+      if(conflictWrite(e)&&!io._retried&&io.load){
+        let again=null;
+        try{again=await io.load();}
+        catch(e2){return {local:local,report:cloudFailureText(e2),wrote:false,adopt:false,rev:local._rev||0,quota:quota,why:'load-error',serverRev:null};}
+        return runArmedHandoff(local,again,Object.assign({},io,{_retried:true}));
+      }
       return {local:local,report:cloudFailureText(e),wrote:false,adopt:false,rev:local._rev||0,quota:quota,why:'write-error',code:String((e&&(e.code||e.name))||'unknown').slice(0,40),serverRev:loaded?remoteRev:null};
     }
     return {local:out,report:'',wrote:true,adopt:false,rev:next,quota:false,why:'wrote',serverRev:loaded?remoteRev:null,baseRev:base};

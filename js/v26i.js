@@ -1,4 +1,4 @@
-// v26i (TEST · ddd-v26-12a) Whole-profile handoff. Not deployed.
+// v26i (TEST · ddd-v26-12b) Whole-profile handoff. Not deployed.
 // A stale tab adopts the acknowledged save. It does not write spent resources back.
 // The tab that saved owns later passive ticks. A higher revision is not the winner.
 // 1) Phone ↔ computer saves. v26e's "higher score wins" and one-shot acctSync let a stale
