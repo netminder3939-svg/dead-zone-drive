@@ -1,0 +1,1 @@
+require('./h.js')(process.argv[2],async(p)=>{console.log(JSON.stringify(await p.evaluate(()=>({n:P.name,lvl:P.lvl,badges:Object.keys(P.badges||{}).length,heal:!!P.heal26c,pipes:Object.keys(P.pipeUnlock26||{}).length}))));});

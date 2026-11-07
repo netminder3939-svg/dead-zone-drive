@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 768" width="512" height="768"><g class="body">
+  <ellipse cx="256" cy="748" rx="150" ry="14" fill="#000" opacity=".35"/>
+  <path d="M207 452 L200 700 Q200 712 214 712 L246 712 L252 470 Z" fill="#9c7457"/><path d="M305 452 L312 700 Q312 712 298 712 L266 712 L260 470 Z" fill="#9c7457"/>
+  <path d="M196 694 h54 v28 q0 10 -10 10 h-50 q-14 0 -10 -14 z" fill="#4a3a2c"/><path d="M262 694 h54 l12 24 q4 14 -10 14 h-50 q-6 0 -6 -10 z" fill="#4a3a2c"/>
+  <path d="M174 214 Q150 222 146 260 L130 410 Q128 428 142 432 L156 432 L176 300 Z" fill="#b98f6e"/><path d="M338 214 Q362 222 366 260 L382 410 Q384 428 370 432 L356 432 L336 300 Z" fill="#b98f6e"/>
+  <circle cx="146" cy="440" r="17" fill="#b98f6e"/><circle cx="366" cy="440" r="17" fill="#b98f6e"/>
+  <path d="M236 176 h40 v34 h-40 z" fill="#9c7457"/>
+  <path d="M180 210 Q256 190 332 210 L322 330 Q316 410 310 450 L202 450 Q196 410 190 330 Z" fill="#3b3833"/>
+  <path d="M200 440 L312 440 L316 520 L262 524 L256 500 L250 524 L196 520 Z" fill="#2c2a26"/>
+  <ellipse cx="256" cy="122" rx="44" ry="54" fill="#b98f6e"/><path d="M212 112 Q214 64 256 62 Q298 64 300 112 Q290 84 256 84 Q222 84 212 112 Z" fill="#3a2b20"/>
+  <ellipse cx="240" cy="126" rx="5" ry="4" fill="#222"/><ellipse cx="272" cy="126" rx="5" ry="4" fill="#222"/><path d="M244 152 q12 6 24 0" stroke="#5a3f30" stroke-width="3" fill="none"/>
+  </g><g id="GUIDES-delete-me" fill="none" stroke="#00e5ff" stroke-width="2" stroke-dasharray="8 6" opacity=".8" font-family="sans-serif" font-size="16">
+<rect x="190" y="40" width="132" height="110"/><text x="330" y="60" fill="#00e5ff" stroke="none">head</text>
+<rect x="148" y="186" width="216" height="262"/><text x="372" y="210" fill="#00e5ff" stroke="none">chest (incl. sleeves)</text>
+<rect x="188" y="430" width="136" height="262"/><text x="332" y="560" fill="#00e5ff" stroke="none">legs</text>
+<rect x="182" y="640" width="160" height="100"/><text x="350" y="700" fill="#00e5ff" stroke="none">boots</text>
+<rect x="320" y="150" width="120" height="340"/><text x="444" y="170" fill="#00e5ff" stroke="none">weapon (right hand at 366,440)</text>
+<circle cx="256" cy="242" r="22"/><text x="20" y="250" fill="#00e5ff" stroke="none">trinket (neck 256,242)</text>
+</g></svg>

@@ -1,0 +1,201 @@
+{
+ "_readme": "Gear art: put <slot>/<art>.png here (512x768, transparent, drawn on top of body-template.svg), then set png:true. body.png replaces the base survivor.",
+ "body": {
+  "png": false
+ },
+ "pipe-wrench": {
+  "png": false,
+  "slot": "weapon",
+  "name": "Pipe Wrench"
+ },
+ "nail-bat": {
+  "png": false,
+  "slot": "weapon",
+  "name": "Nail Bat"
+ },
+ "scrap-crossbow": {
+  "png": false,
+  "slot": "weapon",
+  "name": "Scrap Crossbow"
+ },
+ "rebar-spear": {
+  "png": false,
+  "slot": "weapon",
+  "name": "Rebar Spear"
+ },
+ "machete": {
+  "png": false,
+  "slot": "weapon",
+  "name": "Machete"
+ },
+ "riot-shield-baton": {
+  "png": false,
+  "slot": "weapon",
+  "name": "Riot Shield & Baton"
+ },
+ "lucky-bottlecap": {
+  "png": false,
+  "slot": "trinket",
+  "name": "Lucky Bottlecap"
+ },
+ "geiger-charm": {
+  "png": false,
+  "slot": "trinket",
+  "name": "Geiger Charm"
+ },
+ "dog-tags": {
+  "png": false,
+  "slot": "trinket",
+  "name": "Dog Tags"
+ },
+ "rabbit-foot": {
+  "png": false,
+  "slot": "trinket",
+  "name": "Rabbit Foot"
+ },
+ "old-compass": {
+  "png": false,
+  "slot": "trinket",
+  "name": "Old Compass"
+ },
+ "welding-mask": {
+  "png": false,
+  "slot": "head",
+  "name": "Welding Mask"
+ },
+ "tire-vest": {
+  "png": false,
+  "slot": "chest",
+  "name": "Tire Vest"
+ },
+ "patched-jeans": {
+  "png": false,
+  "slot": "legs",
+  "name": "Patched Jeans"
+ },
+ "work-boots": {
+  "png": false,
+  "slot": "boots",
+  "name": "Work Boots"
+ },
+ "hubcap-helm": {
+  "png": false,
+  "slot": "head",
+  "name": "Hubcap Helm"
+ },
+ "road-sign-plate": {
+  "png": false,
+  "slot": "chest",
+  "name": "Road-Sign Plate"
+ },
+ "tire-greaves": {
+  "png": false,
+  "slot": "legs",
+  "name": "Tire Greaves"
+ },
+ "tread-boots": {
+  "png": false,
+  "slot": "boots",
+  "name": "Tread Boots"
+ },
+ "gas-mask": {
+  "png": false,
+  "slot": "head",
+  "name": "Gas Mask"
+ },
+ "hazmat-coat": {
+  "png": false,
+  "slot": "chest",
+  "name": "Hazmat Coat"
+ },
+ "hazmat-pants": {
+  "png": false,
+  "slot": "legs",
+  "name": "Hazmat Pants"
+ },
+ "rubber-boots": {
+  "png": false,
+  "slot": "boots",
+  "name": "Rubber Boots"
+ },
+ "runner-cap": {
+  "png": false,
+  "slot": "head",
+  "name": "Runner Cap"
+ },
+ "runner-jacket": {
+  "png": false,
+  "slot": "chest",
+  "name": "Runner Jacket"
+ },
+ "track-pants": {
+  "png": false,
+  "slot": "legs",
+  "name": "Track Pants"
+ },
+ "runner-sneakers": {
+  "png": false,
+  "slot": "boots",
+  "name": "Runner Sneakers"
+ },
+ "scout-goggles": {
+  "png": false,
+  "slot": "head",
+  "name": "Scout Goggles"
+ },
+ "long-duster": {
+  "png": false,
+  "slot": "chest",
+  "name": "Long Duster"
+ },
+ "cargo-pants": {
+  "png": false,
+  "slot": "legs",
+  "name": "Cargo Pants"
+ },
+ "trail-boots": {
+  "png": false,
+  "slot": "boots",
+  "name": "Trail Boots"
+ },
+ "hard-hat": {
+  "png": false,
+  "slot": "head",
+  "name": "Hard Hat"
+ },
+ "work-vest": {
+  "png": false,
+  "slot": "chest",
+  "name": "Work Vest"
+ },
+ "knee-pad-carhartts": {
+  "png": false,
+  "slot": "legs",
+  "name": "Knee-Pad Carhartts"
+ },
+ "steel-toe-boots": {
+  "png": false,
+  "slot": "boots",
+  "name": "Steel-Toe Boots"
+ },
+ "skull-helm": {
+  "png": false,
+  "slot": "head",
+  "name": "Skull Helm"
+ },
+ "spiked-plate": {
+  "png": false,
+  "slot": "chest",
+  "name": "Spiked Plate"
+ },
+ "chain-kilt": {
+  "png": false,
+  "slot": "legs",
+  "name": "Chain Kilt"
+ },
+ "stomper-boots": {
+  "png": false,
+  "slot": "boots",
+  "name": "Stomper Boots"
+ }
+}
