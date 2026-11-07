@@ -1,0 +1,574 @@
+--- /dev/null	2026-11-06 20:29:11.866535169 -0800
++++ /home/claude/work12e/fix13.js	2026-11-07 10:26:57.686437480 -0800
+@@ -0,0 +1,152 @@
++// fix13 (TEST · ddd-v26-12e..12g) Audit fixes, Nov 7.
++//  1) Stuck notifications. Tab dots and "What's new" lines now (a) file under the sub-tab that really exists,
++//     (b) clear when that sub-tab is opened, (c) vanish on their own when the thing they point at is gone
++//     (raid boss escaped or killed, plan mark deleted / done / expired, quest claimed, skill points spent).
++//     Root causes: Plan's render never ran the news clear-out (shell2/step6 bypass it), and the Alliance
++//     regroup (v26c) renders old part names (over/members/...) so items filed under "crew" could never match.
++//     Nothing checked whether a raid or mark still existed.
++//  2) Pipeline guard troops. Adding guards re-picked the "most exposed" hex each time. When the horde moved,
++//     new guards went to a new hex and the pipe forgot the old group: it kept sitting on the old hex, out of
++//     the fight, not recallable from the pipe card, and never came home. Removing a pipe left its guards out too.
++//     Now: extra guards join the existing group, removing a pipe recalls its guards, and a sweeper walks any
++//     orphaned group home (visible as Returning, with a report).
++//  3) March troops whose march finished on another device or vanished stay "away" forever. Sweeper brings them home.
++//  4) (12f) Wounded with no bed no longer die; see troops2.js. Losing defenders retreat with 20%; see v26a.js.
++//  5) The one-off Pope profile repair (v26e/v26f) kept running every 8-10 s and unlocked pipeline sites near
++//     owned land without a drive. That breaks "pipelines only by driving" and the 12d no-grants rule. Retired.
++(function(){
++'use strict';
++const now=()=>Date.now();
++const BOOT13=now();
++
++// ================= 1) notifications =================
++function liveRaids13(){try{return Object.values(G.raids||{}).filter(r=>r&&!r.done&&now()<r.endsAt).sort((a,b)=>a.endsAt-b.endsAt);}catch(e){return[];}}
++function groupOf13(tab,sub){
++  try{
++    if(tab==='plan')return'stub';
++    if(tab==='alliance'&&typeof AT26!=='undefined'){if(AT26[sub])return sub;for(const [k,v] of Object.entries(AT26))if(v.parts.includes(sub))return k;
++      if(/raid/i.test(String(sub||'')))return'crew';return'crew';}
++    const subs=(UI.SUBS[tab]||[]).map(x=>x[0]);if(subs.length&&!subs.includes(sub))return subs[0];
++  }catch(e){}
++  return sub;}
++// does the thing this news item points at still exist?
++function stillTrue13(x){
++  try{
++    const k=String(x.key||'');
++    if(k==='alliance:raid')return liveRaids13().length>0;
++    if(k.startsWith('mark:')){
++      const M=G.markers||{};
++      // markers arrive a little after boot; do not drop mark news before we have heard from the server
++      if(!Object.keys(M).length&&now()-BOOT13<90e3)return true;
++      const m=M[k.slice(5)];
++      return !!(m&&!m.done&&(typeof m2live!=='function'||m2live(m)));}
++    if(k==='player:quests')return !!(P.quests&&(P.quests.list||[]).some(q=>q.done&&!q.claimed));
++    if(k==='player:skills')return (P.sp||0)>0;
++    // anything else: expire after 3 days so nothing can sit there forever
++    return now()-(x.t||0)<3*86400e3;
++  }catch(e){return true;}}
++function tidy13(){
++  try{
++    if(typeof newsList!=='function')return false;
++    const L=newsList();let ch=false;
++    for(const x of L){const g=groupOf13(x.tab,x.sub);if(g!==x.sub){x.sub=g;ch=true;}}
++    // merge duplicates created by the remap (same key)
++    const seen=new Set(),keep=[];
++    for(const x of L){if(seen.has(x.key)){ch=true;continue;}seen.add(x.key);if(!stillTrue13(x)){ch=true;continue;}keep.push(x);}
++    if(ch){P.news=keep;try{save();}catch(e){}}
++    return ch;
++  }catch(e){console.warn('tidy13',e);return false;}}
++window.tidy13=tidy13;
++
++// newsAdd: file under the real sub-tab from the start
++if(typeof newsAdd==='function'){const _na13=newsAdd;newsAdd=function(tab,sub,text,key,sel){return _na13.call(this,tab,groupOf13(tab,sub),text,key,sel);};window.newsAdd=newsAdd;}
++
++// tab dots: tidy first, then the news8 rule (dot when there is something unseen)
++if(typeof newsDots==='function'){const _nd13=newsDots;newsDots=function(){tidy13();return _nd13.apply(this,arguments);};window.newsDots=newsDots;}
++
++// the outermost render: one clean "What's new" line, sub-tab dots on the real sub-tabs, clear what is on screen
++const _r13=UI.render;UI.render=function(){
++  const r=_r13.apply(this,arguments);
++  try{
++    const t=this.tab,b=document.getElementById('sheetBody');if(!t||!b||typeof newsFor!=='function')return r;
++    tidy13();
++    b.querySelectorAll('.newsline').forEach(e=>e.remove());b.querySelectorAll('.subdot').forEach(e=>e.remove());
++    const sub=t==='plan'?'stub':this.sub[t],all=newsFor(t);
++    const seg=b.querySelector(':scope > .seg')||b.querySelector('.seg');
++    if(seg&&t!=='plan')seg.querySelectorAll('button').forEach((btn,i)=>{const k=((this.SUBS[t]||[])[i]||[])[0];if(k&&k!==sub&&all.some(x=>x.sub===k))btn.insertAdjacentHTML('beforeend','<i class="dot subdot"></i>');});
++    const other=all.filter(x=>x.sub!==sub);
++    if(other.length){
++      const line=document.createElement('div');line.className='newsline';line.textContent='🆕 ';
++      other.forEach((x,i)=>{if(i)line.appendChild(document.createTextNode(' · '));const a=document.createElement('a');a.textContent=x.text;a.href='#';
++        a.onclick=ev=>{ev.preventDefault();if(x.key==='alliance:raid'){const lr=liveRaids13()[0];if(lr){UI.raid(lr.id);return;}tidy13();UI.render();return;}UI.sub[t]=x.sub;UI.render();};
++        line.appendChild(a);});
++      if(seg)seg.after(line);else b.prepend(line);}
++    // what is on screen now counts as seen
++    const here=all.filter(x=>x.sub===sub);
++    here.forEach(x=>{if(x.sel){try{const el=b.querySelector(x.sel);if(el)el.classList.add('newshl');}catch(e){}}});
++    if(here.length){P.news=newsList().filter(x=>!here.includes(x));try{save();}catch(e){}}
++    if(t==='alliance'){G._seenRaids=G._seenRaids||{};liveRaids13().forEach(x=>G._seenRaids[x.id]=1);}
++    if(typeof newsDots==='function')newsDots();
++  }catch(e){console.warn('news13',e);}
++  return r;};
++
++// raid alerts: only while a raid is actually up and unseen
++const _rb13=UI.raidBanner;UI.raidBanner=function(){const r=_rb13.apply(this,arguments);try{tidy13();if(typeof newsDots==='function')newsDots();}catch(e){}return r;};
++setInterval(()=>{try{if(tidy13()&&typeof newsDots==='function')newsDots();}catch(e){}},5000);
++setTimeout(()=>{try{tidy13();newsDots&&newsDots();}catch(e){}},1500);
++
++// ================= 2) pipeline guards =================
++function hexOk13(h){try{if(P.tiles&&P.tiles[h])return true;const w=W();if(w.towers&&w.towers[h])return true;if(w.sh&&w.sh.hex===h)return true;
++  if(typeof _al26==='function'&&_al26(h))return true;}catch(e){}return false;}
++function guardHexes13(){const s=new Set();try{for(const p of pipes())if(p.guard25&&p.guard25.hex)s.add(p.guard25.hex);}catch(e){}return s;}
++// adding guards to a line that already has a group joins that group (no second, forgotten group)
++if(typeof guardLine==='function'){const _gl13=guardLine;guardLine=function(id,n,esc){
++  try{const p=pipes().find(x=>x.id===id);const g=p&&p.guard25;
++    if(g&&g.hex&&stationed()[g.hex]&&(p.route||[]).includes(g.hex)){
++      if(TP().home<=0)return toast('🪖 No troops at home. Train some in Base › Barracks first.');
++      stationTroops(g.hex,n);g.esc=true;save();try{pushMember();}catch(e){}try{UI.closeModal&&UI.closeModal();}catch(e){}try{drawPipes();}catch(e){}
++      return toast('🚚 +'+(+n||0).toLocaleString()+' troops joined the '+p.name+' guard');}}catch(e){console.warn('guard13',e);}
++  return _gl13.apply(this,arguments);};window.guardLine=guardLine;}
++// removing a pipeline sends its guards home
++if(typeof removePipe==='function'){const _rp13=removePipe;removePipe=function(id){try{const p=pipes().find(x=>x.id===id),h=p&&p.guard25&&p.guard25.hex;
++    if(h&&stationed()[h]&&!pipes().some(x=>x.id!==id&&x.guard25&&x.guard25.hex===h)&&!hexOk13(h))sendHome25(h,stationed()[h].n,'pipeline removed');}catch(e){console.warn('rmpipe13',e);}
++  return _rp13.apply(this,arguments);};window.removePipe=removePipe;}
++// sweeper: groups sitting on a hex that is not ours, not an ally's, and not a pipe guard post walk home.
++// Two looks five minutes apart before acting, never in the first 3 minutes after load.
++const orphanSeen13={};
++function sweepStations13(){
++  try{if(!P||!P.world||now()-BOOT13<180e3)return;
++    const S=stationed(),gh=guardHexes13(),t=now();let moved=0,list=[];
++    for(const [h,s] of Object.entries(S)){
++      if(!s||!(s.n>0)){if(s&&!(s.n>0)&&t>=(s.at||0)){delete S[h];}continue;}
++      if(t<(s.at||0)){delete orphanSeen13[h];continue;}         // still marching there
++      if(gh.has(h)||hexOk13(h)){delete orphanSeen13[h];continue;}
++      if(!orphanSeen13[h]){orphanSeen13[h]=t;continue;}
++      if(t-orphanSeen13[h]<5*60e3)continue;
++      delete orphanSeen13[h];moved+=s.n;list.push(hexName(h));sendHome25(h,s.n,'post lost');}
++    if(moved){report(`↩️ ${moved.toLocaleString()} troops were left on ${list.length>1?list.length+' posts':list[0]} the crew no longer holds. They are marching home now.`,true);save();}
++  }catch(e){console.warn('sweep13',e);}}
++setInterval(sweepStations13,60e3);
++
++// ================= 3) march troops stuck "away" =================
++const awayMiss13={};
++function sweepAway13(){
++  try{if(!P||!P.world||now()-BOOT13<180e3||!G.marches)return;const t=TP(),A=t.away||{};let back=0;
++    for(const [id,n] of Object.entries(A)){
++      if(G.marches[id]){delete awayMiss13[id];continue;}
++      if(!awayMiss13[id]){awayMiss13[id]=now();continue;}
++      if(now()-awayMiss13[id]<10*60e3)continue;
++      delete awayMiss13[id];delete A[id];if(n>0){t.home+=n;back+=n;}}
++    if(back){report(`🏠 ${back.toLocaleString()} troops from a finished march were not counted home. They are home now.`,true);save();try{pushMember();}catch(e){}}
++  }catch(e){console.warn('away13',e);}}
++setInterval(sweepAway13,60e3);
++
++// ================= 5) the one-off Pope profile repair is switched off inside v26e.js / v26f.js (12e) =================
++
++// ================= 6) player names cannot carry markup =================
++// Names are shown raw in march flags, the activity feed and raid cards. Strip < > & " ' and cap the length.
++function cleanName13(){try{if(P&&typeof P.name==='string'){const c=P.name.replace(/[<>&"'`]/g,'').trim().slice(0,24);if(c&&c!==P.name){P.name=c;save();try{pushMember();}catch(e){}}}}catch(e){}}
++setInterval(cleanName13,5000);setTimeout(cleanName13,1000);
++
++window.FIX13={tidy:tidy13,sweepStations:sweepStations13,sweepAway:sweepAway13,groupOf:groupOf13,stillTrue:stillTrue13};
++})();
+--- gear3.js	2026-11-06 16:00:00.000000000 -0800
++++ /home/claude/work12e/gear3.js	2026-11-07 09:51:45.992235792 -0800
+@@ -67,7 +67,7 @@
+ // ---- upgrades: scrap + parts, +6% budget per step, up to +10
+ function upCost(g){const u=(g.up||0)+1,m=rarMult(g.rarity);return{scrap:Math.round(20*u*(1+(g.iLvl||1)/5)*m),parts:Math.round(u*(g.rarity+1))};}
+ function upgradeGear(id){const g=P.inv.find(x=>x.id===id);if(!g)return;if((g.up||0)>=GEAR3.maxUp)return toast('Already +'+GEAR3.maxUp);const c=upCost(g);if(!canPay(c))return toast('Not enough scrap or parts');
+-  pay(c);g.up=(g.up||0)+1;g3Apply(g);try{ledgerAdd&&ledgerAdd('build',`Upgraded ${g.name} to +${g.up}`,Object.fromEntries(Object.entries(c).map(([k,v])=>[k,-v])));}catch(e){}save();toast(`⬆️ ${g.name} +${g.up}`);UI.render();}
++  pay(c);g.up=(g.up||0)+1;g3Apply(g);try{typeof txAdd==='function'&&txAdd('build',`Upgraded ${g.name} to +${g.up}`,Object.fromEntries(Object.entries(c).map(([k,v])=>[k,-v])));if(typeof txSnap==='function')_txLast=txSnap();}catch(e){}save();toast(`⬆️ ${g.name} +${g.up}`);UI.render();}
+ // salvage scales with iLvl, rarity and upgrades (gives back ~40% of upgrade spend)
+ UI.salvage=function(id){const g=P.inv.find(x=>x.id===id);if(!g)return;if(Object.values(P.equip).includes(id))return toast('Take it off first');let spent={scrap:0,parts:0};for(let u=0;u<(g.up||0);u++){const c=upCost({...g,up:u});spent.scrap+=c.scrap;spent.parts+=c.parts;}
+   const r={scrap:Math.round(5*(g.rarity+1)*(1+(g.iLvl||1)/10)+spent.scrap*.4),parts:(g.rarity>=2?g.rarity*2:0)+Math.round(spent.parts*.4)};P.inv=P.inv.filter(x=>x.id!==id);addRes(r);save();toast(`🔩 Salvaged: +${r.scrap}🔩${r.parts?' +'+r.parts+'⚙️':''}`);this.render();};
+--- index.html	2026-11-06 16:00:00.000000000 -0800
++++ /home/claude/work12e/index.html	2026-11-07 10:18:50.417700150 -0800
+@@ -83,4 +83,6 @@
+ <script src="v26i.js"></script>
+ <script src="van26.js"></script>
+ <script src="auth12.js"></script>
++<script src="fix13.js"></script>
++<script src="sync13.js"></script>
+ </body></html>
+--- marks2.js	2026-11-06 16:00:00.000000000 -0800
++++ /home/claude/work12e/marks2.js	2026-11-07 09:59:49.406699049 -0800
+@@ -12,7 +12,7 @@
+ function m2type(m){return MARK2.types[m.type]?m.type:(MARK2.legacy[m.type]||'note');}
+ function m2T(m){return MARK2.types[m2type(m)];}
+ function m2esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+-function m2live(m){return m&&typeof m.hex==='string'&&(m.exp||0)>Date.now()&&m.type!=='pipedrive';} // pipedrive = a system signal (pipes2.js), not a map mark
++function m2live(m){return m&&typeof m.hex==='string'&&/^-?\d+_-?\d+$/.test(m.hex)&&(m.to==null||/^-?\d+_-?\d+$/.test(String(m.to)))&&(m.exp||0)>Date.now()&&m.type!=='pipedrive';} // pipedrive = a system signal (pipes2.js), not a map mark
+ function memberNames(){const out=[];for(const [uid,m] of Object.entries((G.al&&G.al.members)||{}))if(m&&m.name)out.push(m.me||uid===P.uid?P.name:m.name);if(!out.includes(P.name))out.unshift(P.name);return [...new Set(out)];}
+ 
+ // ---------- placing ----------
+@@ -67,7 +67,7 @@
+   const re=patch=>{const {...doc}=m;Object.assign(doc,patch);NET.delMarker(id);NET.addMarker({...doc,uid:P.uid});UI.closeModal();};
+   const btns=[];if(MARK2.orders.includes(k))btns.push(m.done?['↺ Reopen',()=>re({done:false,doneBy:''})]:['✅ Mark done',()=>{re({done:true,doneBy:P.name});allianceLog(`✅ ${P.name} completed: ${T[1]} at ${hexName(m.hex)}`);}]);
+   btns.push(['🗺️ Show',()=>{UI.closeModal();map.setView(hexCenter(...idQR(m.to||m.hex)),Math.max(map.getZoom(),16));}]);
+-  if(k!=='area')btns.push(['🚩 Act here',()=>{UI.closeModal();_m2_it2.call(UI,m.to||m.hex);}]);
++  if(k!=='area')btns.push(['🚩 Act here',()=>{UI.closeModal();_m2_it.call(UI,m.to||m.hex); /* 12f: was _m2_it2 (undefined), button did nothing */}]);
+   btns.push(['🗑️ Remove',()=>UI.ask('Remove mark','Remove this mark for the whole crew?','Remove').then(ok=>{if(ok){NET.delMarker(id);UI.closeModal();}})]);
+   this.info({title:`${T[0]} ${T[1]}${m.done?' · ✅ done':''}`,sub:`${m2esc(m.by||'?')} · ${age} ago${m.who?' · for '+m2esc(m.who):''}${m.doneBy?' · done by '+m2esc(m.doneBy):''}`,
+     body:`${m.note?`<div class="row">${m2esc(m.note)}</div>`:''}<p class="tiny">${hexName(m.hex)}${m.to?' → '+hexName(m.to):''}${Array.isArray(m.hexes)?` · ${m.hexes.length} hexes`:''}</p>`,buttons:btns});};
+--- net.js	2026-11-06 16:00:00.000000000 -0800
++++ /home/claude/work12e/net.js	2026-11-07 09:52:44.343444670 -0800
+@@ -169,8 +169,17 @@
+     return this.uid;
+   }
+   col(n){return this.fs.collection(this.db,...this.base,n);}
++  // 12f: one Firestore listener per query, shared by every caller (free Spark plan read budget).
++  // Late subscribers get the last snapshot at once. Errors go to every subscriber.
++  share(key,mk,f,err){this._sh=this._sh||{};let e=this._sh[key];
++    if(!e){e=this._sh[key]={cbs:[],last:null};this.fs.onSnapshot(mk(),s=>{e.last=s;for(const c of e.cbs){try{c.f(s);}catch(x){console.warn('share '+key,x);}}},x=>{for(const c of e.cbs){try{c.err&&c.err(x);}catch(y){}}});}
++    e.cbs.push({f,err});if(e.last){try{f(e.last);}catch(x){console.warn('share '+key,x);}}}
++  // newest activity docs (one listener, 150 deep); each caller sees its own newest n
++  actFeed(n,f,err){this.share('activity',()=>this.fs.query(this.col('activity'),this.fs.orderBy('t','desc'),this.fs.limit(150)),s=>{const docs=s.docs.slice(0,n);f({docs,size:docs.length,empty:!docs.length,forEach(cb){docs.forEach(cb);}});},err);}
++  playersFeed(f,err){this.share('players',()=>this.col('players'),f,err);}
++  allianceDocFeed(f,err){this.share('metaAlliance',()=>this.fs.doc(this.db,...this.base,'meta','alliance'),f,err);}
+   setCenter(){}
+-  onPlayers(f){this.fs.onSnapshot(this.col('players'),s=>{const a=[];s.forEach(d=>{const v=d.data();if(d.id!==this.uid&&Date.now()-v.t<15*60e3)a.push({uid:d.id,...v});});f(a);});}
++  onPlayers(f){this.playersFeed(s=>{const a=[];s.forEach(d=>{const v=d.data();if(d.id!==this.uid&&Date.now()-v.t<15*60e3)a.push({uid:d.id,...v});});f(a);});}
+   onRaids(f){this.fs.onSnapshot(this.col('raids'),s=>{const o={};s.forEach(d=>o[d.id]={id:d.id,...d.data()});f(o);});}
+   onTerritory(f){this.fs.onSnapshot(this.col('territory'),s=>{const o={};s.forEach(d=>o[d.id]=d.data());f(o);});}
+   // Fog of war: each member's explored hex ids (170 m cells, never raw GPS) shared with the alliance.
+@@ -183,10 +192,10 @@
+   updateMember(m){this.fs.setDoc(this.fs.doc(this.col('players'),this.uid),{...m,lastActive:this.fs.serverTimestamp()});}
+   activity(text){this.fs.addDoc(this.col('activity'),{text,uid:this.uid,t:this.fs.serverTimestamp()});}
+   onAlliance(f){const fs=this.fs,st={bank:{},research:{},ops:{},log:[],act:[],members:{}},emit=()=>f({...st});const ms=x=>x&&x.toMillis?x.toMillis():Date.now();
+-    fs.onSnapshot(fs.doc(this.db,...this.base,'meta','alliance'),d=>{const x=d.exists()?d.data():{};st.bank=x.bank||{};st.research=x.research||{};st.ops=x.ops||{};emit();});
++    this.allianceDocFeed(d=>{const x=d.exists()?d.data():{};st.bank=x.bank||{};st.research=x.research||{};st.ops=x.ops||{};emit();});
+     fs.onSnapshot(fs.query(this.col('bankLog'),fs.orderBy('t','desc'),fs.limit(60)),s=>{st.log=s.docs.map(d=>({...d.data(),t:ms(d.data().t)}));emit();});
+-    fs.onSnapshot(fs.query(this.col('activity'),fs.orderBy('t','desc'),fs.limit(60)),s=>{st.act=s.docs.map(d=>({...d.data(),t:ms(d.data().t)}));emit();});
+-    fs.onSnapshot(this.col('players'),s=>{st.members={};s.forEach(d=>st.members[d.id]={...d.data(),lastActive:ms(d.data().lastActive),me:d.id===this.uid});for(const m of Object.values({...st.members}))for(const a of (Array.isArray(m.alias)?m.alias:[]))if(a!==this.uid&&st.members[a])delete st.members[a]; /* v24: other devices of the same player are one member */emit();});}
++    this.actFeed(60,s=>{st.act=s.docs.map(d=>({...d.data(),t:ms(d.data().t)}));emit();});
++    this.playersFeed(s=>{st.members={};s.forEach(d=>st.members[d.id]={...d.data(),lastActive:ms(d.data().lastActive),me:d.id===this.uid});for(const m of Object.values({...st.members}))for(const a of (Array.isArray(m.alias)?m.alias:[]))if(a!==this.uid&&st.members[a])delete st.members[a]; /* v24: other devices of the same player are one member */emit();});}
+   async bankMulti(uid,name,obj,kind){const fs=this.fs,ref=fs.doc(this.db,...this.base,'meta','alliance');let tot=0;
+     await fs.runTransaction(this.db,async tx=>{const d=await tx.get(ref);const bank={...((d.exists()&&d.data().bank)||{})};
+       for(const [res,amt] of Object.entries(obj)){if(!amt)continue;bank[res]=(bank[res]||0)+amt;tot+=amt;tx.set(fs.doc(this.col('bankLog')),{uid,member:name,res,amt,bal:bank[res],kind,t:fs.serverTimestamp()});}
+--- sw.js	2026-11-06 16:00:00.000000000 -0800
++++ /home/claude/work12e/sw.js	2026-11-07 10:26:57.680839964 -0800
+@@ -1,6 +1,6 @@
+ // Dead Zone Drive service worker: network-first for the app (so updates show right away),
+ // falling back to cache when offline. Map tiles and Firebase are never cached here.
+-const C='ddd-v26-12d';
++const C='ddd-v26-12g';
+ self.addEventListener('install',e=>self.skipWaiting());
+ self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+ self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==location.origin)return;
+--- /dev/null	2026-11-06 20:29:11.866535169 -0800
++++ /home/claude/work12e/sync13.js	2026-11-07 10:22:31.164365797 -0800
+@@ -0,0 +1,166 @@
++// sync13 (TEST · ddd-v26-12g) One character, one playing device, live follow.
++// Replaces the 12d merge engine (sync26 handoff/merge) whenever the player is signed in with an email account.
++//
++//  * One save document per account: teams/{team}/saves/{uid}. Every open device listens to it live.
++//  * Exactly one device is "playing" (the lease holder). Only it writes. Every other device mirrors the
++//    save within a second or two and shows who is playing.
++//  * Touch the game on another device and it takes over at once: it is already on the latest copy,
++//    so it simply writes the next revision. Nothing is merged, so nothing is guessed.
++//  * A device that sits idle (hidden, asleep, closed) for 90 s gives up the lease to a visible device.
++//  * Every write is a transaction on the revision: rev must be the one we hold, and goes up by one
++//    (same rule the 12d Firestore rules already enforce). A stale device can never overwrite newer work.
++//  * Rare case: both devices changed the game while one was offline (a drive in a dead zone).
++//    The player picks which copy to keep. The other copy is kept on that device as a backup.
++//  * Per-device fields (position, notifications, old sync metadata) are never synced.
++(function(){
++'use strict';
++const LOCAL=new Set(['uid','pos','lat','lng','news','_rev','_ackedRev','_handoff','_userEdit','_userBase','_tab','_armHold','_seen','sync26',
++  'heal26c','heal26cDone','heal26cNote','heal26cDrives','heal26cParts','heal26cPipe','heal26cPipeNote']);
++const T13={flushMs:1500,ownerMinGapMs:20e3,gestureMs:4e3,staleLeaseMs:90e3,heartbeatMs:60e3};
++const isPhone=/Mobi|iPhone|iPad|Android/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
++const LABEL=isPhone?'phone':'computer',ICON=isPhone?'📱':'💻';
++function devId(){let base='',tab='';try{base=localStorage.getItem('wl_dev13');if(!base){base=Math.random().toString(36).slice(2,10);localStorage.setItem('wl_dev13',base);}}catch(e){base=Math.random().toString(36).slice(2,10);}
++  try{tab=sessionStorage.getItem('wl_tab13');if(!tab){tab=Math.random().toString(36).slice(2,6);sessionStorage.setItem('wl_tab13',tab);}}catch(e){tab=Math.random().toString(36).slice(2,6);}return base+'-'+tab;}
++const S={on:false,dev:devId(),rev:0,lease:null,lastFp:null,lastWrite:0,lastGesture:0,writing:null,hold:false,unsub:null,state:'',savedAt:0,conflictOpen:false,offline:false,log:[]};
++window.SYNC13=S;
++function log(){const a=[...arguments].join(' ');S.log.push(new Date().toISOString().slice(11,19)+' '+a);if(S.log.length>60)S.log.shift();try{console.log('[sync13] '+a);}catch(e){}}
++// ---------- profile helpers ----------
++function strip(o){const c={};for(const k of Object.keys(o||{}))if(!LOCAL.has(k)&&o[k]!==undefined)c[k]=o[k];return c;}
++function fp(){try{return JSON.stringify(strip(P));}catch(e){return null;}}
++function ref(){return NET.fs.doc(NET.col('saves'),NET.uid);}
++function leaseFresh(l){return !!(l&&l.t&&Date.now()-l.t<T13.staleLeaseMs);}
++function iOwn(){return !!(S.lease&&S.lease.dev===S.dev);}
++function other(l){return l&&l.label==='phone'?'your phone':l&&l.label==='computer'?'your computer':'another device';}
++function visible(){return document.visibilityState==='visible';}
++// ---------- status (Save tab + small bar) ----------
++function setStatus(state,text){S.state=state;try{if(typeof CS!=='undefined'){CS.report=text;CS.status=text;CS.why='sync13 '+state+' rev='+S.rev;}}catch(e){}bar();}
++function bar(){let el=document.getElementById('sync13bar');
++  const follower=S.on&&S.lease&&!iOwn()&&leaseFresh(S.lease);
++  const show=follower||S.state==='offline'||S.state==='conflict';
++  if(!show){if(el)el.remove();return;}
++  if(!el){el=document.createElement('div');el.id='sync13bar';el.style.cssText='position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 40px);z-index:1900;max-width:92vw;background:rgba(20,15,12,.92);color:#f3e6d0;border:1px solid #6b4a2a;border-radius:10px;padding:6px 12px;font:600 12px system-ui;text-align:center;pointer-events:auto;box-shadow:0 2px 10px rgba(0,0,0,.4)';document.body.appendChild(el);
++    el.onclick=()=>{S.lastGesture=Date.now();if(S.state!=='conflict')takeover('tap');};}
++  if(S.state==='offline')el.textContent='📡 Offline. Your progress is kept on this '+LABEL+' and saves when you are back online.';
++  else if(S.state==='conflict')el.textContent='⚠️ Choose which copy to keep';
++  else el.textContent=(S.lease.label==='phone'?'📱':'💻')+' Playing on '+other(S.lease)+' · synced '+ago13(S.savedAt)+'. Tap here or play to switch to this '+LABEL+'.';}
++function ago13(t){if(!t)return'just now';const s=Math.round((Date.now()-t)/1000);return s<5?'just now':s<60?s+'s ago':Math.round(s/60)+'m ago';}
++// ---------- adopt the server copy ----------
++function adopt(o,rev,lease,why){
++  const keep={};for(const k of LOCAL)if(P[k]!==undefined)keep[k]=P[k];
++  for(const k of Object.keys(P))if(!LOCAL.has(k)&&!(k in o))delete P[k];
++  for(const k of Object.keys(o))if(!LOCAL.has(k))P[k]=o[k];
++  Object.assign(P,keep);
++  S.rev=rev;S.lease=lease||S.lease;P._rev=rev;P._ackedRev=rev;P._userBase=P._userEdit|0;
++  S.lastFp=fp();S.savedAt=Date.now();
++  try{save();}catch(e){}
++  redraw();log('adopt rev',rev,'from',lease&&lease.label,why||'');}
++function redraw(){try{UI.hud();}catch(e){}try{drawWorld();}catch(e){}try{if(typeof drawPipes==='function')drawPipes();}catch(e){}try{if(UI.tab)UI.render();}catch(e){}}
++// ---------- write (transaction on the revision) ----------
++async function write(reason,force){
++  if(S.writing)return S.writing;
++  const f=fp();if(!f)return;
++  S.writing=(async()=>{
++    const base=S.rev,lease={dev:S.dev,label:LABEL,t:Date.now()};let out='ok',cur=null;
++    try{
++      await NET.fs.runTransaction(NET.db,async tx=>{
++        const s=await tx.get(ref());cur=s.exists()?s.data():null;
++        if(cur&&(cur.rev|0)!==base&&!force){out='stale';return;}
++        const rev=(cur?(cur.rev|0):0)+1;
++        const prof=Object.assign(JSON.parse(f),{uid:NET.uid,_rev:rev});
++        const body={data:JSON.stringify(prof),rev,baseRev:cur?(cur.rev|0):0,savedAt:Date.now(),name:String(P.name||'').slice(0,24),lvl:P.lvl|0,v:3,fe:P.fullEpoch||0,me:P.mapEpoch||0,lease};
++        if(P.acct)body.acct=String(P.acct).slice(0,24);
++        tx.set(ref(),body);out={rev};});
++    }catch(e){const c=(e&&e.code)||'';
++      if(/unavailable|network|offline|deadline/i.test(c+' '+(e&&e.message))){S.offline=true;setStatus('offline','Offline. Progress is on this device and will save when you are back online. Do not switch devices yet.');stash();}
++      else if(/resource-exhausted|quota/i.test(c)){setStatus('quota','The free daily save limit was reached. Progress is on this device. Do not switch devices.');stash();}
++      else{log('write error',c,e&&e.message);setStatus('error','Save did not go through. Progress is on this device. Do not switch devices yet.');stash();}
++      return 'error';}
++    if(out==='stale'){log('write stale: server',cur&&cur.rev,'we',base);onRemote(cur,true);return 'stale';}
++    const wasOwner=iOwn();S.rev=out.rev;S.lease=lease;S.lastFp=f;S.lastWrite=Date.now();S.savedAt=Date.now();S.offline=false;
++    P._rev=S.rev;P._ackedRev=S.rev;P._userBase=P._userEdit|0;unstash();
++    setStatus('saved','Safe to switch. Saved to the cloud (save '+S.rev+') from this '+LABEL+'.');
++    if(!wasOwner&&reason!=='first')try{toast(ICON+' Now playing on this '+LABEL+'.');}catch(e){}
++    log('wrote rev',S.rev,reason);return 'ok';})();
++  try{return await S.writing;}finally{S.writing=null;}}
++// unsent progress survives a reload while offline
++function stashKey(){return 'wl_sync13_unsent_'+(localStorage.getItem('wl_team')||'')+'_'+NET.uid;}
++function stash(){try{localStorage.setItem(stashKey(),JSON.stringify({base:S.rev,at:Date.now(),fp:fp()}));}catch(e){}}
++function unstash(){try{localStorage.removeItem(stashKey());}catch(e){}}
++// ---------- the server copy changed ----------
++function parse(d){try{return JSON.parse(d.data);}catch(e){return null;}}
++function onRemote(d,fromStale){
++  if(!d)return;const rev=d.rev|0,lease=d.lease||null;
++  if(rev<=S.rev){if(rev===S.rev){S.lease=lease||S.lease;bar();}return;}
++  if(S.writing&&lease&&lease.dev===S.dev)return; // our own write echoing back
++  const o=parse(d);if(!o)return;
++  const mine=fp(),changed=mine!==S.lastFp;
++  const userChanged=changed&&S.lastGesture>S.savedAt;
++  if(userChanged&&typeof SYNC26!=='undefined'&&SYNC26.realAhead){
++    let ahead=false;try{ahead=SYNC26.realAhead(JSON.parse(mine),o);}catch(e){}
++    if(ahead)return conflict(o,rev,lease);}
++  adopt(o,rev,lease,fromStale?'(after stale write)':'');
++  if(lease&&lease.dev!==S.dev)setStatus('following','Following '+other(lease)+'. This '+LABEL+' has the latest save ('+rev+').');}
++function conflict(o,rev,lease){
++  if(S.conflictOpen)return;S.conflictOpen=true;S.hold=true;setStatus('conflict','Both devices changed the game. Choose which copy to keep.');
++  const mine=JSON.parse(fp()),sum=x=>`Lv${x.lvl||1} · ${Object.keys(x.tiles||{}).length} hexes · ${((x.stats&&x.stats.meters||0)/1000).toFixed(1)} km · ${(x.res&&x.res.scrap)||0} scrap`;
++  const otherName=other(lease);
++  try{UI.modal(`<h2>⚠️ Two copies of your game</h2><p class="tiny">This ${LABEL} and ${otherName} both changed the game while they could not see each other (usually a drive with no signal). Pick the one to keep. The other copy stays on this ${LABEL} as a backup.</p>
++    <div class="row"><div class="grow"><b>${ICON} This ${LABEL}</b><small>${sum(mine)}</small></div><button class="big" id="s13mine">Keep this</button></div>
++    <div class="row"><div class="grow"><b>${lease&&lease.label==='phone'?'📱':'💻'} ${otherName}</b><small>${sum(o)}</small></div><button class="big" id="s13theirs">Keep that</button></div>`);
++    const done=()=>{S.conflictOpen=false;S.hold=false;try{UI.closeModal();}catch(e){}};
++    document.getElementById('s13mine').onclick=async()=>{try{localStorage.setItem('wl_sync13_backup',JSON.stringify({at:Date.now(),kept:'mine',other:o}));}catch(e){}S.rev=rev;done();S.lastGesture=Date.now();await write('conflict-keep-mine');};
++    document.getElementById('s13theirs').onclick=()=>{try{localStorage.setItem('wl_sync13_backup',JSON.stringify({at:Date.now(),kept:'theirs',other:mine}));}catch(e){}done();adopt(o,rev,lease,'conflict-keep-theirs');setStatus('following','Kept the copy from '+otherName+'.');};
++  }catch(e){log('conflict modal failed',e);S.conflictOpen=false;S.hold=false;}}
++// ---------- the loop ----------
++function canWrite(){
++  if(S.hold||!S.on||G.playLocked)return false;
++  if(!S.lease||iOwn())return true;
++  if(Date.now()-S.lastGesture<T13.gestureMs&&visible())return true;   // the player is using this device: take over
++  if(visible()&&!leaseFresh(S.lease))return true;                      // the playing device went quiet
++  return false;}
++async function tick(force){
++  if(!S.on||S.writing||S.hold)return;
++  const f=fp();if(!f)return;
++  const changed=f!==S.lastFp,now=Date.now();
++  if(!changed){
++    if(iOwn()&&visible()&&now-S.lastWrite>T13.heartbeatMs)return write('heartbeat');
++    if(!iOwn()&&visible()&&S.lease&&!leaseFresh(S.lease)&&!S.offline)return write('idle-takeover');
++    if(S.state!=='following'&&S.state!=='saved'&&S.state!=='offline'&&S.state!=='conflict')setStatus('saved','Safe to switch. Saved to the cloud (save '+S.rev+').');
++    bar();return;}
++  if(!canWrite()){bar();return;}
++  if(!force&&iOwn()&&now-S.lastWrite<T13.ownerMinGapMs&&now-S.lastGesture>T13.gestureMs)return; // owner: batch passive ticks
++  if(S.state!=='offline')setStatus('pending','Saving… do not switch devices yet.');
++  return write(force?'forced':'change');}
++async function takeover(why){if(!S.on||iOwn())return;S.lastGesture=Date.now();log('takeover',why);return write('takeover-'+why,false);}
++// ---------- start ----------
++async function start(){
++  if(S.on)return;S.on=true;
++  try{G.syncHoldUntil=8.64e15;G.sync26Ready=true;}catch(e){}   // the 12d merge engine stands down
++  S.rev=P._ackedRev|0||P._rev|0;S.lastFp=null;
++  // read the server once so we know rev + lease before the listener fires
++  try{const s=await NET.fs.getDoc(ref());if(s.exists()){const d=s.data();S.lease=d.lease||null;
++      // auth12 copies only part of the save on sign-in; take the complete server copy so nothing (pipelines, raid loot…) is left behind
++      const o=parse(d);if(o)adopt(o,d.rev|0,d.lease,'start');else{S.rev=d.rev|0;S.lastFp=fp();}}}catch(e){log('start read failed',e&&e.code);}
++  S.lastGesture=0; // taps on the sign-in screen are not play
++  if(S.lastFp===null)S.lastFp=fp();
++  // a reload while offline: auth12 already loaded the server copy; tell the player if this device had unsent work
++  try{const u=JSON.parse(localStorage.getItem(stashKey())||'null');if(u&&u.fp&&u.fp!==S.lastFp&&(u.base|0)===S.rev){const o=JSON.parse(u.fp);adoptLocal(o);log('restored unsent progress from before reload');}
++    else if(u)unstash();}catch(e){}
++  S.unsub=NET.fs.onSnapshot(ref(),s=>{if(!s.exists())return;if(s.metadata&&s.metadata.hasPendingWrites)return;onRemote(s.data(),false);},e=>log('listen error',e&&e.code));
++  setStatus(iOwn()?'saved':'following',iOwn()?'Safe to switch. Saved (save '+S.rev+').':'Following '+other(S.lease)+'.');
++  log('started dev',S.dev,'label',LABEL,'rev',S.rev,'lease',S.lease&&S.lease.label);
++  if(!S.lease||!leaseFresh(S.lease))write('first');}
++function adoptLocal(o){for(const k of Object.keys(o))if(!LOCAL.has(k))P[k]=o[k];try{save();}catch(e){}redraw();}
++['pointerdown','keydown','touchstart'].forEach(ev=>document.addEventListener(ev,e=>{if(e.target&&e.target.closest&&e.target.closest('#auth12'))return;S.lastGesture=Date.now();},true));
++document.addEventListener('visibilitychange',()=>{if(!S.on)return;if(visible()){tick();}else if(iOwn()&&fp()!==S.lastFp)write('hide');});
++window.addEventListener('online',()=>{if(S.on){S.offline=false;tick(true);}});
++setInterval(()=>{try{tick();}catch(e){console.warn('sync13 tick',e);}},T13.flushMs);
++setInterval(()=>{try{bar();}catch(e){}},5000);
++// cloudSave is called by the game, auth12 (autosave, log out) and the Save tab: route it here
++const _cs13=typeof cloudSave==='function'?cloudSave:null;
++// only real taps/keys count as "playing here", never an automatic save
++cloudSave=async function(force){if(S.on)return tick(!!force);if(_cs13)return _cs13.apply(this,arguments);};
++window.cloudSave=cloudSave;
++const boot=setInterval(()=>{try{if(S.on){clearInterval(boot);return;}
++  if(window.__emailAuth&&typeof NET!=='undefined'&&NET.mode==='firebase'&&NET.uid&&NET.fs&&Array.isArray(NET.base)&&typeof G!=='undefined'&&!G.playLocked&&P&&P.name){clearInterval(boot);start();}}catch(e){}},500);
++})();
+--- troops2.js	2026-11-06 16:00:00.000000000 -0800
++++ /home/claude/work12e/troops2.js	2026-11-07 09:50:54.539408997 -0800
+@@ -11,7 +11,7 @@
+   woundWin:0.85, woundLoss:0.60,            // share of casualties that come home wounded (rest are dead)
+   hospitalPct:0.20,                         // beds = 20% of the troop cap
+   healCostPct:0.40, healHoursPer1k:1, freeHealPerDay:200,
+-  overflowDiePerHour:0.01,                  // wounded with no bed lose 1% per hour while they wait
++  overflowDiePerHour:0,                     // 12f: wounded with no bed wait for one (was 1%/hr deaths)
+   marchCapBase:2000, marchCapPerBarracks:1000,
+   upkeepPerTroops:200,                      // 1 food per 200 troops each night (after structures)
+   hungryAtk:0.10,                           // Hungry: marches -10% ATK, training paused, until the next reset
+@@ -85,7 +85,7 @@
+   b.insertAdjacentHTML('beforeend',`<h2>🩹 Hospital</h2>
+    <div class="row"><div class="grow"><b>${t.wounded.toLocaleString()}</b> wounded · <b>${heal.toLocaleString()}</b> healing<small>Beds ${Math.min(beds,t.wounded+heal).toLocaleString()} / ${beds.toLocaleString()} (20% of your troop cap) · first ${TR2.freeHealPerDay} heal free each day</small></div></div>
+    ${t.healing.map(q=>`<div class="row tq"><div class="grow">💊 ${q.n.toLocaleString()} healing<small>home in ${fmtDur(Math.max(0,q.end-Date.now()))}</small></div></div>`).join('')}
+-   ${over?`<div class="row warn">⚠️ ${over.toLocaleString()} wounded have no bed and lose 1% per hour. Heal them or raise your troop cap.</div>`:''}
++   ${over?`<div class="row warn">⚠️ ${over.toLocaleString()} wounded are waiting for a bed. 200 heal free each day, or pay to heal them now.</div>`:''}
+    ${n?`<div class="row"><div class="grow">Heal ${n.toLocaleString()}<small>${tcost(hc)} · ${fmtDur(healMs(n))}</small></div><button class="fight" onclick="healTroops(${n})">Heal</button></div>`:''}
+    <h2>🍞 Food</h2><div class="row"><div class="grow">Tonight's troop upkeep: <b>${troopUpkeep().food}🥫</b><small>${isHungry()?'🍞 HUNGRY now: −10% march ATK, training paused until the next reset':'Paid after buildings at the daily reset. If short, troops go Hungry (nobody dies).'}</small></div></div>`);}catch(e){console.warn('hospital tab',e);}});
+ // resource bar: red cross when anyone is wounded
+--- v25a.js	2026-11-06 16:00:00.000000000 -0800
++++ /home/claude/work12e/v25a.js	2026-11-07 09:52:44.344531289 -0800
+@@ -10,7 +10,7 @@
+ function myKey25(){return P.acct||(typeof acctKey==='function'?acctKey(P.name):'')||P.uid;}
+ function colOwner(c){const r=G.col25[c];return r&&r.k!==myKey25()?r:null;}
+ function colWatch(){if(G._colW||NET.mode!=='firebase'||!NET.fs||!NET.db||!NET.base)return;G._colW=1;const fs=NET.fs;
+-  fs.onSnapshot(fs.doc(NET.db,...NET.base,'meta','alliance'),d=>{const x=d.exists()?d.data():{};G.col25=x.col25||{};G._colReady=1;try{colorDedupe();}catch(e){}});}
++  NET.allianceDocFeed(d=>{const x=d.exists()?d.data():{};G.col25=x.col25||{};G._colReady=1;try{colorDedupe();}catch(e){}});}
+ async function colWrite(c,old){if(NET.mode!=='firebase'){G.col25[c]={k:myKey25(),n:P.name,t:Date.now()};if(old&&old!==c)delete G.col25[old];return;}
+   const fs=NET.fs,o={[c]:{k:myKey25(),n:P.name,t:Date.now()}};if(old&&old!==c&&G.col25[old]&&G.col25[old].k===myKey25())o[old]=fs.deleteField();
+   await fs.setDoc(fs.doc(NET.db,...NET.base,'meta','alliance'),{col25:o},{merge:true});}
+--- v25b.js	2026-11-06 16:00:00.000000000 -0800
++++ /home/claude/work12e/v25b.js	2026-11-07 09:52:44.343868421 -0800
+@@ -83,7 +83,7 @@
+   try{NET.fs.addDoc(NET.fs.collection(NET.db,...NET.base,'activity'),{...doc,t:NET.fs.serverTimestamp()});}catch(e){console.warn('gl25 post',e);}}
+ function listenGl25(){if(G._glL)return;G._glL=1;if(NET.mode!=='firebase'){setInterval(()=>{const q=G._gl25q||[];if(!q.length)return;G._gl25q=[];const fx=FX();fx.gl25=(fx.gl25||[]).concat(q).slice(-40);applyGl25();},1000);return;}
+   if(!NET.fs||!NET.db||!NET.base){G._glL=0;return;}
+-  NET.fs.onSnapshot(NET.fs.query(NET.fs.collection(NET.db,...NET.base,'activity'),NET.fs.orderBy('t','desc'),NET.fs.limit(80)),s=>{const fx=FX();let add=[];s.forEach(d=>{const x=d.data();if(x.kind!=='gl25')return;let p={};try{p=JSON.parse(x.text||'{}');}catch(e){return;}
++  NET.actFeed(80,s=>{const fx=FX();let add=[];s.forEach(d=>{const x=d.data();if(x.kind!=='gl25')return;let p={};try{p=JSON.parse(x.text||'{}');}catch(e){return;}
+     const t=x.t&&x.t.toMillis?x.t.toMillis():Date.now();if(!p.for||!p.hex)return;add.push({t,hex:p.hex,uid:p.for,frac:+p.frac||1,out:p.out||null,won:!!p.won,gang:p.gang,sp:p.sp|0,share:+p.share||0,rounds:[],bPow:p.bPow|0});});
+     if(add.length){const seen=new Set((fx.gl25||[]).map(e=>e.t+':'+e.uid+':'+e.hex));const neu=add.filter(e=>!seen.has(e.t+':'+e.uid+':'+e.hex));if(neu.length){fx.gl25=(fx.gl25||[]).concat(neu).slice(-40);applyGl25();}}},e=>console.warn('gl25',e));}
+ setInterval(()=>{try{listenGl25();}catch(e){}},2000);
+--- v25d.js	2026-11-06 16:00:00.000000000 -0800
++++ /home/claude/work12e/v25d.js	2026-11-07 09:52:44.344349108 -0800
+@@ -4,7 +4,7 @@
+ G.chat25=[];G.chatSeen25=+(localStorage.getItem('wl_chat25_seen')||0);
+ const esc25=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ function chatListen(){if(G._chatL)return;if(NET.mode!=='firebase'){G._chatL=1;G.chat25=JSON.parse(localStorage.getItem('wl_chat25')||'[]');return;}if(!NET.fs||!NET.db||!NET.base)return;G._chatL=1;const fs=NET.fs;
+-  fs.onSnapshot(fs.query(fs.collection(NET.db,...NET.base,'activity'),fs.orderBy('t','desc'),fs.limit(150)),s=>{const a=[];s.forEach(d=>{const x=d.data();if(x.kind==='chat')a.push({id:d.id,...x,t:x.t&&x.t.toMillis?x.t.toMillis():Date.now()});});
++  NET.actFeed(150,s=>{const a=[];s.forEach(d=>{const x=d.data();if(x.kind==='chat')a.push({id:d.id,...x,t:x.t&&x.t.toMillis?x.t.toMillis():Date.now()});});
+     G.chat25=a.slice(0,60).reverse();chatBadge();if(UI.tab==='alliance'&&UI.sub.alliance==='chat')chatPaint();},e=>console.warn('chat',e));}
+ setInterval(()=>{try{chatListen();}catch(e){}},2000);
+ G._chatSent=[];
+--- v26a.js	2026-11-06 16:00:00.000000000 -0800
++++ /home/claude/work12e/v26a.js	2026-11-07 09:52:44.344088951 -0800
+@@ -1,7 +1,7 @@
+ // v26a (TEST) Garrison combat + 5 classes + pipeline guard fix. Design: reviews/v26-combat-system.md (locked by Jacob, Nov 4).
+ //  * One deterministic calculation per fight. No rounds, no cap, no range, no luck, no matchups, no fatigue, no named variants.
+ //  * Class = troop type. Engineer=Tank, Raider=Melee, Scout=Ranged, + Caster, Strategist. Troops convert 1:1 (type is read from the class).
+-//  * Fight to the death: the loser is wiped. Defender losses hit Engineers first, then split evenly (smallest stacks run out first).
++//  * 12f: the losing defenders lose 80% and the rest retreat home (was: wiped). Defender losses hit Engineers first, then split evenly (smallest stacks run out first).
+ //  * Pipeline: CUT only when a route hex was taken in a fight the guards lost, or nobody guards the route. Every capture makes a report.
+ const C26={
+   types:{engineer:{hp:3,atk:.5,ico:'🛡',role:'Tank'},raider:{hp:2,atk:1,ico:'🪓',role:'Melee'},scout:{hp:1.5,atk:1,ico:'🏹',role:'Ranged'},
+@@ -10,7 +10,7 @@
+   cls:{engineer:{hp:.10},caster:{hp:.10},raider:{atk:.10},scout:{atk:.10},strategist:{hp:.05,atk:.05}},
+   mix:{3:.10,4:.15,5:.20},
+   bld:{tower:{fire:70,walls:.20},op:{fire:40,walls:.15},sh:{fire:120,walls:.30},pipe:{fire:0,walls:.10}},lvlFire:.20,lvlWalls:.02,maxWalls:.50,innate:100,
+-  horde:'raider',lootShare:.5,repWin:5,repHold:3};
++  horde:'raider',retreat:.20,lootShare:.5,repWin:5,repHold:3};
+ window.C26=C26;
+ // ---------- classes 3 -> 5 (names locked: Scout, Raider, Engineer, Caster, Strategist) ----------
+ CLASSES.list.caster={name:'Caster',icon:'✨',tag:'Mends the garrison, grows the land',fx:{},income:0.10,
+@@ -58,11 +58,11 @@
+     for(const r of rows.map((r,i)=>[r,i]).filter(([r])=>r.type==='engineer')){if(left<=0)break;const [rr,i]=r;const k=Math.min(rr.n,Math.ceil(left/rr.hpPer-1e-9));out[i].lost=k;left-=k*rr.hpPer;}
+     for(let guard=0;guard<10&&left>1e-6;guard++){const al=rows.map((r,i)=>[r,i]).filter(([r,i])=>out[i].lost<r.n);if(!al.length)break;const per=left/al.length;left=0;
+       for(const [r,i] of al.sort((x,y)=>(x[0].n-out[x[1]].lost)*x[0].hpPer-(y[0].n-out[y[1]].lost)*y[0].hpPer)){const cap=(r.n-out[i].lost)*r.hpPer;if(per>=cap){out[i].lost=r.n;left+=per-cap;}else out[i].lost+=Math.round(per/r.hpPer);}}}
+-  else out.forEach(o=>o.lost=o.n);
++  else out.forEach(o=>o.lost=Math.ceil(o.n*(1-C26.retreat))); // 12f: losers retreat with 20% instead of being wiped
+   out.forEach(o=>{o.lost=Math.min(o.n,Math.max(0,Math.round(o.lost)));o.left=o.n-o.lost;});
+   const aLost=win?an:Math.min(an,Math.round(D*tThey/Math.max(.01,at.hp*(1-perks.saboteur))));
+   const why=win?`We needed ${tWe.toFixed(1)} turns to wipe them. They needed ${isFinite(tThey)?tThey.toFixed(1):'∞'} to break us (walls ${Math.round(walls*100)}% + ${Math.round(H).toLocaleString()} HP, to the death). Faster side wins, a tie goes to the defender.`
+-    :`They needed ${tThey.toFixed(1)} turns to break us. We needed ${isFinite(tWe)?tWe.toFixed(1):'∞'} to wipe them. Faster side wins, so the ${b?'building fell':'hex fell'} and every defender was lost.`;
++    :`They needed ${tThey.toFixed(1)} turns to break us. We needed ${isFinite(tWe)?tWe.toFixed(1):'∞'} to wipe them. Faster side wins, so the ${b?'building fell':'hex fell'}. 80% of the defenders fell and the rest retreated home.`;
+   return{win,D:Math.round(D),H:Math.round(H),A:Math.round(A),E:Math.round(E),tWe:+(isFinite(tWe)?tWe:999).toFixed(2),tThey:+(isFinite(tThey)?tThey:999).toFixed(2),walls:+walls.toFixed(2),fire:Math.round(fire),
+     perks,mix,nTypes,players:out,att:{n:an,type:att.type||C26.horde,name:att.name||'Horde',lost:aLost,left:an-aLost},bld:def.bld||null,why};}
+ window.fight26=fight26;
+@@ -74,7 +74,7 @@
+   const bld=s.bld||(bPow>0?{kind:'tower',lvl:1,pct:bPct}:null);const r=fight26({bld,players},{n:Math.round((aPow||0)/TROOP.powerPer),type:C26.horde,name:G._gname26||'Horde'});
+   G._r26=r;const fr=Object.fromEntries(r.players.map(p=>[p.key,p]));
+   return{win:r.win,end:r.win?'held':'broke',rounds:[],bFell:!r.win&&!!bld,bPct:bPct==null?1:bPct,aLeft:r.att.n?r.att.left/r.att.n:0,aPow,bPow,r26:r,
+-    guards:(guards||[]).map(g=>{const p=fr[g.key];return{key:g.key,uid:g.uid,frac:p&&p.n?p.left/p.n:1,out:p&&p.left<=0?'dead':null,pow:g.pow};})};};
++    guards:(guards||[]).map(g=>{const p=fr[g.key];return{key:g.key,uid:g.uid,frac:p&&p.n?p.left/p.n:1,out:p&&p.left<=0?'dead':(!r.win&&p?'retreated':null),pow:g.pow};})};};
+ window.fight25=fight25;try{F25.rounds=0;}catch(e){}
+ // keep the gang name for the report
+ const _sr26=squadReplay;squadReplay=function(defs,dp,sp,gname){G._gname26=gname;return _sr26.apply(this,arguments);};
+@@ -103,13 +103,13 @@
+   else{try{if(NET.mode==='firebase')NET.fs.addDoc(NET.fs.collection(NET.db,...NET.base,'activity'),{kind:'cap26',text:JSON.stringify({for:pu,hex:h,gang:String(gname).slice(0,24)}),uid:NET.uid||P.uid,name:(P.name||'').slice(0,24),t:NET.fs.serverTimestamp()});}catch(e){}}}
+ window.capReport26=capReport26;
+ function listenCap26(){if(G._cap26L||NET.mode!=='firebase'||!NET.fs||!NET.db||!NET.base)return;G._cap26L=1;
+-  NET.fs.onSnapshot(NET.fs.query(NET.fs.collection(NET.db,...NET.base,'activity'),NET.fs.orderBy('t','desc'),NET.fs.limit(60)),s=>{const seen=TP().cap26Seen||0;let mx=seen,ch=false;
++  NET.actFeed(60,s=>{const seen=TP().cap26Seen||0;let mx=seen,ch=false;
+     s.forEach(d=>{const x=d.data();if(x.kind!=='cap26')return;let p={};try{p=JSON.parse(x.text||'{}');}catch(e){return;}const t=x.t&&x.t.toMillis?x.t.toMillis():0;if(!t||t<=seen||!isMe(p.for))return;mx=Math.max(mx,t);
+       const row={t,hex:p.hex,gang:p.gang,win:false,none:true,me:[],why:'Nobody was guarding this hex, so the horde walked in. No fight was run.'};P.fr25=[row,...(P.fr25||[])].slice(0,30);ch=true;try{notify26('cap',row);}catch(e){}});
+     if(ch){TP().cap26Seen=mx;save();}},e=>console.warn('cap26',e));}
+ setInterval(()=>{try{listenCap26();}catch(e){}},3000);
+ // 4) reconcile: a route hex the horde holds while my guards sit on the line (no fight on record) -> the guards fight for it now.
+-//    Normal game math: fight26 vs that gang's strongest squad. Win: the gang is pushed off the hex. Lose: guards are wiped, line is cut.
++//    Normal game math: fight26 vs that gang's strongest squad. Win: the gang is pushed off the hex. Lose: guards lose 80% and the rest retreat home, line is cut.
+ function reconcile26(){if(!P.world||!P.world.fx)return;const gi=fxIndex(),cl=cutLog26(),now=Date.now();let ch=false;
+   for(const p of pipes()){const g=p.guard25,n=g?stationedAt(g.hex):0;if(!g||n<=0)continue;
+     for(const h of p.route||[]){const fid=gi[h];if(!fid||(cl[h]&&cl[h].why==='fight'&&cl[h].t>((stationed()[g.hex]||{}).at||0)))continue;const f=FX().f[fid];if(!f)continue;
+@@ -119,7 +119,7 @@
+       const r=fight26({bld:{kind:'pipe',lvl:1},players:[{key:'me:'+g.hex,uid:P.uid,n:stn,type:myType26(),gear:myGear26(),name:'Your pipeline guard'}]},{n:Math.round(sp/TROOP.powerPer),name:gname});
+       const me=r.players[0];const row={t:now,hex:h,gang:gname,sp,win:r.win,r26:r,pipe:p.name,me:[{who:'Your pipeline guard',n:me.n,lost:me.lost}]};
+       rec[h]=held;if(r.win){delete f.tiles[h];fxDirty();stationed()[g.hex].n=me.left;if(cl[h])delete cl[h];row.title=`Pipeline guard drove ${gname} off ${p.name}`;}
+-      else{cl[h]={t:now,fid,why:'fight'};sendHome25(g.hex,0,'beaten');row.title=`Pipeline line lost · ${p.name}`;}
++      else{cl[h]={t:now,fid,why:'fight'};sendHome25(g.hex,me.left,'retreated');row.title=`Pipeline line lost · ${p.name}`;}
+       if(me.lost){try{const w=woundSplit(me.lost,r.win);addWounded(w.wounded);}catch(e){}}
+       P.fr25=[row,...(P.fr25||[])].slice(0,30);ch=true;try{notify26('fight',row);}catch(e){}
+       break;}}
+--- v26e.js	2026-11-06 16:00:00.000000000 -0800
++++ /home/claude/work12e/v26e.js	2026-11-07 09:41:14.740244382 -0800
+@@ -65,7 +65,7 @@
+ 
+ // ---- HARD heal: re-applies every load until verified (lvl>=4 AND >=9 badges). v26-6 never ran due to syntax error.
+ const HEAL26C={minLvl:4,minBadges:9,badgeNames:['Water Tower #4','Overgrown Park #10','Abandoned School #2','Overgrown Park #1','Toxic Shore #6','Looted Grocery #9','Water Tower #13','Dead Mall #5','Old Town Hall #8']};
+-function isPope26(){try{return !!(P&&P.name&&(/pope/i.test(P.name)||P.acct==='pope'));}catch(e){return false;}}
++function isPope26(){return false;} // 12e: one-off Nov 5 repair retired (no grants on TEST; it re-granted Lv4, badges and pipeline sites to any name containing 'pope')
+ function healDone26(){try{return (P.lvl||1)>=HEAL26C.minLvl&&Object.keys(P.badges||{}).length>=HEAL26C.minBadges;}catch(e){return false;}}
+ function unlockPipes26(){let n=0;try{if(typeof unlockSite26!=='function')return 0;
+   let near=[];try{if(typeof sitesNear==='function')near=sitesNear()||[];}catch(e){}
+--- v26f.js	2026-11-06 16:00:00.000000000 -0800
++++ /home/claude/work12e/v26f.js	2026-11-07 09:41:14.740823620 -0800
+@@ -39,7 +39,7 @@
+ window.healDone26=healDone26;
+ 
+ // Restore a drive-report summary so Reports › Drives is not empty after the wipe (exact per-drive rows are gone).
+-function healDrives26(){try{if(!(P&&P.name&&(/pope/i.test(P.name)||P.acct==='pope')))return false;
++function healDrives26(){try{if(!(P&&P.name&&(false/*12e: repair retired*/)))return false;
+   if(P.heal26cDrives)return false;
+   P.dr26=Array.isArray(P.dr26)?P.dr26:[];
+   // drop broken negative rows
+@@ -60,7 +60,7 @@
+ try{if(typeof driveHTML26==='function'){const _dh26f=driveHTML26;driveHTML26=function(r){let h=_dh26f(r);try{if(r&&r.restored)h=h.replace('<h2>🚗 Drive Recap</h2>','<h2>🚗 Drive Recap</h2><p class="tiny">♻️ Restored summary after the sync wipe — exact per-drive loot rows could not be recovered.</p>');}catch(e){}return h;};}}catch(e){}
+ try{if(typeof reportItems26==='function'){const _ri26f=reportItems26;reportItems26=function(){const o=_ri26f.apply(this,arguments);try{o.forEach(function(x){if(x.k==='d'&&x.r&&x.r.restored)x.title='♻️ Restored · '+x.r.km+' km';});}catch(e){}return o;};}}catch(e){}
+ 
+-function healPipes26(force){try{if(!(P&&P.name&&(/pope/i.test(P.name)||P.acct==='pope')))return false;
++function healPipes26(force){try{if(!(P&&P.name&&(false/*12e: repair retired*/)))return false;
+   const before=Object.keys(P.pipeUnlock26||{}).length;
+   const n=unlockPipes26();
+   let parts=0;try{if(!P.heal26cParts&&(P.res.parts||0)<15&&Object.keys(P.pipeUnlock26||{}).length){P.res.parts=(P.res.parts||0)+15;P.heal26cParts=Date.now();parts=15;}}catch(e){}
+@@ -79,9 +79,9 @@
+ setTimeout(function(){try{healPipes26(false);}catch(e){}},3000);
+ setTimeout(function(){try{healPipes26(false);}catch(e){}},8000);
+ setTimeout(function(){try{healPipes26(true);}catch(e){}},15000);
+-setInterval(function(){try{if(P&&P.name&&(/pope/i.test(P.name)||P.acct==='pope')&&Object.keys(P.pipeUnlock26||{}).length<1)healPipes26(false);
+-  else if(P&&P.name&&(/pope/i.test(P.name)||P.acct==='pope')){const n=unlockPipes26();if(n){try{cloudSave(true);}catch(e){}}}
+-  if(P&&P.name&&(/pope/i.test(P.name)||P.acct==='pope')&&!P.heal26cDrives)healDrives26();}catch(e){}},10000);
++setInterval(function(){try{if(P&&P.name&&(false/*12e: repair retired*/)&&Object.keys(P.pipeUnlock26||{}).length<1)healPipes26(false);
++  else if(P&&P.name&&(false/*12e: repair retired*/)){const n=unlockPipes26();if(n){try{cloudSave(true);}catch(e){}}}
++  if(P&&P.name&&(false/*12e: repair retired*/)&&!P.heal26cDrives)healDrives26();}catch(e){}},10000);
+ 
+ const _rp26f=UI.render;UI.render=function(){const r=_rp26f.apply(this,arguments);try{if(this.tab==='base'&&this.sub&&this.sub.base==='pipes'&&typeof healPipes26==='function')healPipes26(false);}catch(e){}return r;};
+ }catch(e){console.error('v26f boot',e);}

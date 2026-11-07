@@ -1,0 +1,88 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#1c1813"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-192.png"><meta name="apple-mobile-web-app-title" content="Dead Zone"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☢️</text></svg>"><title>Dead Zone Drive</title>
+<link rel="stylesheet" href="leaflet.css"><link rel="stylesheet" href="style.css?v=v20-4">
+</head><body>
+<div id="map"></div><div id="tint"></div>
+<header id="hud">
+  <div class="who"><b id="pname">—</b> <span id="plvl">Lv1</span><div class="bar"><i id="hpbar"></i></div><div class="bar xp"><i id="xpbar"></i></div></div>
+  <div id="res"></div>
+  <button id="btnInbox" class="chip" title="Inbox" onclick="UI.inbox()">🔔</button><button id="btnDev" class="chip" title="Dev tools">🧪</button>
+</header>
+<div id="mode" class="chip small"></div><div id="status"></div><div id="notice" class="hidden"></div><div id="drivehud" class="hidden"></div>
+<div id="toast"></div>
+<div id="raidBanner" class="hidden"></div>
+<div id="devbar" class="hidden">
+  <button data-dev="walk">🚶 Walk</button><button data-dev="drive">🚗 Drive</button><button data-dev="tp">📍 Tap map = teleport</button>
+  <button data-dev="boss">👹 Test boss</button><button data-dev="rath">🏠 Rathdrum</button><button data-dev="daily">🌅 Run reset</button><button data-dev="ai">⚔️ AI attack</button><button data-dev="finish">⏩ Finish builds</button><button data-dev="gear">🎒 2 test gear</button><button data-dev="reset">♻️ Wipe</button>
+</div>
+<button id="btnCenter" class="fab" title="Recenter on me">◎</button><button id="btnNear" class="fab" title="Nearby" onclick="UI.nearest()">📍</button><button id="btnDrive" class="fab" title="Drive mode" onclick="toggleDrive()">🚗</button>
+<button id="btnClaim" class="fab claim" title="Build here">🏗️</button>
+<nav id="tabs">
+  <button data-tab="map" class="on">🗺️<span>Map</span></button><button data-tab="base">🏰<span>Base</span></button>
+  <button data-tab="player">🧍<span>Player</span></button><button data-tab="alliance">🤝<span>Alliance</span></button>
+  <button data-tab="inv">🎒<span>Inventory</span></button>
+</nav>
+<div id="sheet" class="hidden"><div class="grab"></div><button class="x" id="sheetX">✕</button><div id="sheetBody"></div></div>
+<div id="modal" class="hidden"><div id="modalBody"></div></div>
+<div id="onboard" class="hidden"><div class="card">
+  <h1>DEAD ZONE DRIVE</h1><p>The world ended and the Blight came after. Mutants crawl out of the dead zones and raider warbands march under old, ugly banners. Your crew keeps the last fires burning. Take the land back, one hex at a time.</p>
+  <input id="obName" placeholder="Your name" maxlength="16"><input id="obTeam" placeholder="Team code">
+  <div class="colors" id="obColors"></div><button id="obGo" class="big">Enter the Wastes</button>
+  <p class="tiny">Location is only used while this page is open.</p></div></div>
+<script src="leaflet.js"></script><script src="firebase-config.js"></script><script src="preview.js"></script>
+<script src="data.js"></script><script src="hex.js"></script><script src="net.js"></script>
+<script src="balance.js"></script><script src="progress.js"></script><script src="world.js"></script><script src="game.js"></script><script src="ui.js"></script><script src="fight.js"></script><script src="qol.js"></script><script src="stage2.js"></script><script src="horde.js"></script><script src="ledger.js"></script><script src="march.js"></script>
+<script src="gear2.js"></script><script src="theme.js"></script><script src="ally.js"></script><script src="stage4.js"></script><script src="nits.js"></script><script src="stage5.js"></script><script src="lmstatic.js"></script><script src="fix5.js"></script><script src="stage6.js"></script><script src="fix6.js"></script><script src="fix7.js"></script><script src="stage7.js"></script><script src="stage8.js"></script><script src="fix8.js"></script><script src="horde8.js"></script><script src="news8.js"></script><script src="kit8.js"></script><script src="fix9.js"></script>
+<script src="fix10.js"></script>
+<script src="wipe11.js"></script>
+<script src="kit1.js"></script>
+<script src="shell2.js"></script>
+<script src="mapskin2.js"></script>
+<script src="step3.js"></script>
+<script src="step4.js"></script>
+<script src="step5.js"></script>
+<script src="step6.js"></script>
+<script src="hooks.js"></script>
+<script src="classes.js"></script>
+<script src="troops2.js"></script>
+<script src="troops3.js"></script>
+<script src="teamsync.js"></script>
+<script src="gear3.js"></script>
+<script src="skills2.js"></script>
+<script src="marks2.js"></script>
+<script src="zones.js"></script>
+<script src="pipes.js"></script>
+<script src="pipes2.js"></script>
+<script src="brain.js"></script>
+<script src="brain2.js"></script>
+<script src="drive2.js"></script>
+<script src="layout.js"></script>
+<script src="rewards.js"></script>
+<script src="v21.js"></script>
+<script src="v22.js"></script>
+<script src="v23.js"></script>
+<script src="v23b.js"></script>
+<script src="v24a.js"></script>
+<script src="v24b.js"></script>
+<script src="v23d.js"></script>
+<script src="v25a.js"></script>
+<script src="v25b.js"></script>
+<script src="v25c.js"></script>
+<script src="v25d.js"></script>
+<script src="v26a.js"></script>
+<script src="v26b.js"></script>
+<script src="v26c.js"></script>
+<script src="v26d.js"></script>
+<script src="v26e.js"></script>
+<script src="v26f.js"></script>
+<script src="v26g.js"></script>
+<script src="v26h.js"></script>
+<script src="sync26.js"></script>
+<script src="v26i.js"></script>
+<script src="van26.js"></script>
+<script src="auth12.js"></script>
+<script src="fix13.js"></script>
+<script src="sync13.js"></script>
+</body></html>

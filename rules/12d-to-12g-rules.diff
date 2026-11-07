@@ -1,0 +1,38 @@
+--- preview-auth-rules.rules	2026-11-07 09:26:02.000000000 -0800
++++ /home/claude/out12g/rules/preview-auth-rules-12g.rules	2026-11-07 10:27:35.848008466 -0800
+@@ -1,4 +1,4 @@
+-// NOT PUBLISHED. Preview saves also require an email/password account.
++// NOT PUBLISHED (12g). Preview saves require an email/password account for read, create, update and delete.
+ // Rollback: restore the previous allow write on match /saves/{uid}.
+ rules_version = '2';
+ // Dead Zone Drive — friends-and-family rules (free Spark plan, no Cloud Functions).
+@@ -83,7 +83,7 @@
+                 || request.resource.data.get('fe', 0) >= get(/databases/$(db)/documents/teams/$(team)/meta/map).data.get('fullEpoch', 0));
+         }
+         function previewSaveUpdate() {
+-          return !team.matches('^pv-.+')
++          return !team.matches('pv-.*')
+             || (request.resource.data.get('v', 0) >= 3
+                 && request.resource.data.get('baseRev', -1) == resource.data.rev
+                 && request.resource.data.rev == resource.data.rev + 1);
+@@ -92,16 +92,16 @@
+         // Anonymous and legacy sessions cannot create or update that document.
+         // Live team names skip this check.
+         function previewPassword() {
+-          return !team.matches('^pv-.+')
++          return !team.matches('pv-.*')
+             || request.auth.token.firebase.sign_in_provider == 'password';
+         }
+         function previewOwnerRead() {
+-          return !team.matches('^pv-.+') || request.auth.uid == uid;
++          return !team.matches('pv-.*') || request.auth.uid == uid;
+         }
+-        allow read: if signedIn() && previewOwnerRead();
++        allow read: if signedIn() && previewOwnerRead() && previewPassword();
+         allow create: if saveBytesOk() && previewPassword();
+         allow update: if saveBytesOk() && previewSaveUpdate() && previewPassword();
+-        allow delete: if team.matches('^pv-.+') && signedIn() && request.auth.uid == uid
++        allow delete: if team.matches('pv-.*') && signedIn() && request.auth.uid == uid
+           && request.auth.token.firebase.sign_in_provider == 'password';
+       }
+ 
