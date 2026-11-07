@@ -107,6 +107,7 @@
     profile.skills=profile.skills||{};
   }
   function emptyObj(v){return !v||(typeof v==='object'&&!Array.isArray(v)&&!Object.keys(v).length);}
+
   function campMap(m){
     if(!m||typeof m!=='object')return null;
     const o={};
@@ -137,7 +138,6 @@
     for(let i=0;i<RES.length;i++)if(ar[RES[i]]<br[RES[i]])return true;
     return false;
   }
-  // True when A has player progress B does not: a building, a lower balance, a level, or fewer troops at home.
   function aheadProgress(a,b){
     if(!a||!b)return false;
     if(missingCamps(a,b).length)return true;
@@ -152,7 +152,6 @@
     return /permission-denied|failed-precondition|aborted|already-exists/i.test(blob);
   }
   function notePlay(p){if(p)p._userEdit=(p._userEdit|0)+1;}
-  // A live building or a lower balance is unsent progress. A stale tab's extra income is not.
   function hasUnsentProgress(local,remote){
     if(!local||!remote)return false;
     if(missingCamps(local,remote).length)return true;
@@ -161,24 +160,96 @@
     if((local.lvl|0)>(remote.lvl|0)||(local.xp|0)>(remote.xp|0))return true;
     return false;
   }
+  // A has player progress B lacks. Passive income alone is not progress.
+  // Buildings, a spend, tiles, drives, distance, kills, xp, badges, pipeline
+  // unlocks, skills, fewer troops at home, or more wounded all count.
+  function realAhead(a,b){
+    if(!a||!b)return false;
+    if(missingCamps(a,b).length)return true;
+    if(spentLess(a,b))return true;
+    if(!monoDominates(b,a))return true;
+    const ta=a.troops||{},tb=b.troops||{};
+    if((ta.home|0)<(tb.home|0))return true;
+    if((ta.wounded|0)>(tb.wounded|0))return true;
+    return false;
+  }
+  // First contact with THIS device's own save document. The acknowledged
+  // revision is the revision the server holds. A larger local number is an
+  // unconfirmed send, not a reason to wait forever. Two copies that each have
+  // progress the other lacks are not written and not adopted.
   function armHandoff(local,remote,remoteRev){
     if(!local||local._handoff===1)return local;
     local._handoff=1;
-    const same=remote&&progressEqual(local,remote);
-    if(remote&&same){
-      local._ackedRev=remoteRev|0;
-      local._userBase=local._userEdit|0;
+    const rr=remoteRev|0,lr=local._rev|0;
+    if(!remote){local._ackedRev=lr;return local;}
+    if(progressEqual(local,remote)){local._ackedRev=rr;local._userBase=local._userEdit|0;return local;}
+    if(rr>lr){
+      local._ackedRev=lr;
+      if(hasUnsentProgress(local,remote))local._userEdit=(local._userBase|0)+1;
       return local;
     }
-    local._ackedRev=local._rev|0;
-    if(remote&&!same&&(remoteRev|0)>(local._rev|0)&&hasUnsentProgress(local,remote))local._userEdit=(local._userBase|0)+1;
+    local._ackedRev=rr;
+    const lA=realAhead(local,remote),rA=realAhead(remote,local);
+    if(lA&&rA){local._armHold=rr;local._userEdit=(local._userBase|0)+1;return local;}
+    if(lA||!rA)local._userEdit=(local._userBase|0)+1;
+    else local._userBase=local._userEdit|0;
     return local;
   }
+  // A linked device's document. Its revision counter is never compared with
+  // this device's counter. Adopt only real progress this copy lacks, and only
+  // when this device has no unsent edit of its own.
+  function linkedDecide(local,remote,remoteRev,opt){
+    opt=opt||{};
+    const ru=String(opt.remoteUid||''),me=String(opt.myUid||'');
+    remoteRev=remoteRev|0;
+    if(!local||!remote||remote.wiped||!remote.name)return {action:'skip',why:'no-remote'};
+    const seen=local._seen&&local._seen[ru];
+    if(seen!=null&&remoteRev<=(seen|0))return {action:'skip',why:'seen'};
+    if(progressEqual(local,remote))return {action:'seen',rev:remoteRev,why:'equal'};
+    const rA=realAhead(remote,local);
+    if(!rA)return {action:'seen',rev:remoteRev,why:'remote-not-ahead'};
+    const reason='Do not switch yet. Your other device has different progress. Neither copy was overwritten.';
+    if(userDirty(local)||local._armHold!=null)return {action:'hold',why:'linked-dirty',reason:reason};
+    const lA=realAhead(local,remote);
+    const acked=local._ackedRev|0;
+    const theySawMine=acked>0&&((remote._seen&&remote._seen[me])|0)>=acked;
+    if(lA&&!theySawMine)return {action:'hold',why:'linked-both',reason:reason};
+    return {action:'adopt',rev:remoteRev,why:lA?'linked-newer':'linked-ahead'};
+  }
+  // Full troop state. Empty containers and seen-cursors are omitted. Locations, routes, and completion times stay.
+  function troopState(t){
+    t=t||{};
+    const away={};
+    Object.keys(t.away||{}).sort().forEach(function(k){const n=t.away[k]|0;if(n)away[k]=n;});
+    const queue=(t.queue||[]).filter(Boolean).map(function(q){return {n:q.n|0,end:q.end|0};}).sort(function(a,b){return a.end-b.end||a.n-b.n;});
+    const station={};
+    Object.keys(t.stationed||{}).sort().forEach(function(k){const s=t.stationed[k]||{},n=s.n|0;if(n)station[k]={n:n,at:s.at|0,from:s.from||''};});
+    const back=(t.returning||[]).filter(Boolean).map(function(r){return {n:r.n|0,at:r.at|0,from:r.from||'',why:r.why||''};}).sort(function(a,b){return a.at-b.at||(a.from<b.from?-1:a.from>b.from?1:0);});
+    const healing=(t.healing||[]).filter(Boolean).map(function(q){return {n:q.n|0,end:q.end|0};}).sort(function(a,b){return a.end-b.end||a.n-b.n;});
+    const esc={};
+    Object.keys(t.esc25||{}).sort().forEach(function(k){const e=t.esc25[k]||{};if(!(e.n|0)&&!e.to&&!e.from)return;esc[k]={n:e.n|0,to:e.to||'',from:e.from||'',end:e.end|0,done:e.done?1:0};});
+    const recalled=Object.keys(t.recalled||{}).filter(function(k){return t.recalled[k];}).sort();
+    const state={home:t.home|0};
+    if(Object.keys(away).length)state.away=away;
+    if(queue.length)state.queue=queue;
+    if(Object.keys(station).length)state.station=station;
+    if(back.length)state.back=back;
+    if(healing.length)state.healing=healing;
+    if(Object.keys(esc).length)state.esc=esc;
+    if(t.wounded|0)state.wounded=t.wounded|0;
+    if(recalled.length)state.recalled=recalled;
+  const hf=t.healFree;
+  // A day stamp with nothing used is still a full allowance. hospitalTick writes that stamp while idle.
+  if(hf&&(hf.n|0))state.healFree={day:String(hf.day||''),n:hf.n|0};
+    return state;
+  }
+  function troopStatesEqual(a,b){return JSON.stringify(troopState(a&&a.troops))===JSON.stringify(troopState(b&&b.troops));}
+  function classSig(c){c=c||{};const o={};if(c.id)o.id=String(c.id);if(c.next)o.next=String(c.next);if(c.nextT)o.nextT=c.nextT|0;return Object.keys(o).length?o:null;}
   function sig(o){
     return JSON.stringify(stable({
       lvl:(o&&o.lvl)||1,xp:(o&&o.xp)||0,sp:(o&&o.sp)||0,skills:(o&&o.skills)||{},
       badges:(o&&o.badges)||{},pipes:(o&&o.pipeUnlock26)||{},meters:meters(o),kills:kills(o),
-      tiles:(o&&o.tiles)||{},res:normRes(o&&o.res),troops:(o&&o.troops)||null,
+      tiles:(o&&o.tiles)||{},res:normRes(o&&o.res),troops:troopState(o&&o.troops),cls:classSig(o&&o.cls),
       drives:(o&&o.dr26||[]).map(driveKey).filter(Boolean).sort(),
       claim:(o&&o.claimDay)||null,paid:emptyObj(o&&o.marchPaid)?null:o.marchPaid,done:emptyObj(o&&o.marchDone)?null:o.marchDone,
       hp:(o&&o.hp)||0,sh:(o&&o.stronghold)||null,
@@ -395,9 +466,9 @@
     if(!s.snap){s.snap=cur;return false;}
     const rd=resDelta(s.snap.res,cur.res);
     const td=tileDiff(s.snap.tiles,cur.tiles);
-    const troopChanged=JSON.stringify(s.snap.troops)!==JSON.stringify(cur.troops);
+    const troopChanged=JSON.stringify(troopState(s.snap&&s.snap.troops))!==JSON.stringify(troopState(cur.troops));
     const progChanged=JSON.stringify(s.snap.prog)!==JSON.stringify(cur.prog);
-    if(!rd&&!td&&!troopChanged&&!progChanged)return false;
+    if(!rd&&!td&&!troopChanged&&!progChanged){if(JSON.stringify(s.snap.troops)!==JSON.stringify(cur.troops))s.snap.troops=cur.troops;return false;}
     const n=(s.clock[uid]||0)+1;s.clock[uid]=n;
     if(rd)s.ops.push({id:uid+':'+n+':res',uid,n,k:'res',d:rd,t:now});
     if(td)s.ops.push({id:uid+':'+n+':tiles',uid,n,k:'tiles',add:td.add,del:td.del,t:now});
@@ -522,9 +593,14 @@
     if(!remote||remote.wiped||!remote.name)return {upload:false,reason:'A newer cloud save is present. This device was not overwritten.'};
     const remoteHigher=(remoteRev||0)>=(local._rev||0);
     const hi=remoteHigher?remote:local,lo=remoteHigher?local:remote;
-    const loWork=unseenKind(lo,hi,'res')||unseenKind(lo,hi,'troops');
-    const hiWork=unseenKind(hi,lo,'res')||unseenKind(hi,lo,'troops');
-    if(loWork&&hiWork){
+    const troopsDiffer=!troopStatesEqual(lo,hi)||JSON.stringify(classSig(lo&&lo.cls))!==JSON.stringify(classSig(hi&&hi.cls));
+    const loRes=unseenKind(lo,hi,'res'),hiRes=unseenKind(hi,lo,'res');
+    const loTroop=unseenKind(lo,hi,'troops'),hiTroop=unseenKind(hi,lo,'troops');
+    const loWork=loRes||(troopsDiffer&&loTroop);
+    const hiWork=hiRes||(troopsDiffer&&hiTroop);
+    // Matching totals are not enough. A different place or time is still a conflict.
+    // If the clocks already absorbed the journal, uploading the higher copy would drop the other state.
+    if((loWork&&hiWork)||(troopsDiffer&&!loTroop&&!hiTroop&&!loRes&&!hiRes)){
       return {upload:false,held:clone(remote),reason:'Both devices changed this save. Neither copy was overwritten.'};
     }
     const body=clone((loWork&&!hiWork)?lo:hi);
@@ -532,9 +608,86 @@
     body._rev=Math.max(local._rev||0,remoteRev||0);
     return {upload:true,profile:body,rev:body._rev};
   }
-  // One device plays at a time. The tab that last saved owns passive ticks.
-  // A larger revision is not the winner. A stale tab adopts. A real unsent
-  // edit is kept and is not overwritten, and it is not written over a newer save.
+  async function runCloudHandoff(local,io){
+    io=io||{};
+    let loaded=null;
+    try{loaded=await io.load();}
+    catch(e){
+      const blob=((e&&e.code)||'')+' '+((e&&e.message)||'');
+      return {local:local,report:cloudFailureText(e),wrote:false,adopt:false,rev:local._rev||0,quota:/quota|resource-exhausted|429/i.test(blob),why:'load-error',code:((String((e&&(e.code||e.name))||'unknown').trim().match(/^[A-Za-z0-9_-]+/)||['unknown'])[0]).slice(0,40),readFail:classifyTypeError(e)};
+    }
+    if(io.arm)armHandoff(local,loaded&&loaded.profile,loaded&&loaded.rev||0);
+    if(local&&local._handoff===1)return runArmedHandoff(local,loaded,io);
+    let profile=clone(local),rev=local._rev||0;
+    if(loaded&&(loaded.rev||0)>rev){
+      const plan=uploadPlan(local,loaded.profile,loaded.rev||0);
+      if(!plan.upload)return {local:local,report:plan.reason,wrote:false,rev:rev,quota:false,held:plan.held||null,heldRev:loaded.rev||0,why:'held',serverRev:loaded.rev||0};
+      profile=plan.profile;rev=plan.rev;
+    }
+    // The server already has this revision and the same progress. Another
+    // click must not pretend the copy never arrived, and must not burn a new number.
+    if(loaded&&(loaded.rev||0)===rev&&gameEqual(local,loaded.profile)){
+      return {local:local,report:'',wrote:false,already:true,rev:rev,savedAt:(loaded.profile&&loaded.profile._savedAt)||0,quota:false,why:'already',serverRev:rev};
+    }
+    const next=rev+1,savedAt=io.now?io.now():Date.now();
+    const out=clone(profile);out._rev=next;out._savedAt=savedAt;
+    const blocked=buildingBlock(local,profile,loaded);
+    if(blocked)return blocked;
+    try{await io.write({profile:out,rev:next,savedAt:savedAt,baseRev:loaded?loaded.rev||0:0,v:2});}
+    catch(e){
+      const blob=((e&&e.code)||'')+' '+((e&&e.message)||'');
+      const heldRev=loaded&&(loaded.rev||0)=== (local._rev||0)?(local._rev||0):0;
+      const quota=/quota|resource-exhausted|429/i.test(blob);
+      const why=quota?'The server said quota exceeded.':(/unavailable|deadline-exceeded|aborted|cancelled/i.test(blob)?'The server did not answer.':'This send did not go through.');
+      const report=heldRev?('Do not switch yet. Cloud save '+heldRev+' is on the server. '+why+' The latest change is still on this device.'):cloudFailureText(e);
+      return {local:local,report:report,wrote:false,rev:local._rev||0,confirmedRev:heldRev,quota:quota,why:heldRev?'write-error-same-rev':'write-error',code:((String((e&&(e.code||e.name))||'unknown').trim().match(/^[A-Za-z0-9_-]+/)||['unknown'])[0]).slice(0,40),serverRev:loaded?(loaded.rev||0):null};
+    }
+    return {local:out,report:'',wrote:true,rev:next,quota:false,why:'wrote',serverRev:loaded?(loaded.rev||0):null};
+  }
+
+  function sameIdSet(a,b){
+    const A=Object.keys(a||{}),B=Object.keys(b||{});
+    if(A.length!==B.length)return false;
+    const s={};for(const k of A)s[k]=1;
+    return B.every(function(k){return s[k];});
+  }
+  function changeKind(profile,other){
+    const ops=unseen(profile&&profile.sync26&&profile.sync26.ops,clockOf(other));
+    const res=ops.some(function(op){return op&&op.k==='res';});
+    const troops=ops.some(function(op){return op&&op.k==='troops';});
+    return res&&troops?'res+troops':res?'res':troops?'troops':'none';
+  }
+  // Read-only label for the conflict panel. Fixed words and revision numbers only.
+  function conflictMark(local,remote,remoteRev,own){
+    const kind=/^(none|res|troops|res\+troops)$/;
+    const a=changeKind(local,remote),b=changeKind(remote,local);
+    if(!kind.test(a)||!kind.test(b))return '';
+    const peer=own?'own':'linked';
+    const progress=gameEqual(local,remote)?'same':'differs';
+    const troops=troopStatesEqual(local,remote)?'same':'differs';
+    const tiles=sameIdSet(local&&local.tiles,remote&&remote.tiles)?'same':'differs';
+    const rev=Math.max(0,Number(remoteRev)||0)|0;
+    const localRev=Math.max(0,Number(local&&local._rev)||0)|0;
+    return 'conflict peer='+peer+' peerrev='+rev+' local='+localRev+' this='+a+' other='+b+' progress='+progress+' troops='+troops+' tiles='+tiles;
+  }
+  function classifyTypeError(e){
+    if(!e||e.code||e.name!=='TypeError')return '';
+    const m=String(e.message||'');
+    const kind=m==='Failed to fetch'?'failed-to-fetch':(/not iterable/.test(m)?'not-iterable':(/not a function/.test(m)?'not-a-function':(/Cannot read properties/.test(m)?'property':'other')));
+    const n=typeof window!=='undefined'&&window.__dddLoad||{};
+    const ok={function:1,undefined:1,object:1,string:1,number:1,boolean:1,symbol:1,bigint:1,other:1};
+    const pick=v=>ok[v]?v:'other';
+    const steps={'before-getDoc':1,'before-exists':1,'before-data':1};
+    const step=steps[n.step]?n.step:'before-getDoc';
+    const bases={array:1,missing:1};
+    const base=bases[n.base]?n.base:pick(n.base);
+    return 'class='+kind+' step='+step+' collection='+pick(n.collection)+' doc='+pick(n.doc)+' getDoc='+pick(n.getDoc)+' base='+base;
+  }
+  function readFailText(){
+    const s=typeof CS!=='undefined'&&CS&&CS.readFail||'';
+    return /^class=(failed-to-fetch|not-iterable|not-a-function|property|other) step=(before-getDoc|before-exists|before-data) collection=(function|undefined|object|string|number|boolean|symbol|bigint|other) doc=(function|undefined|object|string|number|boolean|symbol|bigint|other) getDoc=(function|undefined|object|string|number|boolean|symbol|bigint|other) base=(array|missing|function|undefined|object|string|number|boolean|symbol|bigint|other)$/.test(s)?' readfail '+s:'';
+  }
+
   function handoffDecide(local,remote,remoteRev,opt){
     opt=opt||{};
     remoteRev=remoteRev|0;
@@ -542,9 +695,8 @@
       const plan=uploadPlan(local,remote,remoteRev);
       return {action:plan.upload?'upload':'hold',legacy:true,upload:plan.upload,profile:plan.profile||local,held:plan.held||null,reason:plan.reason||'',rev:plan.rev||0};
     }
-    if(!remote||remote.wiped||!remote.name){
-      return {action:'upload',profile:clone(local),why:'first'};
-    }
+    if(!remote||remote.wiped||!remote.name)return {action:'upload',profile:clone(local),why:'first'};
+    if(local._armHold!=null)return {action:'hold',profile:local,held:clone(remote),reason:'Do not switch yet. This device and the cloud copy each have progress the other lacks. Neither copy was overwritten.',why:'arm-both'};
     const acked=local._ackedRev|0;
     const dirty=userDirty(local);
     const owner=!!opt.tab&&opt.tab===local._tab;
@@ -555,17 +707,21 @@
       if(localHp>remoteHp&&owner&&!opt.background)return {action:'keep',profile:local,why:'hp-regen'};
       return {action:'already',profile:local,why:'already'};
     }
-    if(remoteRev<acked){
-      return {action:'hold',profile:local,held:clone(remote),reason:'Do not switch yet. Cloud save '+remoteRev+' is on the server. The latest change is still on this device.',why:'server-behind'};
-    }
+    if(remoteRev<acked)return {action:'hold',profile:local,held:clone(remote),reason:'Do not switch yet. Cloud save '+remoteRev+' is on the server. The latest change is still on this device.',why:'server-behind'};
     if(remoteRev>acked&&!dirty){
       const adopted=clone(remote);
       adopted._handoff=1;adopted._ackedRev=remoteRev;adopted._userEdit=local._userEdit|0;adopted._userBase=local._userEdit|0;adopted._tab=remote._tab||local._tab||'';adopted._rev=remoteRev;
       return {action:'adopt',profile:adopted,rev:remoteRev,why:'adopt'};
     }
     if(remoteRev>acked&&dirty){
-      // The other tab moved the revision. Take this device's real edit when the
-      // server copy has no progress this device lacks. Two real edits still wait.
+      // Map drift on an open tab (tiles, distance, xp) must not block the other
+      // device's saved building or spend, and must not be written back over it.
+      const passive=!missingCamps(local,remote).length&&!spentLess(local,remote)&&((local.troops&&local.troops.home)|0)>=((remote.troops&&remote.troops.home)|0)&&((local.troops&&local.troops.wounded)|0)<=((remote.troops&&remote.troops.wounded)|0);
+      if(passive&&realAhead(remote,local)){
+        const adopted=clone(remote);
+        adopted._handoff=1;adopted._ackedRev=remoteRev;adopted._userEdit=local._userEdit|0;adopted._userBase=local._userEdit|0;adopted._tab=remote._tab||local._tab||'';adopted._rev=remoteRev;
+        return {action:'adopt',profile:adopted,rev:remoteRev,why:'adopt-passive'};
+      }
       if(aheadProgress(local,remote)&&!aheadProgress(remote,local))return {action:'upload',profile:clone(local),why:'takeover'};
       return {action:'hold',profile:local,held:clone(remote),reason:'Both devices changed this save. Neither copy was overwritten.',why:'dirty-behind'};
     }
@@ -586,43 +742,7 @@
     const droppedLocal=missingCamps(local,chosen);
     const droppedServer=loaded&&missingCamps(loaded.profile,chosen);
     if(!droppedLocal.length&&!(droppedServer&&droppedServer.length))return null;
-    return {local:local,report:'Both devices changed this save. Neither copy was overwritten.',wrote:false,rev:local._rev||0,quota:false,held:loaded?clone(loaded.profile):null,heldRev:loaded&&loaded.rev||0,why:'building',serverRev:loaded?loaded.rev||0:null};
-  }
-  async function runCloudHandoff(local,io){
-    io=io||{};
-    let loaded=null;
-    try{loaded=await io.load();}
-    catch(e){
-      const blob=((e&&e.code)||'')+' '+((e&&e.message)||'');
-      return {local:local,report:cloudFailureText(e),wrote:false,adopt:false,rev:local._rev||0,quota:/quota|resource-exhausted|429/i.test(blob),why:'load-error',code:String((e&&(e.code||e.name))||'unknown').slice(0,40)};
-    }
-    if(io.arm)armHandoff(local,loaded&&loaded.profile,loaded&&loaded.rev||0);
-    if(local&&local._handoff===1)return runArmedHandoff(local,loaded,io);
-    let profile=clone(local),rev=local._rev||0;
-    if(loaded&&(loaded.rev||0)>rev){
-      const plan=uploadPlan(local,loaded.profile,loaded.rev||0);
-      if(!plan.upload)return {local:local,report:plan.reason,wrote:false,adopt:false,rev:rev,quota:false,held:plan.held||null,heldRev:loaded.rev||0};
-      profile=plan.profile;rev=plan.rev;
-    }
-    // The server already has this revision and the same progress. Another
-    // click must not pretend the copy never arrived, and must not burn a new number.
-    if(loaded&&(loaded.rev||0)===rev&&gameEqual(local,loaded.profile)){
-      return {local:local,report:'',wrote:false,adopt:false,already:true,rev:rev,savedAt:(loaded.profile&&loaded.profile._savedAt)||0,quota:false,why:'already',serverRev:rev};
-    }
-    const blocked=buildingBlock(local,profile,loaded);
-    if(blocked)return blocked;
-    const next=rev+1,savedAt=io.now?io.now():Date.now();
-    const out=clone(profile);out._rev=next;out._savedAt=savedAt;
-    try{await io.write({profile:out,rev:next,savedAt:savedAt,baseRev:loaded?loaded.rev||0:0,v:2});}
-    catch(e){
-      const blob=((e&&e.code)||'')+' '+((e&&e.message)||'');
-      const heldRev=loaded&&(loaded.rev||0)=== (local._rev||0)?(local._rev||0):0;
-      const quota=/quota|resource-exhausted|429/i.test(blob);
-      const why=quota?'The server said quota exceeded.':(/unavailable|deadline-exceeded|aborted|cancelled/i.test(blob)?'The server did not answer.':'This send did not go through.');
-      const report=heldRev?('Do not switch yet. Cloud save '+heldRev+' is on the server. '+why+' The latest change is still on this device.'):cloudFailureText(e);
-      return {local:local,report:report,wrote:false,adopt:false,rev:local._rev||0,confirmedRev:heldRev,quota:quota,why:heldRev?'write-error-same-rev':'write-error',code:String((e&&(e.code||e.name))||'unknown').slice(0,40),serverRev:loaded?(loaded.rev||0):0};
-    }
-    return {local:out,report:'',wrote:true,adopt:false,rev:next,quota:false,why:'wrote',serverRev:loaded?(loaded.rev||0):0};
+    return {local:local,report:'Both devices changed this save. Neither copy was overwritten.',wrote:false,adopt:false,rev:local._rev||0,quota:false,held:loaded?clone(loaded.profile):null,heldRev:loaded&&loaded.rev||0,why:'building',serverRev:loaded?loaded.rev||0:null};
   }
   async function runArmedHandoff(local,loaded,io){
     const remote=loaded&&loaded.profile;
@@ -631,9 +751,7 @@
     if(decision.action==='already'||decision.why==='hp-regen'||decision.why==='background'){
       return {local:decision.profile||local,report:'',wrote:false,adopt:false,already:decision.action==='already',rev:remoteRev||local._rev||0,savedAt:(remote&&remote._savedAt)||0,quota:false,why:decision.why,serverRev:remote?remoteRev:null};
     }
-    if(decision.action==='adopt'){
-      return {local:decision.profile,report:'',wrote:false,adopt:true,rev:decision.rev||remoteRev,quota:false,why:decision.why,serverRev:remoteRev};
-    }
+    if(decision.action==='adopt')return {local:decision.profile,report:'',wrote:false,adopt:true,rev:decision.rev||remoteRev,quota:false,why:decision.why,serverRev:remoteRev};
     if(decision.action!=='upload'){
       return {local:decision.profile||local,report:decision.reason||'Do not switch yet. The latest change is still on this device.',wrote:false,adopt:false,rev:local._rev||0,quota:false,held:decision.held||null,heldRev:remoteRev,why:decision.why||'hold',serverRev:remote?remoteRev:null};
     }
@@ -651,14 +769,15 @@
       if(conflictWrite(e)&&!io._retried&&io.load){
         let again=null;
         try{again=await io.load();}
-        catch(e2){return {local:local,report:cloudFailureText(e2),wrote:false,adopt:false,rev:local._rev||0,quota:quota,why:'load-error',serverRev:null};}
+        catch(e2){return {local:local,report:cloudFailureText(e2),wrote:false,adopt:false,rev:local._rev||0,quota:quota,why:'load-error',readFail:classifyTypeError(e2),serverRev:null};}
         return runArmedHandoff(local,again,Object.assign({},io,{_retried:true}));
       }
-      return {local:local,report:cloudFailureText(e),wrote:false,adopt:false,rev:local._rev||0,quota:quota,why:'write-error',code:String((e&&(e.code||e.name))||'unknown').slice(0,40),serverRev:loaded?remoteRev:null};
+      return {local:local,report:cloudFailureText(e),wrote:false,adopt:false,rev:local._rev||0,quota:quota,why:'write-error',code:((String((e&&(e.code||e.name))||'unknown').trim().match(/^[A-Za-z0-9_-]+/)||['unknown'])[0]).slice(0,40),serverRev:loaded?remoteRev:null};
     }
     return {local:out,report:'',wrote:true,adopt:false,rev:next,quota:false,why:'wrote',serverRev:loaded?remoteRev:null,baseRev:base};
   }
-  const api={clone,cmpClock,clockOf,merge,gameEqual,recordChange,snapOf,shouldUpload,hexLine,hexDist,crossedHexes,planClaimRoute,explainClaim,aliasMayResolve,driveKey,unionDrives,landAhead,decide,profileFromSaveDoc,overlayResGrant,preferLand,cloudFailureText,saveStatusLine,syncAllowed,uploadPlan,runCloudHandoff,handoffDecide,armHandoff,notePlay,progressEqual,missingCamps,SYNC_HOLD_MS};
+
+  const api={clone,cmpClock,clockOf,merge,gameEqual,recordChange,snapOf,shouldUpload,hexLine,hexDist,crossedHexes,planClaimRoute,explainClaim,aliasMayResolve,driveKey,unionDrives,landAhead,decide,profileFromSaveDoc,overlayResGrant,preferLand,cloudFailureText,saveStatusLine,syncAllowed,uploadPlan,runCloudHandoff,handoffDecide,armHandoff,notePlay,progressEqual,missingCamps,realAhead,linkedDecide,conflictMark,classifyTypeError,readFailText,SYNC_HOLD_MS};
   root.SYNC26=api;
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

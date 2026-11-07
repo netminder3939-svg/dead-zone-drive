@@ -47,10 +47,8 @@ try{const _cs26e=cloudSave;cloudSave=async function(force){
 };}catch(e){console.warn('v26e cloudSave',e);}
 
 try{if(typeof newestSave==='function'){newestSave=async function(uids){let best=null;for(const u of uids){try{const d=await NET.loadProfile(u);if(!d||!d.data)continue;let o;try{o=JSON.parse(d.data);}catch(e){continue;}
-  if(typeof profileValid==='function'&&!profileValid(o))continue;
-  const rev=(d.rev||o._rev||0)|0,t=d.serverT&&d.serverT.toMillis?d.serverT.toMillis():(d.savedAt||o._savedAt||d.t||0);
-  const cand=Object.assign({},d,{uid:u,t:t,rev:rev,o:o,sc:typeof score26==='function'?score26(o):0});
-  if(!best||cand.rev>best.rev||(cand.rev===best.rev&&cand.t>best.t))best=cand;}catch(e){}}return best;};}}catch(e){console.warn('v26e newestSave',e);}
+  const t=d.serverT&&d.serverT.toMillis?d.serverT.toMillis():(d.t||d.savedAt||0);const sc=score26(o);
+  if(!best||sc>best.sc||(sc===best.sc&&t>best.t))best=Object.assign({},d,{uid:u,t:t,sc:sc,o:o});}catch(e){}}return best;};}}catch(e){console.warn('v26e newestSave',e);}
 
 try{if(typeof acctSync==='function'){acctSync=async function(){if(!P.acct||NET.mode!=='firebase'||sessionStorage.getItem('wl_acct24_sync'))return;sessionStorage.setItem('wl_acct24_sync','1');
   try{const a=await acctGet(P.acct),me=NET.uid;if(!a)return;if(!(a.uids||[]).includes(me)){P.acct=null;P.alias=[];save();return;}P.alias=a.uids.filter(u=>u!==me);save();

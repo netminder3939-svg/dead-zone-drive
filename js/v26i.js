@@ -1,6 +1,4 @@
-// v26i (TEST · ddd-v26-12b) Whole-profile handoff. Not deployed.
-// A stale tab adopts the acknowledged save. It does not write spent resources back.
-// The tab that saved owns later passive ticks. A higher revision is not the winner.
+// v26i (TEST · ddd-v26-11) Two separate fixes. Not deployed.
 // 1) Phone ↔ computer saves. v26e's "higher score wins" and one-shot acctSync let a stale
 //    desktop upload, or refuse a drive that did not move the score by 100,000. Reports were
 //    kept by list length, so one restored summary replaced a real recap of the same length.
@@ -41,6 +39,31 @@ function tabId(){try{let s=sessionStorage.getItem('wl_tab');if(!s){s=Math.random
 try{const _pay=pay;pay=function(c){const r=_pay.apply(this,arguments);try{SYNC26.notePlay(P);}catch(e){}return r;};}catch(e){}
 try{const _claim=claimTile;claimTile=function(id){const r=_claim.apply(this,arguments);try{SYNC26.notePlay(P);}catch(e){}return r;};}catch(e){}
 function snap(){try{return JSON.parse(JSON.stringify(P));}catch(e){return {};}}
+function restEqual(a,b){
+  try{const x=JSON.parse(JSON.stringify(a||{})),y=JSON.parse(JSON.stringify(b||{}));x.hp=0;y.hp=0;return SYNC26.gameEqual(x,y);}
+  catch(e){return false;}
+}
+// Confirmed health plus the recovery the open game would have added since that save.
+// An old or missing stamp adds nothing, so a fresh wound stays at the saved number.
+function confirmedHp(base,savedAt){
+  base=base|0;let max=base,regen=2;
+  try{if(typeof stats==='function')max=Math.max(base,stats().hp|0);}catch(e){}
+  try{if(typeof skillFx==='function')regen+=(skillFx('regen')|0);}catch(e){}
+  const steps=savedAt>1e11?Math.max(0,Math.floor((Date.now()-savedAt)/10000)):0;
+  return Math.min(max,base+steps*regen);
+}
+function holdWound(serverRev){
+  if(typeof CS==='undefined')return;
+  const n=P._rev||0;
+  CS.report='Do not switch yet. Cloud save '+n+' is on the server. The latest change is still on this device.';
+  CS.status=CS.report;
+  CS.why='hp-lower local='+n+' server='+(serverRev==null?'':serverRev);
+}
+function markSafe(rev){
+  if(typeof CS==='undefined'||!(rev>0))return;
+  CS.report='Safe to switch. Cloud save '+rev+' is on the server.';
+  CS.status=CS.report;CS.last=Date.now();
+}
 function storedGen(){try{return +(localStorage.getItem('wl_sync_gen')||0);}catch(e){return memGen;}}
 
 const rawSet=localStorage.setItem.bind(localStorage);
@@ -91,78 +114,100 @@ try{
 
 let syncing=null;
 function needFirebase(){return typeof NET!=='undefined'&&NET.mode==='firebase'&&NET.loadProfile&&P&&(P.uid||P.acct);}
+function emailHost(){return location.hostname.indexOf('--')>=0||location.hostname==='localhost'||location.hostname==='127.0.0.1';}
 async function syncNow(){
+  if(emailHost()&&!window.__emailAuth)return;
   if(syncing)return syncing;
+  // Before the in-flight promise is stored. An early return inside that promise runs its cleanup before the store, and every later read joins a finished promise.
+  if(typeof NET!=='undefined'&&NET.mode==='firebase'&&!Array.isArray(NET.base))return;
   syncing=(async()=>{
     try{
-      if(Gref.cloudLogin&&Gref.cloudLogin.pending){Gref.sync26Ready=true;return;}
       if(!needFirebase()){Gref.sync26Ready=true;return;}
       if(Gref.syncHoldUntil&&Date.now()<Gref.syncHoldUntil){Gref.sync26Ready=true;return;}
       if(Gref.drive&&Gref.drive.on){Gref.sync26Ready=true;return;} // never swap saves out from under a live drive recap
       scrub();
       let uids=[myUid()];
-      try{const a=await acctGet(P.acct);if(a&&Array.isArray(a.uids))uids=[...new Set([myUid(),...a.uids])];}catch(e){}
-      let changed=false;
+      if(!window.__emailAuth){try{const a=await acctGet(P.acct);if(a&&Array.isArray(a.uids))uids=[...new Set([myUid(),...a.uids])];}catch(e){}}
+      let changed=false,linkedHold=null;
+      Gref._hpSkipUpload=false;
       for(const u of uids){
-        let d=null;try{d=await NET.loadProfile(u);}catch(e){if(u===myUid()){Gref.syncHoldUntil=Date.now()+SYNC26.SYNC_HOLD_MS;Gref.syncHoldQuota=/quota|resource-exhausted|429/i.test(((e&&e.code)||'')+' '+((e&&e.message)||''));if(typeof CS!=='undefined'){CS.report=SYNC26.cloudFailureText(e);CS.status=CS.report;CS.why='load-error '+String((e&&(e.code||e.name))||'unknown').slice(0,40);}Gref.sync26Ready=true;return;}continue;}
+        let d=null;try{d=await NET.loadProfile(u);}catch(e){if(u===myUid()){const blob=((e&&e.code)||'')+' '+((e&&e.message)||'');const quota=/quota|resource-exhausted|429/i.test(blob);Gref._holdQuota=quota;const wait=quota?SYNC26.SYNC_HOLD_MS:Math.min(60000,Gref._netBackoff||15000);if(!quota)Gref._netBackoff=Math.min(60000,(Gref._netBackoff||15000)*2);Gref.syncHoldUntil=Date.now()+wait;if(typeof CS!=='undefined'){const code=((String((e&&(e.code||e.name))||'unknown').trim().match(/^[A-Za-z0-9_-]+/)||['unknown'])[0]).slice(0,40);CS.report=SYNC26.cloudFailureText(e);CS.status=CS.report;CS.why='load-error code='+code+' local='+(P._rev||0)+' server=';const fail=SYNC26.classifyTypeError(e);if(fail)CS.readFail=fail;}Gref.sync26Ready=true;return;}continue;}
+        if(u===myUid()&&d){Gref._netBackoff=15000;Gref._holdQuota=false;}
         if(!d||d.data==null)continue;
         let o=SYNC26.profileFromSaveDoc(d);
-        if(o&&o.res&&!o.name&&!o.wiped&&(d.rev||0)>(P._rev||0))o=SYNC26.overlayResGrant(snap(),o.res,d.rev,d.savedAt);
+        if(u===myUid()&&o&&o.res&&!o.name&&!o.wiped&&(d.rev||0)>(P._rev||0))o=SYNC26.overlayResGrant(snap(),o.res,d.rev,d.savedAt);
         if(!o||o.wiped||!o.name)continue;
         o.uid=o.uid||u;
         scrub();
         const before=snap();
         if(u!==myUid()){
-          SYNC26.armHandoff(before,o,d.rev||0);
-          const linked=SYNC26.handoffDecide(before,o,d.rev||0,{tab:tabId(),background:true});
-          if(linked.action!=='adopt')continue;
-          const src=linked.profile,keepUid=P.uid,keepAcct=P.acct,keepAlias=P.alias;
-          ['res','troops','world','dr26','tiles','stats','badges','pipeUnlock26','sync26','stronghold','lvl','xp','sp','skills','contrib','marchDone','marchPaid','claimDay','hp','inv','equip','killed','quests','cards','cls'].forEach(function(k){if(src[k]!==undefined)P[k]=src[k];});
-          P._rev=linked.rev;P._ackedRev=linked.rev;P._handoff=1;P._userBase=P._userEdit|0;P.uid=keepUid;if(keepAcct)P.acct=keepAcct;if(keepAlias)P.alias=keepAlias;if(src._tab)P._tab=src._tab;
+          const peerRev=d.rev||0;
+          const ld=SYNC26.linkedDecide(before,o,peerRev,{remoteUid:u,myUid:myUid()});
+          if(ld.action==='skip')continue;
+          if(ld.action==='hold'){
+            linkedHold={uid:u,rev:peerRev,reason:ld.reason,why:ld.why};
+            P.sync26=P.sync26||{clock:{},ops:[],legacyAt:{}};P.sync26.heldLinked={uid:u,rev:peerRev,at:Date.now(),why:ld.why};
+            try{save();}catch(e){}
+            continue;
+          }
+          P._seen=Object.assign({},P._seen||{});P._seen[u]=peerRev;
+          if(ld.action==='adopt'){
+            ['res','troops','world','dr26','tiles','stats','badges','pipeUnlock26','sync26','stronghold','lvl','xp','sp','skills','contrib','marchDone','marchPaid','claimDay','hp','inv','equip','killed','quests','cards','cls'].forEach(function(k){if(o[k]!==undefined)P[k]=JSON.parse(JSON.stringify(o[k]));});
+            if(P.sync26)delete P.sync26.heldLinked;
+            P._userEdit=(P._userBase|0)+1;Gref.sync26Pending=true;
+            if(typeof CS!=='undefined'){CS.report='Loaded the progress from your other device. Saving it on this device…';CS.status=CS.report;CS.why=[ld.why,'peerrev='+peerRev,'local='+(P._rev||0)].join(' ');}
+          }
           try{save();}catch(e){}
-          if(typeof CS!=='undefined'){CS.report='Safe to switch. Cloud save '+linked.rev+' is on the server.';CS.status=CS.report;CS.last=Date.now();}
           continue;
         }
+        const savedAt=d.savedAt||o._savedAt||0;
         const result=await SYNC26.runCloudHandoff(before,{
           arm:true,tab:tabId(),background:document.visibilityState==='hidden'||!!Gref._saveBackground,
-          load:async function(){return {rev:d.rev||0,profile:o,savedAt:d.savedAt||0};},
+          load:async function(){return {rev:d.rev||0,profile:o,savedAt:savedAt};},
           write:async function(doc){const body={data:JSON.stringify(doc.profile),rev:doc.rev,savedAt:doc.savedAt,baseRev:doc.baseRev||0,name:doc.profile.name,lvl:doc.profile.lvl,v:doc.v||2,fe:doc.profile.fullEpoch||P.fullEpoch||0,me:doc.profile.mapEpoch||P.mapEpoch||0};if(P.acct)body.acct=String(P.acct).slice(0,24);await NET.saveProfile(myUid(),body);}
         });
-        if(result.quota){Gref.syncHoldUntil=Date.now()+SYNC26.SYNC_HOLD_MS;Gref.syncHoldQuota=true;}
-        ['_handoff','_ackedRev','_userEdit','_userBase','_tab'].forEach(function(k){if(result.local&&result.local[k]!==undefined)P[k]=result.local[k];});
-        if(typeof CS!=='undefined')CS.why=[result.why||'none','local='+(P._rev||0),'server='+(result.serverRev==null?'':result.serverRev)].join(' ');
-        if(result.why==='hp-regen'||result.why==='background')continue;
-        if(result.already){if(typeof CS!=='undefined'&&result.rev){CS.report='Safe to switch. Cloud save '+result.rev+' is on the server.';CS.status=CS.report;CS.last=Date.now();}continue;}
+        if(result.quota)Gref.syncHoldUntil=Date.now()+SYNC26.SYNC_HOLD_MS;
+        ['_handoff','_ackedRev','_userEdit','_userBase','_tab','_armHold','_seen'].forEach(function(k){if(result.local&&result.local[k]!==undefined)P[k]=result.local[k];});
+        if(typeof CS!=='undefined')CS.why=[result.why||'none',result.code?('code='+((String(result.code).trim().match(/^[A-Za-z0-9_-]+/)||[''])[0]).slice(0,40)):'','local='+(P._rev||0),'server='+(result.serverRev==null?'':result.serverRev)].filter(Boolean).join(' ');
+        if(result.readFail)CS.readFail=result.readFail;
+        if(result.why==='hp-regen'){Gref._hpSkipUpload=true;continue;}
+        if(result.why==='background')continue;
+        if(result.already){if(typeof CS!=='undefined'&&result.rev)markSafe(result.rev);continue;}
         if(result.adopt){
           const src=result.local,keepUid=P.uid,keepAcct=P.acct,keepAlias=P.alias;
           ['res','troops','world','dr26','tiles','stats','badges','pipeUnlock26','sync26','stronghold','lvl','xp','sp','skills','contrib','marchDone','marchPaid','claimDay','hp','inv','equip','killed','quests','cards','cls'].forEach(function(k){if(src[k]!==undefined)P[k]=src[k];});
+          P.hp=confirmedHp(src.hp|0,savedAt);
           P._rev=result.rev;P._ackedRev=result.rev;P._handoff=1;P._userBase=P._userEdit|0;P.uid=keepUid;if(keepAcct)P.acct=keepAcct;if(keepAlias)P.alias=keepAlias;if(src._tab)P._tab=src._tab;
           changed=false;try{save();}catch(e){}
-          if(typeof CS!=='undefined'){CS.report='Safe to switch. Cloud save '+result.rev+' is on the server.';CS.status=CS.report;CS.last=Date.now();}
+          markSafe(result.rev);
           continue;
         }
         if(result.wrote){
           const src=result.local,keepUid=P.uid,keepAcct=P.acct,keepAlias=P.alias;
           ['res','troops','world','dr26','tiles','stats','badges','pipeUnlock26','sync26','stronghold','lvl','xp','sp','skills','contrib','marchDone','marchPaid','claimDay','hp','inv','equip','killed','quests','cards','cls'].forEach(function(k){if(src[k]!==undefined)P[k]=src[k];});
           P._rev=result.rev;P._savedAt=src._savedAt;P._ackedRev=result.rev;P._handoff=1;P._userBase=src._userBase|0;P.uid=keepUid;if(keepAcct)P.acct=keepAcct;if(keepAlias)P.alias=keepAlias;if(src._tab)P._tab=src._tab;
-          changed=false;try{save();}catch(e){}
-          if(typeof CS!=='undefined'){CS.report='Safe to switch. Cloud save '+result.rev+' is on the server.';CS.status=CS.report;CS.last=Date.now();}
+          changed=false;Gref._hpSkipUpload=false;try{save();}catch(e){}
+          markSafe(result.rev);
           continue;
         }
         if(result.held){P.sync26=P.sync26||{clock:{},ops:[],legacyAt:{}};P.sync26.heldRemote={rev:result.heldRev||0,at:Date.now(),profile:result.held};}
         if(result.report&&typeof CS!=='undefined'){CS.report=result.report;CS.status=result.report;}
         try{save();}catch(e){}
       }
+      Gref.linkedHold=linkedHold;
+      if(linkedHold&&typeof CS!=='undefined'){CS.report=linkedHold.reason;CS.status=CS.report;CS.why=[linkedHold.why,'peerrev='+linkedHold.rev,'local='+(P._rev||0)].join(' ');}
       Gref.sync26Ready=true;
+      if(typeof CS!=='undefined'&&CS.report==='Both devices changed this save. Neither copy was overwritten.'&&/troops=differs/.test(CS.why||''))return;
       if(changed){
         try{save();}catch(e){}
         try{if(typeof cloudSave==='function')await cloudSave(true);}catch(e){console.warn('v26i upload',e);}
+        try{if(typeof UI!=='undefined'&&UI.render)UI.render();}catch(e){}
         try{
           if(!sessionStorage.getItem('wl_sync26_reloaded')){sessionStorage.setItem('wl_sync26_reloaded','1');location.reload();return;}
         }catch(e){}
       }else{
         try{sessionStorage.removeItem('wl_sync26_reloaded');}catch(e){}
-        if(Gref.sync26Pending){Gref.sync26Pending=false;try{await cloudSave(true);}catch(e){}}
+        if(Gref.sync26Pending){Gref.sync26Pending=false;try{await cloudSave(true);}catch(e){}try{if(typeof UI!=='undefined'&&UI.render)UI.render();}catch(e){}}
       }
     }catch(e){console.warn('v26i sync',e);Gref.sync26Ready=true;}
     finally{syncing=null;}
@@ -219,13 +264,20 @@ try{
   const prevScore=typeof score26==='function'?score26:null;
   if(prevScore)score26=function(o){if(Gref._sync26force&&o===P)return prevScore(o)+1e12;return prevScore(o);};
   cloudSave=async function(force){
-    if(Gref.cloudLogin&&Gref.cloudLogin.pending)return;
+    if(G.playLocked)return;
+    if(emailHost()&&!window.__emailAuth)return;
     if(!Gref.sync26Ready){if(force&&typeof CS!=='undefined'){CS.report='Do not switch yet. This send has not been confirmed.';CS.status=CS.report;CS.why='not-ready';}Gref.sync26Pending=true;return;}
     if(!force&&Gref.syncHoldUntil&&Date.now()<Gref.syncHoldUntil)return;
-    if(force&&Gref.syncHoldUntil&&!Gref.syncHoldQuota){Gref.syncHoldUntil=0;if(typeof CS!=='undefined')CS.why='hold-cleared';}
     if(!SYNC26.shouldUpload(memGen,storedGen())){if(force&&typeof CS!=='undefined'){CS.report='Do not switch yet. This send has not been confirmed.';CS.status=CS.report;CS.why='gen-block';}return;}
+    if(force&&!Gref._holdQuota)Gref.syncHoldUntil=0;
+    const heldBefore=!!(Gref.syncHoldUntil&&Date.now()<Gref.syncHoldUntil);
     if(!syncing)await syncNow();
-    if(!force&&Gref.syncHoldUntil&&Date.now()<Gref.syncHoldUntil)return;
+    if(!force&&Gref._hpSkipUpload)return;
+    if(typeof CS!=='undefined'&&CS.report==='Both devices changed this save. Neither copy was overwritten.'&&/troops=differs/.test(CS.why||''))return;
+    if(Gref.syncHoldUntil&&Date.now()<Gref.syncHoldUntil){
+      if(heldBefore&&typeof CS!=='undefined'){const bit='hold-skip left='+Math.ceil((Gref.syncHoldUntil-Date.now())/1000);const prev=String(CS.why||'').replace(/ hold-skip left=\d+/g,'').trim();CS.why=(prev?prev+' ':'')+bit;}
+      return;
+    }
     if(!SYNC26.shouldUpload(memGen,storedGen())){if(force&&typeof CS!=='undefined'){CS.report='Do not switch yet. This send has not been confirmed.';CS.status=CS.report;CS.why='gen-block';}return;}
     Gref._sync26force=!!force;
     try{return await prevCS(!!force);}finally{Gref._sync26force=false;}
@@ -241,7 +293,7 @@ window.addEventListener('focus',onWake);
 window.addEventListener('pageshow',e=>{if(e.persisted)onWake();});
 setInterval(()=>{if(document.visibilityState==='visible')syncNow();},20000);
 if(!needFirebase())Gref.sync26Ready=true;
-else setTimeout(syncNow,300);
+else if(!emailHost())setTimeout(syncNow,300);
 
 // ---- claim marches (independent of the save merge) ----
 function realOwned(id){
