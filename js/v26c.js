@@ -117,7 +117,7 @@ function startHexFree26(id){try{if(typeof allyOwned==='function'&&allyOwned(id))
   const o=G.terr&&G.terr[id];if(o&&!o.released&&o.uid&&!isMe(o.uid)&&!o.ai)return false;}catch(e){}return true;}
 function pickStartHex26(){let id=hexAt(...G.pos).id;if(startHexFree26(id))return id;
   const [q,r]=idQR(id);for(let ring=1;ring<=6;ring++){for(const x of hexRing(q,r,ring)){if(hexDist(x.id,id)===ring&&startHexFree26(x.id))return x.id;}}return id;}
-function ensureStartSh26(){try{if(G.cloudLogin&&G.cloudLogin.pending)return;if(!P||!P.name||!G.pos)return;if(!gpsReady26())return;W();
+function ensureStartSh26(){try{if(!P||!P.name||!G.pos)return;if(!gpsReady26())return;W();
   const id=pickStartHex26();if(!P.tiles[id]){try{claimTile(id);}catch(e){}}
   const s=W().sh;
   if(s&&s.state!=='down'){ // already have one: if it was parked on the fallback, move it once to real GPS

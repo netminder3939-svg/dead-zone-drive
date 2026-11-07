@@ -170,7 +170,8 @@ function raidClaim(id){const r=G.raids[id];if(!r||!r.won||P.raidLoot[id])return;
 // ---------- boot ----------
 const NET=makeNet();
 async function boot(){
-  try{if(P.name){UI.hud();drawWorld();}}catch(e){} // v19: show the saved map/HUD at once instead of a blank screen while the network loads
+  try{if(window.auth12Prepare)window.auth12Prepare();}catch(e){}
+  try{if(P.name&&!G.playLocked){UI.hud();drawWorld();}}catch(e){} // v19: show the saved map/HUD at once instead of a blank screen while the network loads
   ensureQuests();P.uid=await NET.init(P);save();
   $('#mode').textContent=NET.mode==='local'?'● LOCAL DEMO (offline)':'● LIVE · team '+NET.team;
   NET.onMarkers&&NET.onMarkers(m=>{G.markers=m;drawMarkers();});W();NET.onExplored&&NET.onExplored(ids=>{ids.forEach(i=>G.allyExp.add(i));clearTimeout(G._fogT);G._fogT=setTimeout(()=>{drawWorld();drawLandmarks();spawnMonsters();},400);});NET.onTerritory(t=>{G.terr=Object.fromEntries(Object.entries(t).filter(([,v])=>v&&!v.released));drawWorld();UI.claimBtn();});

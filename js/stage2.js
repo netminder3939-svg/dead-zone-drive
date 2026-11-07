@@ -133,10 +133,10 @@ function opsClaim(key){const o=opsList().find(x=>x.key===key);P.opsClaimed=P.ops
 const CS={last:0,lastStr:'',status:'not saved yet'};
 function profileValid(o){return o&&typeof o==='object'&&typeof o.name==='string'&&o.name&&Number.isFinite(o.lvl)&&o.lvl>=1&&o.res&&typeof o.res==='object';}
 function profileClean(){const o=JSON.parse(JSON.stringify(P));delete o.pos;delete o.lat;delete o.lng;return o;}
-async function cloudSave(force){if(G.cloudLogin&&G.cloudLogin.pending)return;if(!NET.saveProfile||!P.name||window.__wiping)return;if((G.srvFullEpoch||0)>(P.fullEpoch||0)){if(typeof fullResetCheck==='function')fullResetCheck();return;} // v19: a phone still holding pre-wipe data wipes itself instead of just going quiet. v17 B4: never upload a pre-wipe save
+async function cloudSave(force){if(!NET.saveProfile||!P.name||window.__wiping)return;if((G.srvFullEpoch||0)>(P.fullEpoch||0)){if(typeof fullResetCheck==='function')fullResetCheck();return;} // v19: a phone still holding pre-wipe data wipes itself instead of just going quiet. v17 B4: never upload a pre-wipe save
   if(!force&&G.syncHoldUntil&&Date.now()<G.syncHoldUntil)return;
   const local=profileClean();if(!force&&JSON.stringify(local)===CS.lastStr)return;
-  if(force&&JSON.stringify(local)!==CS.lastStr){CS.report='Do not switch yet. This send has not been confirmed.';CS.status=CS.report;try{if(typeof UI!=='undefined'&&UI.render)UI.render();}catch(e){}}
+  if(force&&JSON.stringify(local)!==CS.lastStr){CS.report='Do not switch yet. This send has not been confirmed.';CS.status=CS.report;CS.why='pending';try{if(typeof UI!=='undefined'&&UI.render)UI.render();}catch(e){}}
   if(typeof SYNC26==='undefined'||!SYNC26.runCloudHandoff){CS.report='Cloud save did not go through. Your progress is still on this device.';CS.status=CS.report;return;}
   let _tab='tab';try{_tab=sessionStorage.getItem('wl_tab');if(!_tab){_tab=Math.random().toString(36).slice(2,10);sessionStorage.setItem('wl_tab',_tab);}}catch(e){}
   const result=await SYNC26.runCloudHandoff(local,{
@@ -144,9 +144,10 @@ async function cloudSave(force){if(G.cloudLogin&&G.cloudLogin.pending)return;if(
     load:async function(){const c=await NET.loadProfile(P.uid);if(!c)return null;return {rev:c.rev||0,profile:SYNC26.profileFromSaveDoc(c)};},
     write:async function(doc){const body={data:JSON.stringify(doc.profile),rev:doc.rev,savedAt:doc.savedAt,baseRev:doc.baseRev||0,name:doc.profile.name,lvl:doc.profile.lvl,v:doc.v||2,fe:doc.profile.fullEpoch||P.fullEpoch||0,me:doc.profile.mapEpoch||P.mapEpoch||0};if(P.acct)body.acct=String(P.acct).slice(0,24);await NET.saveProfile(P.uid,body);}
   });
-  if(result.quota){G.syncHoldUntil=Date.now()+SYNC26.SYNC_HOLD_MS;G.syncHoldQuota=true;}
-  ['_handoff','_ackedRev','_userEdit','_userBase','_tab'].forEach(function(k){if(result.local&&result.local[k]!==undefined)P[k]=result.local[k];});
-  CS.why=[result.why||'none',result.code||'', 'local='+(P._rev||0), 'server='+(result.serverRev==null?'':result.serverRev)].filter(Boolean).join(' ');
+  if(result.quota)G.syncHoldUntil=Date.now()+SYNC26.SYNC_HOLD_MS;
+  ['_handoff','_ackedRev','_userEdit','_userBase','_tab','_armHold','_seen'].forEach(function(k){if(result.local&&result.local[k]!==undefined)P[k]=result.local[k];});
+  CS.why=[result.why||'none',result.code?('code='+((String(result.code).trim().match(/^[A-Za-z0-9_-]+/)||[''])[0]).slice(0,40)):'','local='+(P._rev||0),'server='+(result.serverRev==null?'':result.serverRev)].filter(Boolean).join(' ');
+  if(result.readFail)CS.readFail=result.readFail;
   if(result.why==='hp-regen'||result.why==='background')return;
   if(result.already){const n=result.rev||P._rev||0;CS.report='Safe to switch. Cloud save '+n+' is on the server.';CS.status=CS.report;CS.last=result.savedAt||Date.now();CS.lastStr=JSON.stringify(profileClean());return;}
   if(result.adopt){
@@ -193,9 +194,9 @@ const _render=UI.render;UI.render=function(){_render.call(this);const t=this.tab
     if(!fx||!fx.start)h+=`<p class="tiny">Quiet for now. Factions show up once you hold ${BAL.factions.startTiles} hexes.</p>`;
     else h+=BAL.factions.list.map(d=>{const f=fx.f[d.id];if(!f)return'';const n=Object.keys(f.tiles||{}).length,seen=Object.keys(f.tiles||{}).filter(isVis).length,homeSeen=f.home&&isVis(f.home);
       return`<div class="row"><i class="cdot" style="background:${d.color}"></i><div class="grow"><b>${d.icon} ${d.name}</b> <small style="display:inline">tier ${f.tier||0}</small><small>${f.routedUntil&&Date.now()<f.routedUntil?'🏳️ Routed · back in '+fmtDur(f.routedUntil-Date.now()):`${n} hexes (${seen} seen) · attack power ${factionAttack(f)} · ${homeSeen?'HQ spotted':'HQ hidden in the fog'}`}</small></div>${homeSeen&&!f.routedUntil?`<button onclick="UI.close();map.setView(hexCenter(...idQR('${f.home}')),15)">HQ</button>`:''}</div>`;}).join('');}
-  if(t==='player'&&sub==='save'){const live=NET.mode!=='local';h=`<h2>☁️ Cloud save</h2><p class="tiny">${live?'Your progress is saved to the alliance cloud every couple of minutes and when you leave the app.':'Demo mode: saves stay on this phone (a cloud copy is kept in local storage).'}</p>
+  if(t==='player'&&sub==='save'){const live=NET.mode!=='local';const _hl=(G.syncHoldUntil||0)-Date.now();const _rf=typeof SYNC26!=='undefined'&&SYNC26.readFailText?SYNC26.readFailText():'';const _sc=String((CS.why||'No save attempt yet.')+_rf+(_hl>0?(' hold=on left='+Math.ceil(_hl/1000)):' hold=off')).replace(/[<>&]/g,'');h=`<h2>☁️ Cloud save</h2><p class="tiny">${live?'Your progress is saved to the alliance cloud every couple of minutes and when you leave the app.':'Demo mode: saves stay on this phone (a cloud copy is kept in local storage).'}</p>
     <div class="row"><div class="grow">Status: <b>${typeof SYNC26!=='undefined'&&SYNC26.saveStatusLine?SYNC26.saveStatusLine(CS,P._rev):(CS.report||(CS.last?CS.status:(P._rev?'saved earlier':'not saved yet')))}</b><small>${P._rev?'Cloud save number '+P._rev:''}</small></div><button onclick="cloudSave(true).then(()=>UI.render())">☁️ Save to the cloud</button></div>
-    <details class="more"><summary>Save check</summary><small>${String(CS.why||'No save attempt yet.').replace(/[<>&]/g,'')}</small></details>
+    <details class="more"><summary>Save check</summary><small>${_sc}</small></details>
     <div class="row"><div class="grow">🔑 Your restore code<small>${P.uid?`${poss(P.name||'Survivor')} save · ends in …${P.uid.slice(-4)}`:'Not ready yet'}</small><small>Keep it somewhere safe. On a new phone, join the same team and paste it below.</small><small id="rfull" style="word-break:break-all;display:none">${P.uid||''}</small></div>${P.uid?`<button onclick="const e=$('#rfull');e.style.display=e.style.display==='none'?'block':'none'">Show</button><button onclick="navigator.clipboard&&navigator.clipboard.writeText(P.uid).then(()=>toast('🔑 Restore code copied'),()=>toast('Copy failed: tap Show and copy it by hand'))">Copy</button>`:''}</div>
     <div class="row"><input id="rcode" placeholder="Paste a restore code"><button onclick="cloudRestore($('#rcode').value)">Load</button></div>
     <button style="width:100%" onclick="undoRestore()">Undo last load (use backup)</button>`;}

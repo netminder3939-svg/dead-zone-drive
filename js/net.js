@@ -154,9 +154,19 @@ class FirebaseNet {
     this.fs=fs; const a=app.initializeApp(this.cfg); // v16 (J3): iOS Safari drops Firestore's streaming channel after backgrounding; long-polling is the reliable transport there.
     const ios=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
     try{this.db=fs.initializeFirestore(a,ios?{experimentalForceLongPolling:true}:{experimentalAutoDetectLongPolling:true});}catch(e){this.db=fs.getFirestore(a);}
-    const au=auth.getAuth(a);this.authMod=auth;this.auth=au;try{await auth.setPersistence(au,auth.browserLocalPersistence);}catch(e){}try{await au.authStateReady();}catch(e){} /* v23: keep a signed-in account (same player on every device); only fall back to anonymous */
-    const user=au.currentUser||(await auth.signInAnonymously(au)).user; this.uid=user.uid; this.isAnon=user.isAnonymous; this.email=user.email||''; this.me=profile;
-    this.base=['teams',this.team]; return this.uid;
+    const au=auth.getAuth(a);this.authMod=auth;this.auth=au;
+    const localHost=location.hostname==='localhost'||location.hostname==='127.0.0.1';
+    if(localHost){try{auth.connectAuthEmulator(au,'http://127.0.0.1:9099',{disableWarnings:true});}catch(e){}try{fs.connectFirestoreEmulator(this.db,'127.0.0.1',8080);}catch(e){}}
+    try{await auth.setPersistence(au,auth.browserLocalPersistence);}catch(e){}
+    try{await au.authStateReady();}catch(e){}
+    const preview=location.hostname.indexOf('--')>=0||localHost;
+    let user;
+    if(preview&&window.auth12SignIn){user=await window.auth12SignIn(auth,au);this.emailAuth=true;window.__emailAuth=true;}
+    else user=au.currentUser||(await auth.signInAnonymously(au)).user;
+    this.uid=user.uid; this.isAnon=user.isAnonymous; this.email=user.email||''; this.me=profile;
+    this.base=['teams',this.team];
+    if(this.emailAuth&&window.auth12Canonical)await window.auth12Canonical(this);
+    return this.uid;
   }
   col(n){return this.fs.collection(this.db,...this.base,n);}
   setCenter(){}
@@ -198,7 +208,19 @@ class FirebaseNet {
   async opsAdd(week,inc){const fs=this.fs,o={};for(const k in inc)o[k]=fs.increment(inc[k]);
     return fs.setDoc(fs.doc(this.db,...this.base,'meta','alliance'),{ops:{[week]:o}},{merge:true}).catch(()=>{});}
   async saveProfile(uid,doc){const fs=this.fs;return fs.setDoc(fs.doc(this.col('saves'),uid),{...doc,serverT:fs.serverTimestamp()});}
-  async loadProfile(uid){const fs=this.fs,d=await fs.getDoc(fs.doc(this.col('saves'),uid));return d.exists()?d.data():null;}
+  async loadProfile(uid){
+    const fs=this.fs,note=window.__dddLoad||(window.__dddLoad={});
+    const t=v=>{const k=typeof v;return (k==='function'||k==='undefined'||k==='object'||k==='string'||k==='number'||k==='boolean'||k==='symbol'||k==='bigint')?k:'other';};
+    note.collection=fs?t(fs.collection):'undefined';note.doc=fs?t(fs.doc):'undefined';note.getDoc=fs?t(fs.getDoc):'undefined';
+    note.base=Array.isArray(this.base)?'array':(this.base==null?'missing':t(this.base));
+    note.step='before-getDoc';
+    const d=await fs.getDoc(fs.doc(this.col('saves'),uid));
+    note.step='before-exists';
+    const ok=d.exists();
+    if(!ok)return null;
+    note.step='before-data';
+    return d.data();
+  }
   claimHex(id,data){return this.fs.setDoc(this.fs.doc(this.col('territory'),id),data);}
   createRaid(r){const {id,...rest}=r;return this.fs.setDoc(this.fs.doc(this.col('raids'),id),rest);}
   async hitRaid(id,uid,name,dmg,hp,max,taken,heal,fightId){
