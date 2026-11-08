@@ -18,7 +18,10 @@
   function cellOfHex15(id){const c=hexCenter(...idQR(id));return cellOf15(c[0],c[1]);}
   window.cellOfHex15=cellOfHex15;window.cellOf15=cellOf15;
   // ---- stamp every claim with its region + alliance
-  try{const _ch=NET.claimHex.bind(NET);NET.claimHex=function(id,data){const d={...(data||{})};try{d.rg=cellOfHex15(id);d.al=NET.team||'';}catch(e){}return _ch(id,d);};}catch(e){}
+  try{const _ch=NET.claimHex.bind(NET);NET.claimHex=function(id,data){const d={...(data||{})};try{d.rg=cellOfHex15(id);d.al=NET.team||'';}catch(e){}
+    const p=_ch(id,d);
+    try{if(d.rg){if(S15.mode==='region')listenCell15(d.rg);const cell=S15.cells[d.rg];if(cell)cell.docs[id]=Object.assign({},cell.docs[id]||{},d);if(S15.full)S15.full[id]=Object.assign({},S15.full[id]||{},d);emit15();}}catch(e){}
+    return p;};}catch(e){}
 
   // ---- which cells this phone needs
   function points15(){const pts=[];const add=ll=>{if(ll&&isFinite(ll[0])&&isFinite(ll[1]))pts.push(ll);};
@@ -43,12 +46,17 @@
   function goRegion15(){if(S15.mode==='region')return;S15.mode='region';try{S15.fullUnsub&&S15.fullUnsub();}catch(e){}S15.fullUnsub=null;refresh15();
     setTimeout(()=>{S15.full=null;emit15();},4000); // keep the old snapshot until the cells have answered
     console.log('terr15: region loading on',Object.keys(S15.cells).length,'cells');}
-  async function stamp15(docs){if(S15.stamping)return;S15.stamping=true;const n=S15.net,fs=n.fs;
-    try{const todo=Object.entries(docs).filter(([,d])=>d&&!d.rg);let ok=0,fail=0;
-      for(const [id] of todo.slice(0,400)){try{await fs.setDoc(fs.doc(n.col('territory'),id),{rg:cellOfHex15(id),al:n.team||''},{merge:true});ok++;}catch(e){fail++;}}
-      console.log('terr15 stamp',ok,'ok',fail,'failed',todo.length,'needed');
-      if(!fail&&todo.length<=400){await fs.setDoc(fs.doc(n.db,...n.base,'meta','terrv'),{v:2,t:fs.serverTimestamp(),by:n.uid||''});goRegion15();}}
-    catch(e){console.warn('terr15 stamp',e);}finally{S15.stamping=false;}}
+  async function unstamped15(){const n=S15.net,fs=n.fs,s=await fs.getDocs(n.col('territory')),left=[];s.forEach(d=>{const x=d.data();if(x&&!x.rg)left.push(d.id);});return left;}
+  async function stamp15(){if(S15.stamping||S15.mode==='region')return;S15.stamping=true;const n=S15.net,fs=n.fs;let again=false;
+    try{const left=await unstamped15();let ok=0,fail=0;
+      for(const id of left.slice(0,400)){try{await fs.setDoc(fs.doc(n.col('territory'),id),{rg:cellOfHex15(id),al:n.team||''},{merge:true});ok++;}catch(e){fail++;}}
+      console.log('terr15 stamp',ok,'ok',fail,'failed',left.length,'needed');
+      if(fail)return;
+      if(left.length>400){again=true;return;}
+      const still=await unstamped15();
+      if(still.length){again=true;return;}
+      await fs.setDoc(fs.doc(n.db,...n.base,'meta','terrv'),{v:2,t:fs.serverTimestamp(),by:n.uid||''});goRegion15();}
+    catch(e){console.warn('terr15 stamp',e);}finally{S15.stamping=false;if(again&&S15.mode!=='region')Promise.resolve().then(()=>{try{stamp15();}catch(e){}});}}
   window.terrFeed15=function(net,f){S15.net=net;S15.cb=f;const fs=net.fs;
     (async()=>{let v=0;try{const d=await fs.getDoc(fs.doc(net.db,...net.base,'meta','terrv'));v=d.exists()?(d.data().v||0):0;}catch(e){}
       if(v>=2)return goRegion15();

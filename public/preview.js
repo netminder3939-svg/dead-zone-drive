@@ -1,6 +1,6 @@
 // Preview isolation: on Firebase preview-channel hosts (hostname has "--") every team code gets a "pv-" prefix,
 // so previews can never read or write a live team (e.g. rathdrum-crew). No-op on the live site.
-(function(){if(location.hostname.indexOf('--')<0)return;window.DZD_PREVIEW=true;const PX='pv-',fix=v=>{v=String(v||'').trim().toLowerCase();return v.startsWith(PX)?v:PX+v;};
+(function(){if(location.hostname.indexOf('--')<0)return;window.DZD_PREVIEW=true;const PX='pv-',slug=v=>String(v||'').trim().toLowerCase().replace(/[^a-z0-9_-]/g,'').slice(0,40),fix=v=>{v=slug(v)||'crew';return v.startsWith(PX)?v:PX+v;};
   window.DEFAULT_TEAM=fix(window.DEFAULT_TEAM||'crew');
   const ls=window.localStorage,set=ls.setItem.bind(ls);try{const t=ls.getItem('wl_team');if(t&&!t.startsWith(PX))set('wl_team',fix(t));}catch(e){}
   Storage.prototype.setItem=new Proxy(Storage.prototype.setItem,{apply(f,self,args){if(self===ls&&args[0]==='wl_team')args=[args[0],fix(args[1])];return Reflect.apply(f,self,args);}});

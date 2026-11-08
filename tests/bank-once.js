@@ -1,0 +1,67 @@
+// One approved bank request, two clients collecting at once. Fake Firebase only.
+const { chromium } = require('playwright');
+const H = require('./two-device/two.js');
+require('./bindlog').bind('bank-once', { fake: H.FB, port: process.env.PORT || '8767' });
+let failed = 0;
+const ok = (n, c, e) => { if (!c) failed++; console.log((c ? 'PASS ' : 'FAIL ') + n + (e != null ? ' ' + JSON.stringify(e) : '')); };
+const GAME = 'http://127.0.0.1:' + (process.env.PORT || 8767) + '/';
+(async () => {
+  await fetch(H.FB + '/reset', { method: 'POST' });
+  const b = await chromium.launch();
+  const a = await H.device(b, 'phone', GAME);
+  await H.onboard(a, 'Pope');
+  await H.signIn(a, 'pope-fixture@test.com', 'secret123', 'up');
+  await H.choose(a, 'fresh');
+  await H.ready(a);
+  const k = await H.device(b, 'pc', GAME);
+  await H.onboard(k, 'Kay');
+  await H.signIn(k, 'kay-fixture@test.com', 'secret123', 'up');
+  await H.choose(k, 'fresh');
+  await H.ready(k);
+  await a.evaluate(async () => { await claimLeader15(); });
+  await k.waitForTimeout(1500);
+  await a.evaluate(async () => { P.res.scrap = 1000; G.bankMode = 'deposit'; await bankTx('scrap', 500); });
+  await k.waitForTimeout(1500);
+  const before = await k.evaluate(() => P.res.scrap || 0);
+  await k.evaluate(async () => { G.bankMode = 'withdraw'; await bankTx('scrap', 40); });
+  await a.waitForTimeout(1500);
+  const pend = await a.evaluate(() => Object.values(G.bankReq15).filter(r => r.status === 'pending').map(r => r.id));
+  ok('a member request stays pending until an officer approves', pend.length === 1, pend);
+  const memberTry = await k.evaluate(async (id) => { const before = (G.bankReq15[id] || {}).status; await decideReq15(id, true); return { before, after: (G.bankReq15[id] || {}).status, rank: myRank15() }; }, pend[0]);
+  ok('a member still cannot approve a request', memberTry.rank === 'member' && memberTry.after === 'pending', memberTry);
+  await k.evaluate(() => {
+    const orig = NET.fs.runTransaction.bind(NET.fs);
+    window.__gate = new Promise(res => { window.__release = res; });
+    NET.fs.runTransaction = (db, fn) => window.__gate.then(() => orig(db, fn));
+  });
+  await a.evaluate(async (id) => { await decideReq15(id, true); }, pend[0]);
+  const second = await H.device(b, 'phone', GAME);
+  await H.onboard(second, 'Kay');
+  await H.signIn(second, 'kay-fixture@test.com', 'secret123', 'in');
+  await H.ready(second);
+  await second.waitForTimeout(2000);
+  await k.evaluate(() => { if (window.__release) window.__release(); });
+  await k.waitForTimeout(2000);
+  const uid = await k.evaluate(() => NET.uid);
+  const bank = await (await fetch(H.FB + '/get?p=' + encodeURIComponent('teams/testcrew/meta/alliance'))).json();
+  const reqs = await (await fetch(H.FB + '/dump')).json();
+  const reqDocs = Object.entries(reqs.docs).filter(([p]) => p.startsWith('teams/testcrew/bankReq/')).map(([, v]) => v.data);
+  const saves = reqs.docs['teams/testcrew/saves/' + uid];
+  const savedScrap = saves ? JSON.parse(saves.data.data).res.scrap : null;
+  const local = await Promise.all([k.evaluate(() => P.res.scrap || 0), second.evaluate(() => P.res.scrap || 0)]);
+  ok('the bank drops the approved amount once', bank.data && bank.data.bank && bank.data.bank.scrap === 460, bank.data && bank.data.bank);
+  ok('the request is paid once', reqDocs.length === 1 && reqDocs[0].status === 'paid' && reqDocs[0].amt === 40, reqDocs);
+  ok('the two clients together credit the payout once', local.reduce((a, n) => a + n, 0) === before + 40 && Math.max(...local) === before + 40, { before, local, savedScrap });
+  const again = await k.evaluate(async () => {
+    const r = Object.values(G.bankReq15).find(x => x.amt === 40);
+    if (r) r.status = 'approved';
+    const s = P.res.scrap || 0;
+    try { await collect15(r.id); } catch (e) {}
+    return { scrap: P.res.scrap || 0, started: s };
+  });
+  const bank2 = await (await fetch(H.FB + '/get?p=' + encodeURIComponent('teams/testcrew/meta/alliance'))).json();
+  ok('a retry does not pay the request again', again.scrap === again.started && bank2.data.bank.scrap === 460, { again, bank: bank2.data.bank.scrap });
+  console.log(failed ? 'FAILED ' + failed : 'ALL PASS');
+  await b.close();
+  process.exit(failed ? 1 : 0);
+})().catch(e => { console.error('HARNESS', e); process.exit(1); });
