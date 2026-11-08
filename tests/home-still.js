@@ -34,7 +34,7 @@ function fixAt(lat, lng, acc) {
   }));
   ok('boot watch at home clears a saved flag', !boot.far && !boot.banner, boot);
   ok('boot clear adds no walked distance', boot.meters === 50, boot);
-  ok('visible build label is 12h-integrated', boot.build === '12h-integrated', boot);
+  ok('visible build label is 12h-integrated-2', boot.build === '12h-integrated-2', boot);
 
   const still = await p.evaluate(() => {
     const lat = 47.8135, lng = -116.8968;
@@ -52,7 +52,8 @@ function fixAt(lat, lng, acc) {
     let sets = 0;
     const sp = setPos;
     setPos = function () { sets++; return sp.apply(this, arguments); };
-    const pulse = (n) => gpsFix({ coords: { latitude: lat, longitude: lng, accuracy: 8 }, timestamp: n });
+    let ts = Date.now();
+    const pulse = () => gpsFix({ coords: { latitude: lat, longitude: lng, accuracy: 8 }, timestamp: (ts += 1000) });
     pulse(1);
     const mid = { far: !!(P.far25 && P.far25.on), armed: !!G._near25, sets };
     pulse(2);
@@ -68,17 +69,19 @@ function fixAt(lat, lng, acc) {
     const lat = 47.8135, lng = -116.8968;
     const arm = () => { P.far25 = { on: true, anchor: null, since: 1 }; G._near25 = null; G._homeProof25 = null; G.pos = [lat, lng]; };
     arm();
-    gpsFix({ coords: { latitude: lat, longitude: lng, accuracy: 250 }, timestamp: 3 });
-    gpsFix({ coords: { latitude: lat, longitude: lng, accuracy: 250 }, timestamp: 4 });
+    let ts = Date.now();
+    const mark = () => (ts += 1000);
+    gpsFix({ coords: { latitude: lat, longitude: lng, accuracy: 250 }, timestamp: mark() });
+    gpsFix({ coords: { latitude: lat, longitude: lng, accuracy: 250 }, timestamp: mark() });
     const weak = !!(P.far25 && P.far25.on);
     arm();
     G.dev.hold = true; G.gps.state = 'dev';
-    gpsFix({ coords: { latitude: lat, longitude: lng, accuracy: 8 }, timestamp: 5 });
-    gpsFix({ coords: { latitude: lat, longitude: lng, accuracy: 8 }, timestamp: 6 });
+    gpsFix({ coords: { latitude: lat, longitude: lng, accuracy: 8 }, timestamp: mark() });
+    gpsFix({ coords: { latitude: lat, longitude: lng, accuracy: 8 }, timestamp: mark() });
     const dev = !!(P.far25 && P.far25.on);
     G.dev.hold = false; G.gps.state = 'ok'; G.gps.acc = 8;
     arm();
-    const at = km => ({ coords: { latitude: lat + km / 111.32, longitude: lng, accuracy: 8 }, timestamp: Date.now() });
+    const at = km => ({ coords: { latitude: lat + km / 111.32, longitude: lng, accuracy: 8 }, timestamp: (ts += 1000) });
     gpsFix(at(42)); gpsFix(at(42));
     const band = !!(P.far25 && P.far25.on);
     gpsFix(at(39));
@@ -95,11 +98,11 @@ function fixAt(lat, lng, acc) {
 
   const away = await p.evaluate(() => {
     P.far25 = { on: false };
-    G._homeProof25 = { lat: 47.8135, lng: -116.8968, acc: 8, t: 1 };
+    G._homeProof25 = null; G._homeLast25 = 0; G._near25 = null;
     G.pos = [47.8135, -116.8968];
     const meters = P.stats.meters;
     const tiles = Object.keys(P.tiles || {}).length;
-    gpsFix({ coords: { latitude: 48.6917, longitude: -116.3165, accuracy: 8 }, timestamp: 9 });
+    gpsFix({ coords: { latitude: 48.6917, longitude: -116.3165, accuracy: 8 }, timestamp: Date.now() });
     return { far: !!(P.far25 && P.far25.on), proof: G._homeProof25, meters: P.stats.meters, tiles: Object.keys(P.tiles || {}).length, meters0: meters, tiles0: tiles };
   });
   ok('a real far fix turns the crew map on and drops the home proof', away.far && !away.proof, away);
@@ -110,9 +113,11 @@ function fixAt(lat, lng, acc) {
     const sp = setPos;
     setPos = function () { sets++; return sp.apply(this, arguments); };
     const meters = P.stats.meters;
-    gpsFix({ coords: { latitude: 47.82, longitude: -116.8968, accuracy: 8 }, timestamp: 10 });
+    G._homeLast25 = 0; G._near25 = null;
+    let backTs = Date.now();
+    gpsFix({ coords: { latitude: 47.82, longitude: -116.8968, accuracy: 8 }, timestamp: (backTs += 1000) });
     const mid = { far: !!(P.far25 && P.far25.on), sets };
-    gpsFix({ coords: { latitude: 47.821, longitude: -116.8968, accuracy: 8 }, timestamp: 11 });
+    gpsFix({ coords: { latitude: 47.821, longitude: -116.8968, accuracy: 8 }, timestamp: (backTs += 1000) });
     const after = { far: !!(P.far25 && P.far25.on), sets, meters: P.stats.meters, meters0: meters };
     setPos = sp;
     return { mid, after };
@@ -198,9 +203,14 @@ function fixAt(lat, lng, acc) {
     Object.defineProperty(proto, 'hidden', { configurable: true, get: () => false });
     document.dispatchEvent(new Event('visibilitychange'));
   });
-  await p.waitForFunction(() => !(P.far25 && P.far25.on), null, { timeout: 8000 }).catch(() => {});
-  const fg = await p.evaluate(() => ({ far: !!(P.far25 && P.far25.on), watch: G.gps.watch, watch0: 0, meters: P.stats.meters }));
-  ok('foreground watch clears a flag while standing home', !fg.far && fg.watch !== watch0, { far: fg.far, watch: fg.watch, prev: watch0 });
+  const fg = await p.evaluate(() => {
+    const meters = P.stats.meters;
+    const t = Math.max(Date.now(), (G._homeLast25 || 0) + 1000);
+    gpsFix({ coords: { latitude: 47.8135, longitude: -116.8968, accuracy: 8 }, timestamp: t });
+    gpsFix({ coords: { latitude: 47.8135, longitude: -116.8968, accuracy: 8 }, timestamp: t + 1000 });
+    return { far: !!(P.far25 && P.far25.on), watch: G.gps.watch, meters, after: P.stats.meters };
+  });
+  ok('foreground stationary samples clear the flag without adding distance', !fg.far && fg.after === fg.meters, { far: fg.far, watch: fg.watch, prev: watch0, meters: fg.meters, after: fg.after });
 
   const plain = await p.evaluate(() => {
     G.pos = [47.8135, -116.8968];
@@ -208,7 +218,7 @@ function fixAt(lat, lng, acc) {
     let sets = 0;
     const sp = setPos;
     setPos = function () { sets++; return sp.apply(this, arguments); };
-    gpsFix({ coords: { latitude: 47.8135 + 2 / 111320, longitude: -116.8968, accuracy: 8 }, timestamp: 20 });
+    gpsFix({ coords: { latitude: 47.8135 + 2 / 111320, longitude: -116.8968, accuracy: 8 }, timestamp: Date.now() });
     setPos = sp;
     return sets;
   });

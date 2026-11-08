@@ -321,7 +321,7 @@ try{
 function skipText(line){
   const counts={};
   for(const id of line){
-    const why=realOwned(id)||(realFort(id)?'enemy fort — attack it in person':null);
+    const why=realOwned(id)||(realFort(id)?'enemy fort — only a won march fight captures it':null);
     if(why)counts[why]=(counts[why]||0)+1;
   }
   return Object.keys(counts).map(w=>'Skipped '+counts[w]+' ('+w+').').join(' ');
@@ -336,7 +336,7 @@ function repairClaim(id,m){
   // Only after the march has actually arrived. An early return (still on the road) must not grant hexes.
   if(!m||m.state!=='arrived'||m.kind==='intercept'||m.kind==='patrol'||m.kind==='mob')return;
   const line=(typeof claimRoute26==='function'?claimRoute26(m.from,m.to):SYNC26.hexLine(m.from,m.to)).slice(1);
-  if(m.win===false||/Stopped by defenders|Daily claim limit/.test(m.result||'')){annotate(id,m,line);return;}
+  if(m.win===false||/Stopped by defenders|Daily claim limit/.test(m.result||''))return;
   const missed=[];
   for(const hx of line){
     if(P.tiles&&P.tiles[hx])continue;

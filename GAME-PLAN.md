@@ -55,7 +55,22 @@ Files go in `assets/monsters/`. In `manifest.json`, set `"png": true` for that i
 - **Stronghold on the map:** placed on a hex you own. It's expensive and takes a 6-hour build, and it defends 2 rings of hexes. If raiders destroy it, rebuilding costs 40% and takes 2 hours.
 - **Towers:** cost resources plus daily upkeep, and defend 1 ring. The limit is 1 + Stronghold level. A tower goes offline if its upkeep can't be paid.
 - **AI raiders:** about 3 attacks a week, worked out from timestamps when you open the app (only once you hold 10+ hexes). An undefended tile is lost. A defended tile triggers an auto-battle, and if the defense loses, the towers or Stronghold involved can be destroyed. Results go to Base → Reports and the alliance activity feed.
-- **Enemy Raider Strongholds:** fixed spots on the map. They're hard auto-battles, and taking one gives its hex and the ring around it, plus loot and gear.
+- **Enemy Raider Strongholds:** fixed spots on the map. They're hard auto-battles, and taking one gives its hex and the ring around it, plus loot and gear. A march can fight that same defense from range. Driving across the fort does not take it.
+
+## Driving claims (Jacob, Nov 8 2026)
+
+A real GPS fix that enters a new hex claims that hex when all of these are true:
+
+- The fix is accurate (60 m or better), not a dev/walk/teleport tool, not the crew-home projection, and not an older or cached sample.
+- The hex is not already yours and not held by an alliance member.
+- The hex is not actively reinforced.
+- The hex is not a fort or a building with its own defenders.
+
+**Active reinforcement** means troops that are already there: your own stationed troops whose arrival time has passed, an ally garrison with troops on that hex, or a horde squad standing on the hex. Troops still marching do not count. An empty garrison list is not reinforcement.
+
+**Not flipped by driving:** your tiles, alliance tiles, reinforced tiles, an untaken enemy fort, a standing Stronghold, tower, or outpost on that hex, and a horde HQ or horde outpost. Driving does not start a fight and does not damage those buildings. Taking a fort is the march fight (or the in-person Attack button when you are already within 300 m). Whether driving into a building's defense ring, with no troops on the hex itself, should also be blocked is not decided here: the ring alone does not stop the claim.
+
+The same hex is claimed once. A second GPS sample on it does not count again. Jitter under 6 m does not move the dot and does not claim. A profile reload does not claim.
 - **All the numbers** are in `js/balance.js`.
 
 ## Stage 1c (built): readable map, info cards, real fights, fog
@@ -158,7 +173,7 @@ Files go in `assets/monsters/`. In `manifest.json`, set `"png": true` for that i
   - Every 4 hours (worked out when you open the app, up to 7 days back, seeded so it's the same every time) each faction may grab a neutral hex next to its land, leaning toward you (~2 hexes/day each, max 30 hexes + 10 per tier).
   - Where their land touches yours they test one edge hex: their attack power vs your defense there (Stronghold, towers, outposts covering it). Higher attack takes it; otherwise you hold. At most 2 of your hexes per day across all factions.
   - Strength = (30 + 7 × your level + 6 × extra alliance members + 1 per day active, max 30) × 1.15 per tier.
-  - Their hexes can't be claimed by driving. Tap one (within 300 m) to see the exact predicted fight, then attack to retake it. Interior hexes are tougher (+10% per faction neighbor, up to 3).
+  - Ordinary unreinforced hexes, including horde and raider hexes, can be claimed by a real GPS crossing. See "Driving claims" below. A horde HQ, horde outpost, or hex with a squad standing on it is not taken by driving. Tap a defended hex (within 300 m) to see the predicted fight, or send a march. Interior hexes are tougher (+10% per faction neighbor, up to 3).
   - **HQ siege:** a home base fight is tough, but damage sticks between attacks (heals 25%/day). Beat it to rout the faction: all its hexes go free and it comes back in 5 days, farther out and one tier stronger.
   - Only hexes revealed from the fog are shown. "While you were away" banner + Inbox report summarize what happened.
   - Base ▸ ☠️ Factions tab shows each faction's size, attack power and whether its HQ has been spotted.

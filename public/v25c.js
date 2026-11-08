@@ -20,7 +20,8 @@ function kmFromHome(lat,lng){const h=home25();return h?distM(lat,lng,h.lat,h.lng
 // A simulated dot or a weak fix must not turn the crew map off. state "ok" is a real fix at 60 m or better.
 function realOk25(){const d=G.dev||{},g=G.gps;if(d.walk||d.drive||d.tp||d.hold)return false;return !!(g&&g.state==='ok'&&g.acc!=null&&g.acc<=60);}
 // One accurate fix inside nearKm only arms. A second, newer fix confirms. The counter stays in memory, so a drive does not save on every point.
-function armNear25(){const g=G.gps||{},t=g.t||0,n=g.n||0,a=G._near25;if(a&&((t&&a.t&&t!==a.t)||(n&&a.n!==n)))return true;if(!a)G._near25={t:t,n:n,at:Date.now()};return false;}
+// A sample counts only when the phone acquired it recently and after the previous accepted sample. An older or cached fix cannot be the second sample.
+function armNear25(){const g=G.gps||{},when=g.fixT||0,n=g.n||0,now=Date.now(),a=G._near25;if(!(when>0)||now-when>10000||(G._homeLast25&&when<G._homeLast25))return false;const newer=a&&(when>a.t||(when===a.t&&n>a.n));if(newer){G._homeLast25=when;return true;}if(!a){G._near25={t:when,n:n,at:now};G._homeLast25=when;}return false;}
 function clearNear25(){G._near25=null;}
 // Local save once. Cloud upload stays on the lease: this does not call cloudSave, and it does not force a revision.
 function leaveFar25(){if(!isFar())return false;P.far25.on=false;G.pick25=false;clearNear25();save();try{pushMember();}catch(e){}try{banner25();}catch(e){}
@@ -46,6 +47,8 @@ const _sp25=setPos;setPos=function(lat,lng){try{
 function reviewHome25(lat,lng,acc){
   const dev=(G.dev&&(G.dev.walk||G.dev.drive||G.dev.tp||G.dev.hold))||(G.gps&&G.gps.state==='dev');
   if(dev){clearNear25();return;}
+  const when=G.gps&&G.gps.fixT||0;
+  if(!(when>0)||Date.now()-when>10000||(G._homeLast25&&when<G._homeLast25))return;
   if(!(acc<=60)){clearNear25();return;}
   const t=(G.gps&&G.gps.t)||0;
   G._fix25={lat,lng,acc,t};
@@ -65,6 +68,7 @@ function rejectStaleFar25(){
   if(!isFar()||!G._homeProof25)return false;
   if(!realOk25())return false;
   const g=G.gps,f=G._fix25;
+  if(!g.fixT||Date.now()-g.fixT>10000)return false;
   if(!g.t||Date.now()-g.t>30000)return false;
   if(!f||f.t!==g.t)return false;
   if(kmFromHome(f.lat,f.lng)>HOME25.nearKm)return false;
@@ -72,7 +76,7 @@ function rejectStaleFar25(){
 }
 window.onProfile25=function(){try{rejectStaleFar25();}catch(e){}};
 const _gpsFix25=gpsFix;gpsFix=function(fix){
-  if(G.gps)G.gps.n=(G.gps.n||0)+1; // two fixes in the same millisecond are still two samples
+  if(G.gps){G.gps.n=(G.gps.n||0)+1;G.gps.fixT=fix&&typeof fix.timestamp==='number'&&fix.timestamp>0?fix.timestamp:Date.now();}
   const r=_gpsFix25.apply(this,arguments);
   try{const c=fix&&fix.coords;if(c)reviewHome25(c.latitude,c.longitude,Math.round(c.accuracy||9999));}catch(e){}
   return r;};

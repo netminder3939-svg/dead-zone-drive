@@ -42,13 +42,45 @@ function expectedIncome(){const g=grossIncome(),u=towerUpkeep(),o={};for(const k
 // ---------- claiming by GPS path ----------
 // Stage 1g: daily claim cap. Past the cap, hexes are still revealed but not claimed.
 function claimsToday(){const d=today();if(!P.claimDay||P.claimDay.d!==d)P.claimDay={d,n:0};return P.claimDay;}
+// Active reinforcement: troops that have already arrived. Your own march that is still on the way does not count.
+// A horde squad standing on the hex counts. An empty garrison list does not.
+function reinforced25(id){
+  try{if(typeof stationedAt==='function'&&stationedAt(id)>0)return true;}catch(e){}
+  try{if(typeof allyGarAt==='function'&&allyGarAt(id).some(g=>g&&g.n>0))return true;}catch(e){}
+  try{if(typeof squadAt==='function'&&squadAt(id))return true;}catch(e){}
+  return false;}
+// Built-in defenders are not reinforcements. Driving must not treat "no troops stationed" as permission to take a fort or a building.
+function builtDefense25(id){
+  try{if(typeof enemyAt==='function'&&enemyAt(id)&&!(W().enemyTaken&&W().enemyTaken[id]))return 'fort';}catch(e){}
+  const w=W(),sh=w.sh,tw=w.towers&&w.towers[id],op=w.outposts&&w.outposts[id];
+  if(sh&&sh.hex===id&&sh.state&&sh.state!=='down')return 'stronghold';
+  if(tw&&tw.state&&tw.state!=='down')return 'tower';
+  if(op&&op.state&&op.state!=='down')return 'outpost';
+  try{const x=typeof factionAt==='function'&&factionAt(id);if(x&&x.home)return 'horde-hq';if(x&&x.f&&x.f.outposts&&x.f.outposts[id])return 'horde-outpost';}catch(e){}
+  return '';}
+function allyHold25(id){const o=G.terr&&G.terr[id];return !!(o&&!o.ai&&!o.released&&o.uid&&!(typeof isMe==='function'&&isMe(o.uid)));}
+function enemyLand25(id){
+  try{if(typeof factionAt==='function'&&factionAt(id))return true;}catch(e){}
+  const o=G.terr&&G.terr[id];
+  return !!((o&&o.ai&&!o.released)||(W().raider&&W().raider[id]));}
 function claimPath(prev,cur){const T=BAL.tiles,ids=new Set([hexAt(...cur).id]);
   // Only the single hex you're standing in is claimed/revealed. No path fill-in, no neighbors.
   if(explore([...ids]))drawWorld();ids.forEach(id=>{if(P.tiles[id]&&P.tiles[id].area){P.tiles[id].area=false;}});// driving over a Stronghold-area hex makes it truly yours
-  let fresh=[...ids].filter(id=>!P.tiles[id]&&!(typeof factionAt==='function'&&factionAt(id)));if(!fresh.length)return 0;
+  const prevId=prev?hexAt(...prev).id:null,curId=hexAt(...cur).id;
+  const crossed=!!(G._realCross25&&prevId&&prevId!==curId);
+  let fresh=[];
+  for(const id of ids){
+    if(P.tiles[id])continue;
+    if(allyHold25(id))continue;
+    if(builtDefense25(id))continue;
+    if(reinforced25(id))continue;
+    if(enemyLand25(id)&&!crossed)continue;
+    fresh.push(id);
+  }
+  if(!fresh.length)return 0;
   const cd=claimsToday(),devMove=G.dev&&(G.dev.tp||G.dev.walk||G.dev.drive),room=devMove?fresh.length:Math.max(0,T.dailyClaimCap-cd.n);if(!room){if(G._capHex!==fresh[0]){G._capHex=fresh[0];toast(`🚫 Daily claim limit reached (${T.dailyClaimCap}/${T.dailyClaimCap}). This hex wasn't claimed; walk back in after the reset.`);}return 0;}
   fresh=fresh.slice(0,room);
-  fresh.forEach(claimTile);buzz(fresh.length>3?[30,40,30]:30);if(G.drive)G.drive.claimed+=fresh.length;addXP(fresh.length*T.claimXP);questProg('claims',fresh.length);
+  fresh.forEach(id=>{try{const x=typeof factionAt==='function'&&factionAt(id);if(x&&x.f&&x.f.tiles){delete x.f.tiles[id];if(typeof fxDirty==='function')fxDirty();}}catch(e){}if(W().raider)delete W().raider[id];claimTile(id);});buzz(fresh.length>3?[30,40,30]:30);if(G.drive)G.drive.claimed+=fresh.length;addXP(fresh.length*T.claimXP);questProg('claims',fresh.length);
   const rich=fresh.map(tileInfo).filter(t=>t.res);toast(`🚩 +${fresh.length} hex${fresh.length>1?'es':''}`+(rich.length?` (${rich.map(t=>RES[t.res]).join('')})`:''));
   save();drawWorld();UI.hud();return fresh.length;}
 function claimTile(id){W();const t=Date.now();const isNew=!P.tiles[id];P.tiles[id]={t};delete P.world.raider[id];if(isNew){P.contrib.hexes++;claimsToday().n++;} // v19: every claim (walk, teleport, march, area, outpost, retake) counts toward today + all-time

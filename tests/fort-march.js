@@ -52,27 +52,73 @@ const ok = (name, cond, extra) => {
   ok('neutral hex in a zone with a fort is not an enemy fort', neutral.why !== 'Enemy fort: attack it in person', neutral);
   ok('neutral card offers a claim march and does not mention an enemy fort', /Claim this open ground/.test(neutral.march) && !/attack it in person|Enemy fort/.test(neutral.text + neutral.march), neutral);
 
-  const fortCard = await p.evaluate((id) => {
-    const before = Object.keys(P.tiles).length;
+  const fortCard = await p.evaluate(async (id) => {
+    W(); P.lvl = 1; TP().home = 4000; G.troopSend = 0; G.marches = {};
+    UI.ask = async () => true;
     UI.closeModal(); UI.infoTile(id);
     const text = (document.getElementById('modalBody') || {}).innerText || '';
     const why = canMarch(id);
-    let sent = 0;
+    const setN = (n) => { const el = document.querySelector('#modalBody input.tnum'); if (!el) return ''; el.value = String(n); el.dispatchEvent(new Event('input', { bubbles: true })); return (document.querySelector('#modalBody .tpv') || {}).innerText || ''; };
+    const low = setN(0), high = setN(3000);
+    const you = s => { const m = /You ([\d,]+)/.exec(s || ''); return m ? +m[1].replace(/,/g, '') : null; };
+    const them = s => { const m = /Them ([\d,]+)/.exec(s || ''); return m ? +m[1].replace(/,/g, '') : null; };
+    const sent = [];
     const add = NET.addMarch.bind(NET);
-    NET.addMarch = async function (d) { sent++; return add(d); };
-    return sendMarch(id).then(() => ({
-      why, sent, tiles: Object.keys(P.tiles).length, before,
-      title: text.slice(0, 700),
+    NET.addMarch = async function (d) { const mid = await add(d); sent.push({ id: mid, to: d.to, troops: d.troops }); return mid; };
+    const btn = document.getElementById('btnMarch');
+    if (btn && !btn.disabled) btn.click();
+    await new Promise(r => setTimeout(r, 300));
+    return {
+      why, title: text.slice(0, 500),
       attack: [...document.querySelectorAll('#modalBody button')].some(b => /Attack/.test(b.textContent)),
-      ownerFree: /Nobody \(free\)/.test(text),
-      invite: /send a 🚩 March, to claim/.test(text) || /Walk or drive in, or send/.test(text),
-      predNoDef: /no defenders/.test(text)
-    }));
+      march: (btn || {}).innerText || '',
+      dis: !!(btn && btn.disabled),
+      lowYou: you(low), highYou: you(high), them: them(high),
+      sent
+    };
   }, found.fort);
-  ok('the fort hex itself is refused', fortCard.why === 'Enemy fort: attack it in person', fortCard);
-  ok('opening that hex shows the stronghold, not a free claim', /Raider Stronghold/.test(fortCard.title) && fortCard.attack && !fortCard.invite && !fortCard.ownerFree && !fortCard.predNoDef, fortCard);
+  ok('a reachable fort can be marched', fortCard.why == null && !fortCard.dis && /March/.test(fortCard.march), fortCard);
+  ok('the fort card shows the stronghold and real defenders for the selected troops', /Raider Stronghold/.test(fortCard.title) && fortCard.them > 0 && fortCard.highYou > fortCard.lowYou, fortCard);
+  ok('the march button dispatches at the fort', fortCard.sent.length === 1 && fortCard.sent[0].to === found.fort && fortCard.sent[0].troops > 0, fortCard);
   await p.screenshot({ path: '/opt/cursor/artifacts/fort-hex-phone.png' });
-  ok('sending a march does not capture the fort', fortCard.sent === 0 && fortCard.tiles === fortCard.before, fortCard);
+
+  const fought = await p.evaluate(async (fort) => {
+    const adj = hexRing(...idQR(fort), 1).map(x => x.id).find(id => id !== fort && !enemyAt(id));
+    const beyond = hexRing(...idQR(fort), 2).map(x => x.id).find(id => {
+      const line = claimRoute26(adj, id);
+      const i = line.indexOf(fort);
+      return i > 1 && i < line.length - 1;
+    });
+    const scrap0 = () => P.res.scrap | 0;
+    const gear0 = () => (P.inv || []).length;
+    const march = (from, to, troops) => ({ uid: P.uid, name: P.name, from, to, startT: Date.now() - 5000, dur: 1000, state: 'out', troops, unit: frozenMe(), power: 10, escorts: {} });
+    async function arrive(id, m) { G._mBusy = {}; await resolveMarch(id, m); return m; }
+    P.lvl = 1; TP().home = 0; W().enemyTaken = {}; P.tiles = {}; P.marchDone = {};
+    const beforeLoss = { scrap: scrap0(), gear: gear0(), tiles: Object.keys(P.tiles).length };
+    const loss = await arrive('loss1', march(adj, beyond || fort, 0));
+    const afterLoss = { scrap: scrap0(), gear: gear0(), taken: !!(W().enemyTaken || {})[fort], tiles: Object.keys(P.tiles), claimedFort: !!(P.tiles || {})[fort], beyond: beyond && !!(P.tiles || {})[beyond], result: loss.result || '' };
+    P.lvl = 1; TP().home = 8000; W().enemyTaken = {}; P.tiles = {}; P.marchDone = {};
+    const beforeWin = { scrap: scrap0(), gear: gear0() };
+    const win = await arrive('win1', march(adj, fort, 8000));
+    const ring = hexRing(...idQR(fort), 1).map(x => x.id);
+    const afterWin = { scrap: scrap0(), gear: gear0(), taken: !!W().enemyTaken[fort], ringHeld: ring.filter(id => P.tiles[id]).length, result: win.result || '' };
+    const snap = { scrap: afterWin.scrap, gear: afterWin.gear, tiles: Object.keys(P.tiles).length };
+    await arrive('win1', march(adj, fort, 8000));
+    const dup = { scrap: scrap0(), gear: gear0(), tiles: Object.keys(P.tiles).length, taken: !!W().enemyTaken[fort] };
+    W().enemyTaken[fort] = 1; const staleScrap = scrap0(); P.tiles = {}; P.marchDone = {};
+    const stale = await arrive('stale1', march(adj, fort, 8000));
+    return {
+      beyond, adj,
+      loss: { beforeLoss, afterLoss, win: loss.win },
+      win: { beforeWin, afterWin, flag: win.win },
+      dup: { snap, dup },
+      stale: { scrap: scrap0(), staleScrap, takenAt: W().enemyTaken[fort], result: stale.result || '', tiles: Object.keys(P.tiles).length }
+    };
+  }, found.fort);
+  ok('a lost fort fight does not capture it or the hexes beyond it', fought.loss.afterLoss.taken === false && fought.loss.afterLoss.claimedFort === false && fought.loss.afterLoss.beyond === false && fought.loss.afterLoss.scrap === fought.loss.beforeLoss.scrap, fought.loss);
+  ok('a won march captures the fort once with the existing ring reward', fought.win.afterWin.taken === true && fought.win.afterWin.ringHeld === 7 && fought.win.afterWin.scrap > fought.win.beforeWin.scrap && fought.win.afterWin.gear === fought.win.beforeWin.gear + 1, fought.win);
+  ok('resolving the same win again does not pay or claim twice', fought.dup.dup.scrap === fought.dup.snap.scrap && fought.dup.dup.gear === fought.dup.snap.gear && fought.dup.dup.tiles === fought.dup.snap.tiles, fought.dup);
+  ok('a fort taken before arrival is not captured again', fought.stale.scrap === fought.stale.staleScrap && fought.stale.takenAt === 1 && fought.stale.tiles === 0, fought.stale);
 
   const friendly = await p.evaluate((id) => {
     W().enemyTaken[id] = Date.now();
