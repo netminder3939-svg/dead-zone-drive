@@ -1,0 +1,15 @@
+const {chromium,devices}=require('playwright');(async()=>{const b=await chromium.launch();const ctx=await b.newContext({...devices['iPhone 13'],geolocation:{latitude:47.7796,longitude:-116.8923},permissions:['geolocation']});
+ await ctx.route(/googleapis|gstatic|firebase(io|app)\.com|identitytoolkit|tile|openstreetmap|overpass|arcgis|carto/,r=>r.abort());const p=await ctx.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));
+ await p.goto('http://localhost:8765/index.html?local');await p.waitForTimeout(2500);if(await p.$('#obName')){await p.fill('#obName','Pope');await p.fill('#obTeam','qacrew');await p.click('text=Enter the Wastes');}await p.waitForTimeout(5000);
+ await p.evaluate(async()=>{const a=document.getElementById('auth12');if(a)a.remove();G.playLocked=false;const id=hexAt(47.7796,-116.8923).id;claimTile(id);W().sh={hex:id,hpPct:1,state:'up',buildEnd:0,everBuilt:true};P.stronghold={level:1};P.startSh26=1;P.startShMoved26=1;
+   const ho=hexAt(47.83,-116.80).id;claimTile(ho);W().outposts[ho]={state:'up',kind:'home',start:1,endsAt:1,hpPct:1};TP().home=900;portal15('sh',ho,100);document.getElementById('toast').innerHTML='';});
+ await p.waitForTimeout(2000);const D=__dirname+'/';await p.screenshot({path:D+'rail_closed.png'});
+ const box=async()=>p.evaluate(()=>{const r=document.getElementById('op15').getBoundingClientRect(),d=document.getElementById('btnDrive').getBoundingClientRect();return{rail:[r.top,r.bottom].map(Math.round),drive:[d.top,d.bottom].map(Math.round),overlap:r.bottom>d.top&&r.top<d.bottom};});
+ console.log('closed',JSON.stringify(await box()));
+ await p.click('#op15 button');await p.waitForTimeout(400);console.log('open',JSON.stringify(await box()));await p.screenshot({path:D+'rail_open.png'});
+ await p.click('#op15 button:nth-child(2)');await p.waitForTimeout(800);console.log('after pick',await p.evaluate(()=>({op:curBase15(),open:!!G.op15open,btn:document.querySelector('#op15 button').textContent})));
+ await p.evaluate(()=>pick15('fwd'));await p.waitForTimeout(1200);await p.screenshot({path:D+'pick_bar.png'});await p.click('#pick15 button');await p.waitForTimeout(1200);
+ console.log('pick cancelled',await p.evaluate(()=>({pick:G.pick15,bar:!!document.getElementById('pick15')})));
+ await p.evaluate(()=>toast('🏳️ Material-rich zones are farther apart now (~5 km). Old fortify progress on the dense grid was reset — plain hexes stay claimable.'));await p.waitForTimeout(300);
+ console.log('toast fits',await p.evaluate(()=>[...document.querySelectorAll('#toast div')].every(d=>{const r=d.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth;})));await p.screenshot({path:D+'toast.png'});
+ console.log('errs',JSON.stringify(errs));await b.close();})();

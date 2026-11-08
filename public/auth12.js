@@ -121,7 +121,7 @@ function mountLogout(){
   const hud=document.getElementById('hud');
   if(!hud||document.getElementById('a12out'))return;
   const b=document.createElement('button');
-  b.id='a12out';b.type='button';b.className='chip';b.textContent='Log out';
+  b.id='a12out';b.type='button';b.className='chip';b.textContent='Log out';b.title='Log out';b.setAttribute('aria-label','Log out');
   b.onclick=function(){window.auth12SignOut();};
   hud.appendChild(b);
 }

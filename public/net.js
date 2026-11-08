@@ -181,7 +181,8 @@ class FirebaseNet {
   setCenter(){}
   onPlayers(f){this.playersFeed(s=>{const a=[];s.forEach(d=>{const v=d.data();if(d.id!==this.uid&&Date.now()-v.t<15*60e3)a.push({uid:d.id,...v});});f(a);});}
   onRaids(f){this.fs.onSnapshot(this.col('raids'),s=>{const o={};s.forEach(d=>o[d.id]={id:d.id,...d.data()});f(o);});}
-  onTerritory(f){this.fs.onSnapshot(this.col('territory'),s=>{const o={};s.forEach(d=>o[d.id]=d.data());f(o);});}
+  onTerritory(f){if(window.terrFeed15)return window.terrFeed15(this,f); // 12i: region loading (terr15.js)
+    this.fs.onSnapshot(this.col('territory'),s=>{const o={};s.forEach(d=>o[d.id]=d.data());f(o);});}
   // Fog of war: each member's explored hex ids (170 m cells, never raw GPS) shared with the alliance.
   onExplored(f){this.fs.onSnapshot(this.col('explored'),s=>{const a=[];s.forEach(d=>{if(d.id!==this.uid)a.push(...(d.data().ids||[]));});f(a);});}
   shareExplored(ids){if(!ids.length)return;this.fs.setDoc(this.fs.doc(this.col('explored'),this.uid),{ids:this.fs.arrayUnion(...ids)},{merge:true}).catch(()=>{});}
