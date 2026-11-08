@@ -63,7 +63,7 @@ function enemyLand25(id){
   try{if(typeof factionAt==='function'&&factionAt(id))return true;}catch(e){}
   const o=G.terr&&G.terr[id];
   return !!((o&&o.ai&&!o.released)||(W().raider&&W().raider[id]));}
-function claimPath(prev,cur){const T=BAL.tiles,ids=new Set([hexAt(...cur).id]);
+function claimPath(prev,cur){if(G._noClaim25)return 0;const T=BAL.tiles,ids=new Set([hexAt(...cur).id]);
   // Only the single hex you're standing in is claimed/revealed. No path fill-in, no neighbors.
   if(explore([...ids]))drawWorld();ids.forEach(id=>{if(P.tiles[id]&&P.tiles[id].area){P.tiles[id].area=false;}});// driving over a Stronghold-area hex makes it truly yours
   const prevId=prev?hexAt(...prev).id:null,curId=hexAt(...cur).id;

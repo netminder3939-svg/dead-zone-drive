@@ -93,7 +93,8 @@ function clockProbe(){
     catch(e){throw armNetFail(e);}finally{_probe=null;}})();
   return _probe;
 }
-async function resolveMarch(id,m){if(G.netOk===false)return;if(G._netNext&&Date.now()<G._netNext)return;if(G._mBusy[id])return;if(P.marchDone&&P.marchDone[id])return;G._mBusy[id]=1;try{
+function fortGate(hx){G._fortQ=G._fortQ||{};const prev=G._fortQ[hx]||Promise.resolve();let release;const gate=new Promise(r=>{release=r;});G._fortQ[hx]=prev.then(()=>gate).catch(()=>{});return {wait:prev,release};}
+async function resolveMarch(id,m){if(G.netOk===false)return;if(G._netNext&&Date.now()<G._netNext)return;if(G._mBusy[id])return;if(P.marchDone&&P.marchDone[id])return;G._mBusy[id]=1;G._marchId=id;try{
   let srv;try{srv=await clockProbe();}catch(e){if(e&&e.backoff)return;throw e;}if(srv<m.startT+m.dur)return; // honest server clock check
   const units=marchUnits(m),ic=interceptor(m),out={state:'arrived'};let f;
   if(ic){const sp=squadPower(ic.f,ic.s,srv),d=fdef(ic.fid);f=runFight(marchUnits(m),[bandUnit(d.name+' squad',sp)]);
@@ -113,9 +114,9 @@ async function resolveMarch(id,m){if(G.netOk===false)return;if(G._netNext&&Date.
     // v16 (J1): every hex on the path, in order. Own/ally hexes are skipped; defenders fight first; stop at the first loss or when the 40/day cap runs out.
     // v26-11: exact hex line, and skip only real ownership. A guarded pipeline is not "already ours".
     const path=(typeof claimRoute26==='function'?claimRoute26(m.from,m.to):marchTrack(m.from,m.to)).slice(1),got=[],loot={};let lost=null,capHit=false,last=null;const cap=BAL.tiles.dailyClaimCap,cd=claimsToday();let room=cap-cd.n+1; // +1 = the claim reserved at send
-    for(const hx of path){if(typeof claimSkip26==='function'?claimSkip26(hx):allied(hx))continue;if(room<=0){capHit=true;break;}const tg=marchTarget(hx);
-      if(tg.kind==='fort'){if(!(enemyAt(hx)&&!W().enemyTaken[hx]))continue;const owned=G.terr&&G.terr[hx];if(owned&&!owned.ai&&!owned.released&&owned.uid&&!(typeof isMe==='function'&&isMe(owned.uid)))continue;if(P.tiles&&P.tiles[hx])continue;
-        const f2=runFight(marchUnits(m),fortUnits(hx));last=f2;if(!f2.win){lost=hx;break;}if(!W().enemyTaken[hx])captureEnemy(hx);continue;}
+    for(const hx of path){if(typeof enemyAt==='function'&&enemyAt(hx)){const held=!!(W().enemyTaken&&W().enemyTaken[hx]);const owned=G.terr&&G.terr[hx];const other=!!(owned&&!owned.ai&&!owned.released&&owned.uid&&!(typeof isMe==='function'&&isMe(owned.uid)));if(held||other){lost=hx;break;}}if(typeof claimSkip26==='function'?claimSkip26(hx):allied(hx))continue;if(room<=0){capHit=true;break;}const tg=marchTarget(hx);
+      if(tg.kind==='fort'){const held=()=>!!(W().enemyTaken&&W().enemyTaken[hx]);if(!(enemyAt(hx)&&!held())){if(enemyAt(hx)){lost=hx;break;}continue;}const gate=fortGate(hx);await gate.wait;try{if(!(enemyAt(hx)&&!held())){lost=hx;break;}const owned=G.terr&&G.terr[hx];if(owned&&!owned.ai&&!owned.released&&owned.uid&&!(typeof isMe==='function'&&isMe(owned.uid))){lost=hx;break;}if(P.tiles&&P.tiles[hx]){lost=hx;break;}
+        const f2=runFight(marchUnits(m),fortUnits(hx));last=f2;if(!f2.win){lost=hx;break;}if(!held())captureEnemy(hx);}finally{gate.release();}continue;}
       let f2=null;if(tg.units.length){f2=runFight(marchUnits(m),tg.units);last=f2;}
       if(f2&&!f2.win){lost=hx;break;}got.push(hx);room--;for(const[k,v] of Object.entries(tg.loot||{}))loot[k]=(loot[k]||0)+v;}
     f=last||f;out.win=!lost;out.kind='path';out.claimed=got;if(ic&&out.win)for(const[k,v] of Object.entries(BAL.march.interceptLoot))loot[k]=(loot[k]||0)+v;out.loot=got.length||ic?loot:{};
@@ -127,7 +128,7 @@ async function resolveMarch(id,m){if(G.netOk===false)return;if(G._netNext&&Date.
   marchNote(out.kind==='intercept'?out.result:out.win?out.result:`💀 March lost: ${out.result}`,out.win);
   if(ic)UI.raidAlert(`Raiders intercepted ${poss(m.name)} march!`,ic.hex);
   if(f)UI.replay({title:`🚩 March to ${hexName(m.to)}`,sub:out.result,f,good:out.win,result:out.result+(out.win&&Object.keys(out.loot).length?`<br>Loot banks when the march gets home (${fmtDur(m.startT+2*m.dur-srv)}).`:''),buttons:[['Continue',()=>UI.closeModal(),'big']]});
-  }catch(e){console.warn('march',e);armNetFail(e);if(!G._mErrT||Date.now()-G._mErrT>30000){G._mErrT=Date.now();toast('📡 March arrived but the server isn\'t reachable yet. Retrying…');}}finally{delete G._mBusy[id];}}
+  }catch(e){console.warn('march',e);armNetFail(e);if(!G._mErrT||Date.now()-G._mErrT>30000){G._mErrT=Date.now();toast('📡 March arrived but the server isn\'t reachable yet. Retrying…');}}finally{delete G._mBusy[id];if(G._marchId===id)delete G._marchId;}}
 async function returnMarch(id,m){if(G.netOk===false)return;if(G._netNext&&Date.now()<G._netNext)return;if(G._mBusy[id])return;G._mBusy[id]=1;try{let srv;try{srv=await clockProbe();}catch(e){if(e&&e.backoff)return;throw e;}if(srv<m.startT+2*m.dur)return;
   P.marchPaid=P.marchPaid||{};if(m.win&&m.loot&&Object.keys(m.loot).length&&!P.marchPaid[id]){P.marchPaid[id]=1;const s0=typeof txSnap==='function'?txSnap():null;addRes(m.loot,1,true);if(s0)txAdd('march',`🚩 March loot (${hexName(m.to)})`,txDelta(s0));marchNote('🏠 March home: '+Object.entries(m.loot).map(([k,v])=>v+RES[k]).join(' '));}
   await withTO(NET.updMarch(id,{state:'done'}));m.state='done';delete G.marches[id];if(G.followMarch===id)G.followMarch=null;drawMarches();save();UI.hud();}catch(e){console.warn(e);armNetFail(e);}finally{delete G._mBusy[id];}}
