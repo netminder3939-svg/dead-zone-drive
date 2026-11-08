@@ -151,7 +151,7 @@ setInterval(()=>{const m=stats().hp;if(P.hp<m){P.hp=Math.min(m,P.hp+2+skillFx('r
 
 // ---------- raids ----------
 function drawRaids(){const g=G.layers.raids;g.clearLayers();
-  Object.values(G.raids).forEach(r=>{if(r.done||Date.now()>r.endsAt)return;
+  Object.values(G.raids).forEach(r=>{if(r.done||Date.now()>r.endsAt||!isFinite(r.lat)||!isFinite(r.lng))return; // 12h: skip a raid with no map spot
     L.marker([r.lat,r.lng],{icon:L.divIcon({className:'mk mk-boss',html:`<div class="ico boss${MANIFEST.monsters[r.bossId]?.emblem?' emb':''}"><img src="${bossMapImg(r.bossId)}" onerror="this.onerror=null;this.src='assets/monsters/${r.bossId}.svg'"><b class="lv">RAID</b></div>`,iconSize:[0,0]}),zIndexOffset:500})
       .on('click',()=>UI.infoRaid(r.id)).addTo(g);});drawLandmarks();}
 async function raidHit(id){const r=G.raids[id];if(!r||r.done)return null;const s=stats(),B=MONSTERS[r.bossId];
