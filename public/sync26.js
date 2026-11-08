@@ -533,7 +533,7 @@
       seen.add(id);
       if(ctx.owned&&ctx.owned(id)){skip.push({id,why:'already yours'});continue;}
       if(ctx.ally&&ctx.ally(id)){skip.push({id,why:'an ally holds it'});continue;}
-      if(ctx.fort&&ctx.fort(id)){skip.push({id,why:'enemy fort — attack it in person'});continue;}
+      if(ctx.fort&&ctx.fort(id)){stop={id,why:'enemy fort — the march has to win the fight'};break;}
       if(!(room>0)){stop={id,why:'daily claim limit'};break;}
       const d=ctx.defender?ctx.defender(id):null;
       if(d&&d.win===false){stop={id,why:'defenders held '+(d.name||'this hex')};break;}

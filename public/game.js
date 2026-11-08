@@ -64,7 +64,10 @@ function gpsFix(p){const c=p.coords,acc=Math.round(c.accuracy||9999),now=Date.no
   if(G.pos){const d=distM(G.pos[0],G.pos[1],c.latitude,c.longitude),dt=Math.max(1,(now-(G.gps.lastMove||now))/1000);
     if(d<Math.max(GPS.minMoveM,Math.min(acc,30)/2)&&!G.gps.forceNext){return gpsChip();}   // GPS drift while standing still
     if(d/dt>GPS.maxSpeedMs&&d>300)G.jump=true;}                                        // glitch / teleport: move, but no path claims
-  G.gps.forceNext=false;G.gps.lastMove=now;P.lastPos=[c.latitude,c.longitude];setPos(c.latitude,c.longitude);gpsChip();}
+  G.gps.forceNext=false;G.gps.lastMove=now;P.lastPos=[c.latitude,c.longitude];
+  G._realCross25=G.gps.state==='ok'&&acc<=60&&!(G.dev.walk||G.dev.drive||G.dev.tp||G.dev.hold);
+  try{setPos(c.latitude,c.longitude);}finally{G._realCross25=false;}
+  gpsChip();}
 function gpsErr(e){G.gps.errs++;if(e&&e.code===1){G.gps.state='denied';gpsChip();if(!G.gps.toldDenied){G.gps.toldDenied=1;toast('📡 Location is blocked. Allow location for this site in your browser settings, then reload.');}}
   else{G.gps.state=G.pos?'weak':'waiting';gpsChip();if(G.gps.errs>=3)gpsRestart();}
   gpsFallback();}
@@ -151,7 +154,7 @@ setInterval(()=>{const m=stats().hp;if(P.hp<m){P.hp=Math.min(m,P.hp+2+skillFx('r
 
 // ---------- raids ----------
 function drawRaids(){const g=G.layers.raids;g.clearLayers();
-  Object.values(G.raids).forEach(r=>{if(r.done||Date.now()>r.endsAt)return;
+  Object.values(G.raids).forEach(r=>{if(r.done||Date.now()>r.endsAt||!isFinite(r.lat)||!isFinite(r.lng))return; // 12h: skip a raid with no map spot
     L.marker([r.lat,r.lng],{icon:L.divIcon({className:'mk mk-boss',html:`<div class="ico boss${MANIFEST.monsters[r.bossId]?.emblem?' emb':''}"><img src="${bossMapImg(r.bossId)}" onerror="this.onerror=null;this.src='assets/monsters/${r.bossId}.svg'"><b class="lv">RAID</b></div>`,iconSize:[0,0]}),zIndexOffset:500})
       .on('click',()=>UI.infoRaid(r.id)).addTo(g);});drawLandmarks();}
 async function raidHit(id){const r=G.raids[id];if(!r||r.done)return null;const s=stats(),B=MONSTERS[r.bossId];

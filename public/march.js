@@ -57,7 +57,7 @@ function interceptor(m){const fx=P.world&&P.world.fx;if(!fx||!fx.f)return null;c
   for(const [fid,f] of Object.entries(fx.f).sort()){if(f.routedUntil)continue;for(const s of f.squads||[]){const hit=[s.pos,...(s.trail||[]),...(s.path||[])].find(id=>tr.has(id));
     if(hit)return{fid,f,s,hex:hit};}}return null;}
 function bandUnit(name,p){const A=BAL.ai;return mkUnit({name:`${name} (power ${p})`,img:'assets/monsters/raider.svg',hp:Math.max(1,p*A.hpPerPower),atk:Math.max(1,p*A.atkPerPower),def:0,crit:0,agi:0});}
-function marchTarget(id){if(enemyAt(id)&&!W().enemyTaken[id])return{kind:'fort',units:[],loot:{}};const x=factionAt(id);if(x)return{kind:'faction',units:factionUnits(id),loot:BAL.factions.retakeLoot};
+function marchTarget(id){if(enemyAt(id)&&!W().enemyTaken[id])return{kind:'fort',units:fortUnits(id),loot:{}};const x=factionAt(id);if(x)return{kind:'faction',units:factionUnits(id),loot:BAL.factions.retakeLoot};
   const o=G.terr[id];if(W().raider[id]||(o&&o.ai))return{kind:'raider',units:[bandUnit('Raider holdout',raidPower(Object.keys(P.tiles).length))],loot:BAL.ai.winLoot};
   return{kind:'open',units:[],loot:BAL.march.neutralLoot};}
 function friendlyHex(id){const o=G.terr[id];return !!(P.tiles[id]||(o&&!o.ai&&!o.released&&o.uid));}
@@ -66,7 +66,7 @@ function mobAt(id){return (G.monList||[]).find(m=>m.key.split('@')[0]===id&&!P.k
 // v19.1: squad sitting on a hex (deterministic, from the shared horde)
 function squadAt(id){const fx=P.world&&P.world.fx;if(!fx||!fx.f)return null;for(const [fid,f] of Object.entries(fx.f).sort()){if(f.routedUntil)continue;for(const s of f.squads||[])if(s.pos===id)return{fid,sid:s.id};}return null;}
 function canMarch(id){const fr=friendlyHex(id); // v19.1: own / ally hexes can be targeted (fight a squad there; empty = patrol, no claim)
-  if(enemyAt(id)&&!W().enemyTaken[id])return'Enemy fort: attack it in person';if(myMarches().length>=BAL.march.maxActive)return`Max ${BAL.march.maxActive} marches at a time`;
+  if(myMarches().length>=BAL.march.maxActive)return`Max ${BAL.march.maxActive} marches at a time`;
   if(!fr&&claimsToday().n>=BAL.tiles.dailyClaimCap)return`Daily claim limit reached (${BAL.tiles.dailyClaimCap})`;if(!G.pos)return'Waiting for GPS';const d=hexDist(marchFrom(),id);if(d>BAL.march.maxHexes)return`Too far: ${d} hexes (max ${BAL.march.maxHexes})`;return null;}
 function findSquad(fid,sid){const f=(FX().f||{})[fid];if(!f||f.routedUntil)return null;const s=(f.squads||[]).find(x=>x.id===sid);return s?{f,s}:null;}
 function marchFrom(){const h=hexAt(...G.pos).id;return h;}
@@ -93,7 +93,7 @@ function clockProbe(){
     catch(e){throw armNetFail(e);}finally{_probe=null;}})();
   return _probe;
 }
-async function resolveMarch(id,m){if(G.netOk===false)return;if(G._netNext&&Date.now()<G._netNext)return;if(G._mBusy[id])return;G._mBusy[id]=1;try{
+async function resolveMarch(id,m){if(G.netOk===false)return;if(G._netNext&&Date.now()<G._netNext)return;if(G._mBusy[id])return;if(P.marchDone&&P.marchDone[id])return;G._mBusy[id]=1;try{
   let srv;try{srv=await clockProbe();}catch(e){if(e&&e.backoff)return;throw e;}if(srv<m.startT+m.dur)return; // honest server clock check
   const units=marchUnits(m),ic=interceptor(m),out={state:'arrived'};let f;
   if(ic){const sp=squadPower(ic.f,ic.s,srv),d=fdef(ic.fid);f=runFight(marchUnits(m),[bandUnit(d.name+' squad',sp)]);
@@ -113,7 +113,10 @@ async function resolveMarch(id,m){if(G.netOk===false)return;if(G._netNext&&Date.
     // v16 (J1): every hex on the path, in order. Own/ally hexes are skipped; defenders fight first; stop at the first loss or when the 40/day cap runs out.
     // v26-11: exact hex line, and skip only real ownership. A guarded pipeline is not "already ours".
     const path=(typeof claimRoute26==='function'?claimRoute26(m.from,m.to):marchTrack(m.from,m.to)).slice(1),got=[],loot={};let lost=null,capHit=false,last=null;const cap=BAL.tiles.dailyClaimCap,cd=claimsToday();let room=cap-cd.n+1; // +1 = the claim reserved at send
-    for(const hx of path){if(typeof claimSkip26==='function'?claimSkip26(hx):allied(hx))continue;if(room<=0){capHit=true;break;}const tg=marchTarget(hx);if(tg.kind==='fort')continue;let f2=null;if(tg.units.length){f2=runFight(marchUnits(m),tg.units);last=f2;}
+    for(const hx of path){if(typeof claimSkip26==='function'?claimSkip26(hx):allied(hx))continue;if(room<=0){capHit=true;break;}const tg=marchTarget(hx);
+      if(tg.kind==='fort'){if(!(enemyAt(hx)&&!W().enemyTaken[hx]))continue;const owned=G.terr&&G.terr[hx];if(owned&&!owned.ai&&!owned.released&&owned.uid&&!(typeof isMe==='function'&&isMe(owned.uid)))continue;if(P.tiles&&P.tiles[hx])continue;
+        const f2=runFight(marchUnits(m),fortUnits(hx));last=f2;if(!f2.win){lost=hx;break;}if(!W().enemyTaken[hx])captureEnemy(hx);continue;}
+      let f2=null;if(tg.units.length){f2=runFight(marchUnits(m),tg.units);last=f2;}
       if(f2&&!f2.win){lost=hx;break;}got.push(hx);room--;for(const[k,v] of Object.entries(tg.loot||{}))loot[k]=(loot[k]||0)+v;}
     f=last||f;out.win=!lost;out.kind='path';out.claimed=got;if(ic&&out.win)for(const[k,v] of Object.entries(BAL.march.interceptLoot))loot[k]=(loot[k]||0)+v;out.loot=got.length||ic?loot:{};
     if(lost&&got.length)out.win=true; // partial success keeps the hexes it took and its loot

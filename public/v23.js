@@ -86,7 +86,8 @@ function drawGar(){if(typeof map==='undefined'||!P.world)return;if(!G.layers.gar
 HOOK.draw(function(){try{window.drawGar();}catch(e){}});setInterval(()=>{try{window.drawGar();}catch(e){}},15000);setTimeout(()=>window.drawGar(),2000);
 // ---------- horde target vs owner: tile card always says who owns the hex; a horde target is labeled separately
 const _it23=UI.infoTile;UI.infoTile=function(id){const r=_it23.apply(this,arguments);try{const mb=q('#modalBody');if(!mb||mb.querySelector('.owner23'))return r;const o=G.terr&&G.terr[id],x=typeof factionAt==='function'?factionAt(id):null;
-  const own=P.tiles&&P.tiles[id]?['You','#4ad7ff']:x?[`Horde (${fdef(x.fid||x.id||'').name||'gang'})`,'#ff6b55']:o&&!o.released&&!o.ai?[o.by||'Ally',o.color||'#e6c46a']:o&&o.ai?['Raiders','#ff6b55']:['Nobody (free)','#bbb'];
+  const fort=typeof enemyAt==='function'&&enemyAt(id)&&!(W().enemyTaken&&W().enemyTaken[id]);
+  const own=fort?['Raider Stronghold','#ff6b55']:P.tiles&&P.tiles[id]?['You','#4ad7ff']:x?[`Horde (${fdef(x.fid||x.id||'').name||'gang'})`,'#ff6b55']:o&&!o.released&&!o.ai?[o.by||'Ally',o.color||'#e6c46a']:o&&o.ai?['Raiders','#ff6b55']:['Nobody (free)','#bbb'];
   let tgt=0;try{for(const f of Object.values(FX().f||{}))for(const s of (f&&f.squads)||[])if(s&&s.target===id)tgt++;}catch(e){}
   const html=`<div class="owner23" style="border:1px solid ${own[1]};color:${own[1]}">Owner: ${esc(own[0])}</div>${tgt?`<div class="owner23" style="border:1px dashed #ff3b2f;color:#ffb3a8">🎯 Horde target: ${tgt} squad${tgt>1?'s are':' is'} planning to hit this hex. It is not theirs yet.</div>`:''}`;
   const anchor=mb.querySelector('.ibtns');anchor?anchor.insertAdjacentHTML('beforebegin',html):mb.insertAdjacentHTML('beforeend',html);}catch(e){}return r;};
