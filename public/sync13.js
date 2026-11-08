@@ -45,6 +45,8 @@ function bar(){let el=document.getElementById('sync13bar');
   else el.textContent=(S.lease.label==='phone'?'📱':'💻')+' Playing on '+other(S.lease)+' · synced '+ago13(S.savedAt)+'. Tap here or play to switch to this '+LABEL+'.';}
 function ago13(t){if(!t)return'just now';const s=Math.round((Date.now()-t)/1000);return s<5?'just now':s<60?s+'s ago':Math.round(s/60)+'m ago';}
 // ---------- adopt the server copy ----------
+window.profile13=fp;
+window.applySave13=function(profile,rev,lease){adopt(profile,rev,lease,'bank-collect');};
 function adopt(o,rev,lease,why){
   const keep={};for(const k of LOCAL)if(P[k]!==undefined)keep[k]=P[k];
   for(const k of Object.keys(P))if(!LOCAL.has(k)&&!(k in o))delete P[k];

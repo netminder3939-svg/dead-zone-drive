@@ -87,19 +87,30 @@
   // Collect an approved request: one transaction moves it out of the bank and marks it paid; only then is it added to me.
   const busy15={};
   async function collect15(id){const r=G.bankReq15[id];if(!r||r.uid!==P.uid||r.status!=='approved'||busy15[id])return;busy15[id]=1;let bal=null;
-    try{if(fire()){const fs=NET.fs,aRef=fs.doc(NET.db,...NET.base,'meta','alliance'),rRef=fs.doc(NET.col('bankReq'),id),lRef=fs.doc(NET.col('bankLog'));
-        await fs.runTransaction(NET.db,async tx=>{const a=await tx.get(aRef),q=await tx.get(rRef);const x=q.exists()?q.data():null;
+    const held=window.SYNC13&&SYNC13.hold===false;if(window.SYNC13)SYNC13.hold=true;
+    try{if(fire()){const fs=NET.fs,aRef=fs.doc(NET.db,...NET.base,'meta','alliance'),rRef=fs.doc(NET.col('bankReq'),id),lRef=fs.doc(NET.col('bankLog')),sRef=fs.doc(NET.col('saves'),P.uid);
+        const acked=await fs.runTransaction(NET.db,async tx=>{const a=await tx.get(aRef),q=await tx.get(rRef),sv=await tx.get(sRef);const x=q.exists()?q.data():null;
           if(!x||x.status!=='approved'||x.uid!==P.uid)throw new Error('Request is not approved any more');
           const bank={...((a.exists()&&a.data().bank)||{})};const have=bank[x.res]||0;if(have<x.amt)throw new Error(`The bank only has ${have} ${RES[x.res]} now`);
           bank[x.res]=have-x.amt;bal=bank[x.res];
+          let prof={};try{prof=JSON.parse((window.profile13&&profile13())||'{}')||{};}catch(e){prof={};}
+          prof.res={...(prof.res||{})};prof.res[x.res]=(prof.res[x.res]||0)+x.amt;
+          prof.contrib={...(prof.contrib||{})};prof.contrib.withdrawn=(prof.contrib.withdrawn||0)+x.amt;
+          const curRev=sv.exists()?(sv.data().rev|0):0,rev=curRev+1;
+          const lease={dev:(window.SYNC13&&SYNC13.dev)||'bank',label:'phone',t:Date.now()};
           tx.set(aRef,{bank,payReq:id},{merge:true});tx.update(rRef,{status:'paid',paidT:fs.serverTimestamp()});
-          tx.set(lRef,{uid:P.uid,member:P.name,res:x.res,amt:-x.amt,bal,kind:'withdraw',t:fs.serverTimestamp()});});}
+          tx.set(lRef,{uid:P.uid,member:P.name,res:x.res,amt:-x.amt,bal,kind:'withdraw',t:fs.serverTimestamp()});
+          tx.set(sRef,{data:JSON.stringify(prof),rev,baseRev:curRev,savedAt:Date.now(),name:String(P.name||'').slice(0,24),lvl:P.lvl|0,v:3,fe:P.fullEpoch||0,me:P.mapEpoch||0,lease});
+          return{profile:prof,rev,lease};});
+        if(acked&&typeof applySave13==='function')applySave13(acked.profile,acked.rev,acked.lease);
+        else{P.res[r.res]=(P.res[r.res]||0)+r.amt;P.contrib.withdrawn=(P.contrib.withdrawn||0)+r.amt;save();}
+        toast(`🏦 Collected ${r.amt} ${RES[r.res]} from the bank${bal!=null?' · bank now '+bal:''}`);try{UI.hud();UI.render();}catch(e){}}
       else{const o=lget(RK())||{};const x=o[id];if(!x||x.status!=='approved')throw new Error('Request is not approved any more');
         const have=(NET.bankBal?NET.bankBal(x.res):((G.al&&G.al.bank||{})[x.res]||0));if(have<x.amt)throw new Error('The bank is short');
-        if(NET.bankTx)bal=await NET.bankTx(P.uid,P.name,x.res,-x.amt,true);o[id]={...x,status:'paid',paidT:Date.now()};lset(RK(),o);G.bankReq15=o;}
-      P.res[r.res]=(P.res[r.res]||0)+r.amt;P.contrib.withdrawn=(P.contrib.withdrawn||0)+r.amt;save();pushMember();
-      toast(`🏦 Collected ${r.amt} ${RES[r.res]} from the bank${bal!=null?' · bank now '+bal:''}`);try{UI.hud();UI.render();}catch(e){}}
-    catch(e){toast('🚫 '+(e.message||e));}finally{delete busy15[id];}}
+        if(NET.bankTx)bal=await NET.bankTx(P.uid,P.name,x.res,-x.amt,true);o[id]={...x,status:'paid',paidT:Date.now()};lset(RK(),o);G.bankReq15=o;
+        P.res[r.res]=(P.res[r.res]||0)+r.amt;P.contrib.withdrawn=(P.contrib.withdrawn||0)+r.amt;save();pushMember();
+        toast(`🏦 Collected ${r.amt} ${RES[r.res]} from the bank${bal!=null?' · bank now '+bal:''}`);try{UI.hud();UI.render();}catch(e){}}}
+    catch(e){toast('🚫 '+(e.message||e));}finally{delete busy15[id];if(held&&window.SYNC13)SYNC13.hold=false;}}
   Object.assign(window,{requestWithdraw15,decideReq15,cancelReq15,collect15});
   function onReqs15(){try{for(const r of Object.values(G.bankReq15))if(r.uid===P.uid&&r.status==='approved')collect15(r.id);}catch(e){}
     try{const n=Object.values(G.bankReq15).filter(r=>r.status==='pending').length;if(isOfficer15()&&n&&typeof newsAdd==='function')newsAdd('alliance','bank',`🙋 ${n} bank request${n>1?'s':''} waiting for approval`,'bankreq15');}catch(e){}
