@@ -1,8 +1,10 @@
 // v25c (TEST) Crew home map. A member whose real GPS is far (> HOME25.farKm) from the crew's home region plays on the SAME
 // shared map, same team, on the web: pick a free start hex near the crew, build a Stronghold there, then claim / march /
 // reinforce with taps (marches, no walking claims). No pipelines for far members. Real drives where they live still earn
-// resources in Drive mode. Not a separate game mode.
-const HOME25={farKm:50,startMaxKm:8,minGap:2,perKm:{scrap:20,food:6,water:6,fuel:8},presets:{'rathdrum-crew':{lat:47.8135,lng:-116.8968,name:'Rathdrum'}}};
+// resources in Drive mode. Not a separate game mode. Coming back inside 40 km takes two accurate
+// real fixes before the saved flag turns off, so one bad point cannot flap it. The handoff does not
+// count the gap between the crew-map dot and the real fix as distance or a string of claims.
+const HOME25={farKm:50,nearKm:40,startMaxKm:8,minGap:2,perKm:{scrap:20,food:6,water:6,fuel:8},presets:{'rathdrum-crew':{lat:47.8135,lng:-116.8968,name:'Rathdrum'}}};
 window.HOME25=HOME25;
 function team25(){try{return NET.team||localStorage.getItem('wl_team')||'';}catch(e){return'';}}
 function home25(){if(G.home25)return G.home25;try{if(location.hostname.includes('--')||/localhost/.test(location.hostname)){const d=localStorage.getItem('wl_home25');if(d)return G.home25=JSON.parse(d);}}catch(e){}const p=HOME25.presets[team25()];if(p)return p;
@@ -12,13 +14,34 @@ function home25(){if(G.home25)return G.home25;try{if(location.hostname.includes(
 window.home25=home25;
 function isFar(){return !!(P.far25&&P.far25.on);}window.isFar25=isFar;
 function farFrom(lat,lng){const h=home25();return h?distM(lat,lng,h.lat,h.lng)/1000>HOME25.farKm:false;}
+function kmFromHome(lat,lng){const h=home25();return h?distM(lat,lng,h.lat,h.lng)/1000:0;}
+// A simulated dot or a weak fix must not turn the crew map off. state "ok" is a real fix at 60 m or better.
+function realOk25(){const d=G.dev||{},g=G.gps;if(d.walk||d.drive||d.tp||d.hold)return false;return !!(g&&g.state==='ok'&&g.acc!=null&&g.acc<=60);}
+// One accurate fix inside nearKm only arms. A second, newer fix confirms. The counter stays in memory, so a drive does not save on every point.
+function armNear25(){const t=G.gps&&G.gps.t||0,a=G._near25;if(a&&t&&a.t&&t!==a.t)return true;if(!a)G._near25={t:t,at:Date.now()};return false;}
+function clearNear25(){G._near25=null;}
+// Local save once. Cloud upload stays on the lease: this does not call cloudSave, and it does not force a revision.
+function leaveFar25(){if(!isFar())return false;P.far25.on=false;G.pick25=false;clearNear25();save();try{pushMember();}catch(e){}try{banner25();}catch(e){}
+  const h=home25();try{toast(`🛰️ You're back near ${h?h.name:'home'}. The map follows your GPS again.`);}catch(e){}return true;}
+// The dot was sitting on the crew map. Put it on the real fix without adding the gap to walked distance.
+function placeReal25(lat,lng){G.jump=true;if(G.pos)G.pos=[lat,lng];if(G.gps)G.gps.recenter=true;return _sp25.call(this,lat,lng);}
 // ---------- position: real GPS stays private; the game position sits on your home-map hex ----------
 G.real25=null;
 const _sp25=setPos;setPos=function(lat,lng){try{
-  if(!isFar()&&farFrom(lat,lng)&&P.name){const h=home25();if(h){P.far25={on:true,anchor:null,since:Date.now()};save();try{pushMember();}catch(e){}toast(`🛰️ You're far from the crew. You'll play on the crew home map: ${h.name}`);}}
-  if(isFar()&&farFrom(lat,lng)){realFix(lat,lng);const a=anchor25();if(a){const c=hexCenter(...idQR(a));if(!G.pos||hexAt(...G.pos).id!==a){G.jump=true;return _sp25.call(this,c[0],c[1]);}return;}
+  if(!isFar()&&farFrom(lat,lng)&&P.name){clearNear25();const h=home25();if(h){P.far25={on:true,anchor:null,since:Date.now()};save();try{pushMember();}catch(e){}try{banner25();}catch(e){}toast(`🛰️ You're far from the crew. You'll play on the crew home map: ${h.name}`);}}
+  if(isFar()&&!farFrom(lat,lng)){
+    const dev=(G.dev&&(G.dev.walk||G.dev.drive||G.dev.tp||G.dev.hold));
+    if(dev){clearNear25();return _sp25.apply(this,arguments);} // dev tools move the dot; they do not end the real-GPS mode
+    if(!realOk25()){clearNear25();return;} // weak or missing accuracy: keep the crew map, do not claim from a poor fix
+    if(kmFromHome(lat,lng)>HOME25.nearKm){clearNear25();return _sp25.apply(this,arguments);} // 40–50 km: follow the drive, mode stays on
+    if(!armNear25())return; // first good fix inside 40 km: wait for another before writing
+    if(leaveFar25())return placeReal25.call(this,lat,lng);return;}
+  if(isFar()&&farFrom(lat,lng)){clearNear25();realFix(lat,lng);const a=anchor25();if(a){const c=hexCenter(...idQR(a));if(!G.pos||hexAt(...G.pos).id!==a){G.jump=true;return _sp25.call(this,c[0],c[1]);}return;}
     const h=home25();if(!G.pos||distM(G.pos[0],G.pos[1],h.lat,h.lng)>20000){G.jump=true;_sp25.call(this,h.lat,h.lng);}startPick25();return;}}catch(e){console.warn('home25 pos',e);}
   return _sp25.apply(this,arguments);};
+// A still phone can drop the next point in the drift filter, before setPos. That point still has to cancel a pending return when it is weak or outside 40 km.
+const _gpsFix25=gpsFix;gpsFix=function(fix){try{const c=fix&&fix.coords;if(c&&isFar()&&G._near25){const acc=Math.round(c.accuracy||9999);if(acc>60||kmFromHome(c.latitude,c.longitude)>HOME25.nearKm)clearNear25();}}catch(e){}
+  return _gpsFix25.apply(this,arguments);};
 function anchor25(){const s=W().sh;if(s&&s.hex&&s.state!=='down')return s.hex;return P.far25&&P.far25.anchor||null;}
 window.anchor25=anchor25;
 // far members never walk-claim (their GPS is elsewhere); they claim with marches like everyone on the web
@@ -57,7 +80,10 @@ HOOK.render(function(){try{if(!isFar())return;const b=document.querySelector('#s
 // ---------- banner + roster tag ----------
 function banner25(){let el=document.getElementById('far25');if(!isFar()){if(el)el.remove();return;}const h=home25();if(!el){el=document.createElement('div');el.id='far25';document.body.appendChild(el);}
   el.innerHTML=`🛰️ Playing on crew home map: <b>${h?h.name:'crew home'}</b><small>${anchor25()?'Tap hexes to march · drives at home earn resources':'Pick a free start hex near the crew'}</small>`;}
-setInterval(()=>{try{banner25();}catch(e){}},1500);
+// A parked phone may get a second watch tick that the drift filter does not pass to setPos. That newer timestamp confirms the same still fix.
+function confirmDwell25(){try{if(!isFar()||!G._near25||!realOk25())return;const g=G.gps,a=G._near25;if(!g.t||g.t===a.t||Date.now()-g.t>8000)return;if(!P.lastPos||kmFromHome(P.lastPos[0],P.lastPos[1])>HOME25.nearKm){clearNear25();return;}
+  if(leaveFar25())placeReal25(P.lastPos[0],P.lastPos[1]);}catch(e){}}
+setInterval(()=>{try{banner25();confirmDwell25();}catch(e){}},1500);
 HOOK.member(function(o){try{if(isFar())o.far25=1;}catch(e){}return o;});
 HOOK.render(function(){try{if(this.tab!=='alliance'||this.sub.alliance!=='members')return;const M=(G.al&&G.al.members)||{};document.querySelectorAll('#sheetBody .row').forEach(r=>{const t=r.textContent;for(const m of Object.values(M))if(m.far25&&m.name&&t.includes(m.name)&&!r.querySelector('.ftag25')){const b=r.querySelector('b');b&&b.insertAdjacentHTML('afterend',' <span class="ftag25">🛰️ remote</span>');}});}catch(e){}});
 // dev / test: simulate a far player (test site only)
