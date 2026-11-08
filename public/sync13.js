@@ -53,7 +53,7 @@ function adopt(o,rev,lease,why){
   S.rev=rev;S.lease=lease||S.lease;P._rev=rev;P._ackedRev=rev;P._userBase=P._userEdit|0;
   S.lastFp=fp();S.savedAt=Date.now();
   try{save();}catch(e){}
-  redraw();log('adopt rev',rev,'from',lease&&lease.label,why||'');}
+  redraw();try{if(window.onProfile25)onProfile25();}catch(e){}log('adopt rev',rev,'from',lease&&lease.label,why||'');}
 function redraw(){try{UI.hud();}catch(e){}try{drawWorld();}catch(e){}try{if(typeof drawPipes==='function')drawPipes();}catch(e){}try{if(UI.tab)UI.render();}catch(e){}}
 // ---------- write (transaction on the revision) ----------
 async function write(reason,force){
@@ -150,7 +150,7 @@ async function start(){
   setStatus(iOwn()?'saved':'following',iOwn()?'Safe to switch. Saved (save '+S.rev+').':'Following '+other(S.lease)+'.');
   log('started dev',S.dev,'label',LABEL,'rev',S.rev,'lease',S.lease&&S.lease.label);
   if(!S.lease||!leaseFresh(S.lease))write('first');}
-function adoptLocal(o){for(const k of Object.keys(o))if(!LOCAL.has(k))P[k]=o[k];try{save();}catch(e){}redraw();}
+function adoptLocal(o){for(const k of Object.keys(o))if(!LOCAL.has(k))P[k]=o[k];try{save();}catch(e){}redraw();try{if(window.onProfile25)onProfile25();}catch(e){}}
 ['pointerdown','keydown','touchstart'].forEach(ev=>document.addEventListener(ev,e=>{if(e.target&&e.target.closest&&e.target.closest('#auth12'))return;S.lastGesture=Date.now();},true));
 document.addEventListener('visibilitychange',()=>{if(!S.on)return;if(visible()){tick();}else if(iOwn()&&fp()!==S.lastFp)write('hide');});
 window.addEventListener('online',()=>{if(S.on){S.offline=false;tick(true);}});

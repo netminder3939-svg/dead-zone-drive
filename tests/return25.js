@@ -165,21 +165,13 @@ async function fix(context, page, g, wait) {
   const claimed = await p.evaluate(() => { G.playLocked = false; W(); const n = claimPath(G.pos, [G.pos[0] + 0.003, G.pos[1]]); return { n, tiles: Object.keys(P.tiles).length }; });
   ok('a later real step can claim again', !s.far && claimed.n > 0 && claimed.tiles > tiles0, claimed);
 
-  // stale cloud flag applied locally is not cleared until two new accurate fixes, and is not force-uploaded by the apply
-  await p.evaluate(() => { P.far25 = { on: true, anchor: null, since: 1 }; save(); banner25(); });
-  s = await snap(p);
-  ok('a reapplied flag stays until GPS confirms', s.far && s.banner.includes('Rathdrum'), s);
-  await p.evaluate(() => { W(); const id = hexAt(...G.pos).id; P.tiles[id] = P.tiles[id] || { t: 1 }; P.startSh26 = 1; P.startShMoved26 = 1; });
+  // This session already has a fresh accurate home fix. A stale flag is not a new GPS sample, so it does not stay and it does not upload.
   const cloudAt = s.cloud;
-  await fix(c, p, CLOSE);
+  const metersAt = s.meters;
+  await p.evaluate(() => { P.far25 = { on: true, anchor: null, since: 1 }; save(); banner25(); if (window.onProfile25) onProfile25(); });
   s = await snap(p);
-  ok('one accurate fix only arms', s.far && s.armed, s);
-  const tilesAt = s.tiles;
-  await fix(c, p, { latitude: CLOSE.latitude + 30 / 111320, longitude: CLOSE.longitude, accuracy: 8 });
-  s = await snap(p);
-  ok('the reapplied flag clears on the second fix', !s.far && !s.saved, s);
-  ok('clearing it does not call cloudSave', s.cloud === cloudAt, s);
-  ok('the return claims at most the hex underfoot', s.tiles - tilesAt <= 1, { tilesAt, tiles: s.tiles });
+  ok('a reapplied flag clears from the fresh home fix without a new drive', !s.far && !s.saved && !s.banner, s);
+  ok('clearing the reapplied flag does not call cloudSave or add distance', s.cloud === cloudAt && s.meters === metersAt, s);
 
   console.log(failed ? 'FAILED ' + failed : 'ALL PASS');
   await b.close();

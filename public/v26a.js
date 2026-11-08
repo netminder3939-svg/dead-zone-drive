@@ -30,8 +30,11 @@ function type26(clsId){return C26.types[clsId]?clsId:'raider';}
 function myType26(){return type26(P.cls&&P.cls.id);}
 function myGear26(){const o={atk:0,def:0,hp:0,agi:0};try{equippedGear().forEach(([,g])=>{if(g)for(const k in o)o[k]+=g[k]||0;});const b=setBonus().total;for(const k in o)o[k]+=b[k]||0;}catch(e){}return o;}
 window.myType26=myType26;window.myGear26=myGear26;window.type26=type26;
-HOOK.member(function(m){try{m.cls=P.cls&&P.cls.id||m.cls||null;const g=myGear26();m.g26={a:g.atk|0,d:g.def|0,h:g.hp|0};}catch(e){}return m;});
-function who26(uid){if(!uid||isMe(uid))return{type:myType26(),gear:myGear26(),name:P.name};const m=((G.al&&G.al.members)||{})[uid]||{};const g=m.g26||{};return{type:type26(m.cls),gear:{atk:g.a|0,def:g.d|0,hp:g.h|0},name:m.name||'Teammate'};}
+HOOK.member(function(m){try{m.cls=P.cls&&P.cls.id||m.cls||null;const g=myGear26();m.g26={a:g.atk|0,d:g.def|0,h:g.hp|0,t:myTp26()};}catch(e){}return m;});
+// 12h: troop tier (Barracks) counts in fights: every troop's ATK and HP x tier power (T1 1 ... T5 3.2). Published as g26.t for teammates' phones.
+function myTp26(){try{return TR2.tierPower[troopTier()-1]||1;}catch(e){return 1;}}
+window.myTp26=myTp26;
+function who26(uid){if(!uid||isMe(uid))return{type:myType26(),gear:{...myGear26(),tp:myTp26()},name:P.name};const m=((G.al&&G.al.members)||{})[uid]||{};const g=m.g26||{};return{type:type26(m.cls),gear:{atk:g.a|0,def:g.d|0,hp:g.h|0,tp:Math.min(3.2,Math.max(1,+g.t||1))},name:m.name||'Teammate'};}
 window.who26=who26;
 // speed gear (AGI) shortens marches: -0.5% per AGI, max -25%
 try{const _md26=marchDur;marchDur=function(){const d=_md26.apply(this,arguments);try{const a=myGear26().agi||0;return Math.round(d*(1-Math.min(.25,a*.005)));}catch(e){return d;}};}catch(e){}
@@ -48,7 +51,8 @@ function fight26(def,att){const T=C26.types,Pk=C26.perk;const pl=(def.players||[
   if(b){const L=Math.max(1,def.bld.lvl||1),pct=def.bld.pct==null?1:def.bld.pct;fire=b.fire*(1+C26.lvlFire*(L-1))*pct;walls=Math.min(C26.maxWalls,b.walls+C26.lvlWalls*(L-1));}
   walls=Math.min(C26.maxWalls+.10,walls+perks.shieldwall);
   const rows=pl.map(p=>{const t=T[p.type]||T.raider,c=C26.cls[p.type]||{},g=p.gear||{};
-    const atkPer=t.atk*(1+(c.atk||0))*(1+(g.atk||0)/200)*(1+perks.battleborne),hpPer=t.hp*(1+(c.hp||0))*(1+((g.def||0)+(g.hp||0)/4)/200)*(1+perks.mend)*(1+mix);
+    const tp=Math.min(3.2,Math.max(1,+g.tp||1)); // 12h: troop tier
+    const atkPer=t.atk*tp*(1+(c.atk||0))*(1+(g.atk||0)/200)*(1+perks.battleborne),hpPer=t.hp*tp*(1+(c.hp||0))*(1+((g.def||0)+(g.hp||0)/4)/200)*(1+perks.mend)*(1+mix);
     return{...p,atkPer,hpPer,dmg:p.n*atkPer,hp:p.n*hpPer};});
   const D=(fire+rows.reduce((a,r)=>a+r.dmg,0))*(1+perks.mastermind),H=rows.reduce((a,r)=>a+r.hp,0)+(b?inn:0);
   const at=T[att.type||C26.horde]||T.raider,an=Math.max(0,att.n||0),A=an*at.atk*(1-perks.sighted),E=an*at.hp*(1-perks.saboteur);
@@ -116,7 +120,7 @@ function reconcile26(){if(!P.world||!P.world.fx)return;const gi=fxIndex(),cl=cut
       const rec=TP().rec26=TP().rec26||{},held=String(f.tiles[h]||0);if(rec[h]===held)continue; // already fought for this exact capture
       let sp=0;for(const s of f.squads||[])sp=Math.max(sp,squadPower(f,s,now)||0);if(!sp)sp=Math.round(2000*TROOP.powerPer);
       const gname=(fdef(fid)||{}).name||'Horde',stn=stationed()[g.hex].n;
-      const r=fight26({bld:{kind:'pipe',lvl:1},players:[{key:'me:'+g.hex,uid:P.uid,n:stn,type:myType26(),gear:myGear26(),name:'Your pipeline guard'}]},{n:Math.round(sp/TROOP.powerPer),name:gname});
+      const r=fight26({bld:{kind:'pipe',lvl:1},players:[{key:'me:'+g.hex,uid:P.uid,n:stn,type:myType26(),gear:{...myGear26(),tp:myTp26()},name:'Your pipeline guard'}]},{n:Math.round(sp/TROOP.powerPer),name:gname});
       const me=r.players[0];const row={t:now,hex:h,gang:gname,sp,win:r.win,r26:r,pipe:p.name,me:[{who:'Your pipeline guard',n:me.n,lost:me.lost}]};
       rec[h]=held;if(r.win){delete f.tiles[h];fxDirty();stationed()[g.hex].n=me.left;if(cl[h])delete cl[h];row.title=`Pipeline guard drove ${gname} off ${p.name}`;}
       else{cl[h]={t:now,fid,why:'fight'};sendHome25(g.hex,me.left,'retreated');row.title=`Pipeline line lost · ${p.name}`;}
