@@ -34,7 +34,7 @@ function tileInfo(id){if(_tileCache[id])return _tileCache[id];const T=BAL.tiles,
     const y=r();out.tier=y<T.tierChance.epic?'epic':y<T.tierChance.epic+T.tierChance.rare?'rare':'common';
     out.yield=Math.max(1,Math.round(T.dailyYield[out.tier]*T.resMult[out.res]));}
   return _tileCache[id]=out;}
-function grossIncome(){const inc={scrap:0,food:0,water:0,fuel:0,parts:0},all=new Set(Object.keys(P.tiles));if(BAL.stronghold.areaIncome)shAreaIds().forEach(i=>all.add(i));for(const id of all){const t=tileInfo(id);if(t.res)inc[t.res]+=t.yield;}return inc;}
+function grossIncome(){const inc={scrap:0,food:0,water:0,fuel:0,parts:0},all=new Set(Object.keys(P.tiles));if(BAL.stronghold.areaIncome)shAreaIds().forEach(i=>all.add(i));for(const id of all){if(typeof inSupply15==='function'&&!inSupply15(id))continue; /* 12i: pays only within 10 mi of a base */const t=tileInfo(id);if(t.res)inc[t.res]+=t.yield;}return inc;}
 function towerUpkeep(){const u={scrap:0,food:0,water:0,fuel:0,parts:0},n=Object.values(W().towers).filter(t=>t.state!=='down').length;for(const k in BAL.tower.upkeep)u[k]+=BAL.tower.upkeep[k]*n;return u;}
 // What you'll personally net at the next reset (after the 25% alliance share and tower upkeep)
 function expectedIncome(){const g=grossIncome(),u=towerUpkeep(),o={};for(const k in g){const share=Math.round(g[k]*BAL.reset.allianceShare);o[k]=g[k]-share-u[k];}return o;}

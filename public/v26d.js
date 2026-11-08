@@ -30,7 +30,8 @@ const _ad26d=adoptHorde;adoptHorde=function(doc){try{const r=JSON.parse(doc&&doc
   dropStale26();return _ad26d.apply(this,arguments);};
 const _pub26d=publishHorde;publishHorde=function(){if(dropStale26())return;try{FX().fe=fe26();}catch(e){}return _pub26d.apply(this,arguments);};
 // re-aim at the current Stronghold
-const _fcu26d=factionCatchUp;factionCatchUp=function(){dropStale26();try{const fx=FX(),s=P.world&&P.world.sh;if(fx.start&&s&&s.hex&&s.state!=='down'&&fx.anchor!==s.hex)fx.anchor=s.hex;}catch(e){}return _fcu26d.apply(this,arguments);};
+// 12i: the main horde front is centred on the alliance HQ when there is one (stable for every phone); otherwise on my Stronghold as before.
+const _fcu26d=factionCatchUp;factionCatchUp=function(){dropStale26();try{const fx=FX(),s=P.world&&P.world.sh,hq=typeof hqHex15==='function'?hqHex15():null;const want=hq||(s&&s.hex&&s.state!=='down'?s.hex:null);if(fx.start&&want&&fx.anchor!==want)fx.anchor=want;}catch(e){}return _fcu26d.apply(this,arguments);};
 // ---- grace
 function myGrace26(){const s=P.world&&P.world.sh;if(s&&s.hex&&!P.born26){P.born26=Date.now();try{save();}catch(e){}}return Math.max(P.born26||0,fe26())+SH26.graceH*3600e3;}
 window.myGrace26=myGrace26;

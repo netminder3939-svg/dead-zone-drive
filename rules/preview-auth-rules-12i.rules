@@ -1,0 +1,261 @@
+// NOT PUBLISHED (12i). = 12g rules + alliance ranks (meta/hq), bank withdrawals that need approval (bankReq),
+// region stamps on territory (rg/al), and the territory-version flag (meta/terrv).
+// 12g: preview saves require an email/password account for read, create, update and delete.
+// Rollback: restore the previous allow write on match /saves/{uid}.
+rules_version = '2';
+// Dead Zone Drive — friends-and-family rules (free Spark plan, no Cloud Functions).
+// Anyone signed in (anonymous is fine) can play. No GPS positions are ever stored.
+service cloud.firestore {
+  match /databases/{db}/documents {
+    match /teams/{team} {
+      function signedIn() { return request.auth != null; }
+      // PREVIEW ONLY: test teams (pv-*) can be wiped from the test build's Wipe button. Never matches live teams.
+      // Character saves are excluded. Only the owner can delete their own preview save, in match /saves/{uid}.
+      match /{collection}/{id} {
+        allow delete: if signedIn() && team.matches('pv-.*') && collection != 'saves';
+      }
+      match /{collection}/{id}/{sub=**} {
+        allow delete: if signedIn() && team.matches('pv-.*') && collection != 'saves';
+      }
+      function nonNegBank(b) {
+        return b.keys().hasOnly(['scrap','food','water','fuel','parts'])
+          && (!('scrap' in b) || (b.scrap is int && b.scrap >= 0))
+          && (!('food'  in b) || (b.food  is int && b.food  >= 0))
+          && (!('water' in b) || (b.water is int && b.water >= 0))
+          && (!('fuel'  in b) || (b.fuel  is int && b.fuel  >= 0))
+          && (!('parts' in b) || (b.parts is int && b.parts >= 0));
+      }
+
+      // 12i: alliance ranks live in meta/hq: {leader: uid, roles: {uid: 'leader'|'officer'}, titles, hq: {hex, name, ...}}.
+      function hqPath() { return /databases/$(db)/documents/teams/$(team)/meta/hq; }
+      function hqExists() { return exists(hqPath()); }
+      function roleOf(uid) { return hqExists() ? get(hqPath()).data.roles.get(uid, 'member') : 'none'; }
+      function isBoss() { return roleOf(request.auth.uid) in ['leader', 'officer']; }
+      function noDrop(nb, ob, k) { return nb.get(k, 0) >= ob.get(k, 0); }
+      function bankNoDrop(nb, ob) {
+        return noDrop(nb, ob, 'scrap') && noDrop(nb, ob, 'food') && noDrop(nb, ob, 'water') && noDrop(nb, ob, 'fuel') && noDrop(nb, ob, 'parts');
+      }
+      function othersNoDrop(nb, ob, res) {
+        return (res == 'scrap' || noDrop(nb, ob, 'scrap')) && (res == 'food' || noDrop(nb, ob, 'food'))
+            && (res == 'water' || noDrop(nb, ob, 'water')) && (res == 'fuel' || noDrop(nb, ob, 'fuel'))
+            && (res == 'parts' || noDrop(nb, ob, 'parts'));
+      }
+      // A member collects an approved request in one transaction: exactly that amount of that resource leaves the bank,
+      // nothing else drops, and the same transaction marks the request paid.
+      function paysReq(nb, ob, id) {
+        let p = /databases/$(db)/documents/teams/$(team)/bankReq/$(id);
+        let rq = get(p).data;
+        return rq.uid == request.auth.uid && rq.status == 'approved' && getAfter(p).data.status == 'paid'
+            && nb.get(rq.res, 0) == ob.get(rq.res, 0) - rq.amt && othersNoDrop(nb, ob, rq.res);
+      }
+      function bankOk() {
+        let nb = request.resource.data.get('bank', {});
+        let ob = resource.data.get('bank', {});
+        return !hqExists() || bankNoDrop(nb, ob) || isBoss()
+            || (request.resource.data.get('payReq', '') != '' && paysReq(nb, ob, request.resource.data.payReq));
+      }
+
+      // Member roster: name, level, stronghold level, contribution stats, last active. NO location fields.
+      match /players/{uid} {
+        allow read: if signedIn();
+        allow write: if signedIn() && request.auth.uid == uid
+                     && !request.resource.data.keys().hasAny(['lat','lng','pos','location']);
+      }
+
+      // Alliance Bank balances. 12i: anyone can deposit. Once the alliance has a leader (meta/hq exists), the bank can only
+      // drop when the leader or an officer writes it, or when a member collects an approved request (paysReq).
+      // Research spends the bank, so it is leader/officer only too.
+      match /meta/alliance {
+        allow read: if signedIn();
+        allow create: if signedIn() && (!('bank' in request.resource.data) || nonNegBank(request.resource.data.bank));
+        allow update: if signedIn() && (!('bank' in request.resource.data) || nonNegBank(request.resource.data.bank)) && bankOk();
+        allow delete: if false;
+      }
+
+      // 12i: ranks, clan titles, Alliance HQ. The first member to claim leadership creates it.
+      // Leader: anything. Officer: titles + HQ only, or take over a leader inactive for 14+ days. Member: nothing.
+      // The leader uid is also stored as `leader` so the inactive check can read the leader's roster doc.
+      match /meta/hq {
+        allow read: if signedIn();
+        allow create: if signedIn() && request.resource.data.leader == request.auth.uid
+                      && request.resource.data.roles.keys().hasOnly([request.auth.uid])
+                      && request.resource.data.roles[request.auth.uid] == 'leader';
+        allow update: if signedIn()
+                      && request.resource.data.roles.get(request.resource.data.leader, '') == 'leader'
+                      && (resource.data.roles.get(request.auth.uid, '') == 'leader'
+                          || (resource.data.roles.get(request.auth.uid, '') == 'officer'
+                              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hq', 'titles']))
+                          || (resource.data.roles.get(request.auth.uid, '') == 'officer'
+                              && request.resource.data.leader == request.auth.uid
+                              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['roles', 'leader', 'takeover'])
+                              && get(/databases/$(db)/documents/teams/$(team)/players/$(resource.data.leader)).data.lastActive
+                                   < request.time - duration.value(14, 'd')));
+        allow delete: if false;
+      }
+
+      // 12i: bank withdrawal requests. Members ask; leader/officers approve or deny; the member collects (see paysReq).
+      match /bankReq/{id} {
+        allow read: if signedIn();
+        allow create: if signedIn() && request.resource.data.uid == request.auth.uid && request.resource.data.status == 'pending'
+                      && request.resource.data.res in ['scrap','food','water','fuel','parts']
+                      && request.resource.data.amt is int && request.resource.data.amt > 0
+                      && request.resource.data.t == request.time
+                      && request.resource.data.keys().hasOnly(['uid','name','res','amt','why','status','t']);
+        allow update: if signedIn() && (
+             (isBoss() && resource.data.status == 'pending' && request.resource.data.status in ['approved','denied']
+                && request.resource.data.by == request.auth.uid
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','by','byName','decT']))
+          || (resource.data.uid == request.auth.uid && resource.data.status == 'pending' && request.resource.data.status == 'cancelled'
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+          || (resource.data.uid == request.auth.uid && resource.data.status == 'approved' && request.resource.data.status == 'paid'
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','paidT'])
+                && getAfter(/databases/$(db)/documents/teams/$(team)/meta/alliance).data.get('payReq', '') == id));
+        allow delete: if false;
+      }
+
+      // 12i: set once, when every territory doc carries its region stamp.
+      match /meta/terrv {
+        allow read: if signedIn();
+        allow create: if signedIn() && request.resource.data.v == 2;
+        allow update, delete: if false;
+      }
+
+      // Bank transaction log: append-only, stamped by the server clock, tied to the signed-in member.
+      match /bankLog/{id} {
+        allow read: if signedIn();
+        allow create: if signedIn() && request.resource.data.uid == request.auth.uid
+                      && request.resource.data.t == request.time
+                      && request.resource.data.res in ['scrap','food','water','fuel','parts']
+                      && request.resource.data.amt is int && request.resource.data.bal is int
+                      && request.resource.data.get('kind','deposit') in ['deposit','withdraw','auto-share','research'];
+        allow update, delete: if false;
+      }
+
+      // Activity feed: append-only with server timestamps.
+      match /activity/{id} {
+        allow read: if signedIn();
+        allow create: if signedIn() && request.resource.data.uid == request.auth.uid
+                      && request.resource.data.t == request.time
+                      && request.resource.data.text is string && request.resource.data.text.size() < 200;
+        allow update, delete: if false;
+      }
+
+      // Fog of war: explored hex ids per member (no coordinates). Only you can add to your own list.
+      match /explored/{uid} {
+        allow read: if signedIn();
+        allow write: if signedIn() && request.auth.uid == uid && request.resource.data.keys().hasOnly(['ids']);
+      }
+
+      // Tactical markers: anyone in the alliance can place or remove them (co-op).
+      match /markers/{id} {
+        allow read, delete: if signedIn();
+        allow create: if signedIn() && request.resource.data.uid == request.auth.uid && request.resource.data.hex is string;
+      }
+
+      // Cloud saves. On a live team, any signed-in member can read and the owner writes.
+      // On a preview team (name starts with pv-) only that character's email account can
+      // read, create, update, or delete the document. An update must name the revision it
+      // read and move it forward by one. Live team names skip the preview checks.
+      match /saves/{uid} {
+        function saveBytesOk() {
+          return signedIn() && request.auth.uid == uid
+            && request.resource.data.data is string && request.resource.data.data.size() < 900000
+            && request.resource.data.rev is int
+            && (!exists(/databases/$(db)/documents/teams/$(team)/meta/map)
+                || request.resource.data.get('fe', 0) >= get(/databases/$(db)/documents/teams/$(team)/meta/map).data.get('fullEpoch', 0));
+        }
+        function previewSaveUpdate() {
+          return !team.matches('pv-.*')
+            || (request.resource.data.get('v', 0) >= 3
+                && request.resource.data.get('baseRev', -1) == resource.data.rev
+                && request.resource.data.rev == resource.data.rev + 1);
+        }
+        // Preview teams: only an email/password account may write a character save.
+        // Anonymous and legacy sessions cannot create or update that document.
+        // Live team names skip this check.
+        function previewPassword() {
+          return !team.matches('pv-.*')
+            || request.auth.token.firebase.sign_in_provider == 'password';
+        }
+        function previewOwnerRead() {
+          return !team.matches('pv-.*') || request.auth.uid == uid;
+        }
+        allow read: if signedIn() && previewOwnerRead() && previewPassword();
+        allow create: if saveBytesOk() && previewPassword();
+        allow update: if saveBytesOk() && previewSaveUpdate() && previewPassword();
+        allow delete: if team.matches('pv-.*') && signedIn() && request.auth.uid == uid
+          && request.auth.token.firebase.sign_in_provider == 'password';
+      }
+
+
+      // v15 map reset marker: epoch only ever goes up.
+      match /meta/map {
+        allow read: if signedIn();
+        allow create: if signedIn() && request.resource.data.epoch is int;
+        allow update: if signedIn() && request.resource.data.epoch is int && request.resource.data.epoch > resource.data.epoch;
+        allow delete: if false;
+      }
+      // v12 shared horde: one doc per alliance; only newer sim states replace older ones.
+      match /meta/horde {
+        allow read: if signedIn();
+        allow create: if signedIn() && request.resource.data.last is int && request.resource.data.fx is string && request.resource.data.fx.size() < 900000;
+        allow update: if signedIn() && request.resource.data.last is int && request.resource.data.last > resource.data.last
+                      && request.resource.data.fx is string && request.resource.data.fx.size() < 900000;
+        allow delete: if false;
+      }
+      // v12 server clock probe (one tiny doc per player).
+      match /clock/{uid} {
+        allow read: if signedIn();
+        allow write: if signedIn() && request.auth.uid == uid && request.resource.data.t == request.time;
+      }
+      // v12 marches: start stamped by the server clock; arrival/return only after start + duration (server time).
+      match /marches/{id} {
+        allow read: if signedIn();
+        allow create: if signedIn() && request.resource.data.uid == request.auth.uid && request.resource.data.startT == request.time
+                      && request.resource.data.state == 'out' && request.resource.data.dur is int && request.resource.data.dur >= 60000;
+        allow update: if signedIn() && (
+             (resource.data.uid == request.auth.uid && request.resource.data.state == 'arrived' && resource.data.state == 'out'
+                && request.time >= resource.data.startT + duration.value(resource.data.dur, 'ms'))
+          || (resource.data.uid == request.auth.uid && request.resource.data.state == 'done'
+                && request.time >= resource.data.startT + duration.value(resource.data.dur * 2, 'ms'))
+          || (resource.data.uid != request.auth.uid && resource.data.state == 'out'
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['escorts'])
+                && request.time < resource.data.startT + duration.value(resource.data.dur, 'ms')));
+        allow delete: if false;
+      }
+
+      // v13: shared territory. A hex changes only via (a) the owner's own claim, (b) the owner releasing it,
+      // or (c) a horde capture that names the previous owner and the capturing phone.
+      function okClaim(d) { return d.get('ai', false) == false && d.get('released', false) == false && d.get('uid', '') == request.auth.uid; }
+      function okCapture(d, prevUid) { return d.get('ai', false) == true && d.t is number && d.by.size() > 0
+                                         && d.get('capBy', '') == request.auth.uid && d.get('prevUid', '') == prevUid; }
+      match /territory/{hex} {
+        allow read: if signedIn();
+        allow create: if signedIn() && request.resource.data.by is string
+                      && (okClaim(request.resource.data) || request.resource.data.get('released', false) == true
+                          || okCapture(request.resource.data, ''));
+        allow update: if signedIn() && request.resource.data.by is string
+                      // v17 B5: you can only claim over your own, an empty/released, or a raider-held hex (never an ally's)
+                      && ((okClaim(request.resource.data) && (resource.data.get('uid', '') in ['', request.auth.uid]
+                              || resource.data.get('released', false) == true || resource.data.get('ai', false) == true))
+                          || (request.resource.data.get('released', false) == true && resource.data.get('uid', '') in ['', request.auth.uid])
+                          || okCapture(request.resource.data, resource.data.get('uid', ''))
+                          || (resource.data.get('ai', false) == true && request.resource.data.get('ai', false) == true && okCapture(request.resource.data, resource.data.get('prevUid', ''))));
+        // 12i: anyone may add only the region stamp (rg) and alliance id (al) to an existing hex doc (migration).
+        allow update: if signedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rg', 'al'])
+                      && request.resource.data.rg is string && request.resource.data.rg.size() < 24
+                      && request.resource.data.al is string && request.resource.data.al.size() < 64;
+        allow delete: if false;
+      }
+
+      match /raids/{raid} {
+        allow read: if signedIn();
+        allow create: if signedIn() && request.resource.data.hp == request.resource.data.maxHp;
+        allow update: if signedIn() && request.resource.data.hp <= resource.data.hp
+                      && request.resource.data.hp >= resource.data.hp - 1500
+                      && request.time.toMillis() < resource.data.endsAt + 60000;
+        allow delete: if false;
+      }
+    }
+  }
+}

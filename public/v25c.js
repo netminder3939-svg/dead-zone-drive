@@ -15,7 +15,8 @@ function farFrom(lat,lng){const h=home25();return h?distM(lat,lng,h.lat,h.lng)/1
 // ---------- position: real GPS stays private; the game position sits on your home-map hex ----------
 G.real25=null;
 const _sp25=setPos;setPos=function(lat,lng){try{
-  if(!isFar()&&farFrom(lat,lng)&&P.name){const h=home25();if(h){P.far25={on:true,anchor:null,since:Date.now()};save();try{pushMember();}catch(e){}toast(`🛰️ You're far from the crew. You'll play on the crew home map: ${h.name}`);}}
+  // 12i: removed. GPS distance never switches a player into remote mode any more (it cut off long drives at 50 km and
+  // never switched back). Playing from a base far away is now a choice: base15.js (Alliance HQ, operating base, portal).
   if(isFar()&&farFrom(lat,lng)){realFix(lat,lng);const a=anchor25();if(a){const c=hexCenter(...idQR(a));if(!G.pos||hexAt(...G.pos).id!==a){G.jump=true;return _sp25.call(this,c[0],c[1]);}return;}
     const h=home25();if(!G.pos||distM(G.pos[0],G.pos[1],h.lat,h.lng)>20000){G.jump=true;_sp25.call(this,h.lat,h.lng);}startPick25();return;}}catch(e){console.warn('home25 pos',e);}
   return _sp25.apply(this,arguments);};
