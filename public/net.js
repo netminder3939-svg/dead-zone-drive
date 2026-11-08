@@ -146,10 +146,11 @@ class LocalNet {
   }
 }
 
+function teamSlug(v){let s=String(v||'').trim().toLowerCase().replace(/[^a-z0-9_-]/g,'').slice(0,40);if(!s)s='crew';if(typeof location!=='undefined'&&location.hostname.indexOf('--')>=0&&!s.startsWith('pv-'))s=('pv-'+s).slice(0,40);return s;}
 class FirebaseNet {
-  constructor(cfg,team){this.mode='firebase';this.cfg=cfg;this.team=team;}
+  constructor(cfg,team){this.mode='firebase';this.cfg=cfg;this.team=teamSlug(team);}
   async init(profile){
-    this.team=localStorage.getItem('wl_team')||this.team;const V='https://www.gstatic.com/firebasejs/10.12.2/';
+    this.team=teamSlug(localStorage.getItem('wl_team')||this.team);this.base=['teams',this.team];const V='https://www.gstatic.com/firebasejs/10.12.2/';
     const app=await import(V+'firebase-app.js'), auth=await import(V+'firebase-auth.js'), fs=await import(V+'firebase-firestore.js');
     this.fs=fs; const a=app.initializeApp(this.cfg); // v16 (J3): iOS Safari drops Firestore's streaming channel after backgrounding; long-polling is the reliable transport there.
     const ios=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
@@ -181,7 +182,8 @@ class FirebaseNet {
   setCenter(){}
   onPlayers(f){this.playersFeed(s=>{const a=[];s.forEach(d=>{const v=d.data();if(d.id!==this.uid&&Date.now()-v.t<15*60e3)a.push({uid:d.id,...v});});f(a);});}
   onRaids(f){this.fs.onSnapshot(this.col('raids'),s=>{const o={};s.forEach(d=>o[d.id]={id:d.id,...d.data()});f(o);});}
-  onTerritory(f){this.fs.onSnapshot(this.col('territory'),s=>{const o={};s.forEach(d=>o[d.id]=d.data());f(o);});}
+  onTerritory(f){if(window.terrFeed15)return window.terrFeed15(this,f);
+    this.fs.onSnapshot(this.col('territory'),s=>{const o={};s.forEach(d=>o[d.id]=d.data());f(o);});}
   // Fog of war: each member's explored hex ids (170 m cells, never raw GPS) shared with the alliance.
   onExplored(f){this.fs.onSnapshot(this.col('explored'),s=>{const a=[];s.forEach(d=>{if(d.id!==this.uid)a.push(...(d.data().ids||[]));});f(a);});}
   shareExplored(ids){if(!ids.length)return;this.fs.setDoc(this.fs.doc(this.col('explored'),this.uid),{ids:this.fs.arrayUnion(...ids)},{merge:true}).catch(()=>{});}

@@ -14,7 +14,7 @@
 //  * Per-device fields (position, notifications, old sync metadata) are never synced.
 (function(){
 'use strict';
-const LOCAL=new Set(['uid','pos','lat','lng','news','_rev','_ackedRev','_handoff','_userEdit','_userBase','_tab','_armHold','_seen','sync26',
+const LOCAL=new Set(['uid','op15','pos','lat','lng','news','_rev','_ackedRev','_handoff','_userEdit','_userBase','_tab','_armHold','_seen','sync26',
   'heal26c','heal26cDone','heal26cNote','heal26cDrives','heal26cParts','heal26cPipe','heal26cPipeNote']);
 const T13={flushMs:1500,ownerMinGapMs:20e3,gestureMs:4e3,staleLeaseMs:90e3,heartbeatMs:60e3};
 const isPhone=/Mobi|iPhone|iPad|Android/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
@@ -45,6 +45,11 @@ function bar(){let el=document.getElementById('sync13bar');
   else el.textContent=(S.lease.label==='phone'?'📱':'💻')+' Playing on '+other(S.lease)+' · synced '+ago13(S.savedAt)+'. Tap here or play to switch to this '+LABEL+'.';}
 function ago13(t){if(!t)return'just now';const s=Math.round((Date.now()-t)/1000);return s<5?'just now':s<60?s+'s ago':Math.round(s/60)+'m ago';}
 // ---------- adopt the server copy ----------
+window.profile13=fp;
+window.applySave13=function(profile,rev,lease){adopt(profile,rev,lease,'bank-collect');};
+window.staleSave13=function(doc){onRemote(doc,true);};
+window.saveGuard13=function(doc){if(!doc)return null;if((doc.rev|0)!==(S.rev|0))return'rev';
+  const lease=doc.lease;if(lease&&lease.dev&&lease.dev!==S.dev&&lease.t&&Date.now()-lease.t<T13.staleLeaseMs)return'lease';return null;};
 function adopt(o,rev,lease,why){
   const keep={};for(const k of LOCAL)if(P[k]!==undefined)keep[k]=P[k];
   for(const k of Object.keys(P))if(!LOCAL.has(k)&&!(k in o))delete P[k];
@@ -130,7 +135,7 @@ async function tick(force){
   if(!canWrite()){bar();return;}
   if(!force&&iOwn()&&now-S.lastWrite<T13.ownerMinGapMs&&now-S.lastGesture>T13.gestureMs)return; // owner: batch passive ticks
   if(S.state!=='offline')setStatus('pending','Saving… do not switch devices yet.');
-  return write(force?'forced':'change');}
+  return write(force?'forced':'change',false);}
 async function takeover(why){if(!S.on||iOwn())return;S.lastGesture=Date.now();log('takeover',why);return write('takeover-'+why,false);}
 // ---------- start ----------
 async function start(){

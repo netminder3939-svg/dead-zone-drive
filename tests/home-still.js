@@ -32,9 +32,9 @@ function fixAt(lat, lng, acc) {
     build: (document.getElementById('build14') || {}).textContent || '',
     cache: (typeof C === 'undefined' ? '' : '') 
   }));
-  ok('boot watch at home clears a saved flag', !boot.far && !boot.banner, boot);
-  ok('boot clear adds no walked distance', boot.meters === 50, boot);
-  ok('visible build label is 12h-integrated-2', boot.build === '12h-integrated-2', boot);
+  ok('a saved far25 flag does not leave a stuck banner', !boot.far && !boot.banner, boot);
+  ok('retiring that flag adds no walked distance', boot.meters === 50, boot);
+  ok('visible build label is 12i-integrated-3', boot.build === '12i-integrated-3', boot);
 
   const still = await p.evaluate(() => {
     const lat = 47.8135, lng = -116.8968;
@@ -105,8 +105,8 @@ function fixAt(lat, lng, acc) {
     gpsFix({ coords: { latitude: 48.6917, longitude: -116.3165, accuracy: 8 }, timestamp: Date.now() });
     return { far: !!(P.far25 && P.far25.on), proof: G._homeProof25, meters: P.stats.meters, tiles: Object.keys(P.tiles || {}).length, meters0: meters, tiles0: tiles };
   });
-  ok('a real far fix turns the crew map on and drops the home proof', away.far && !away.proof, away);
-  ok('the far jump adds no meters or tiles', away.meters === away.meters0 && away.tiles === away.tiles0, away);
+  ok('a long GPS move does not force the crew-home map', !away.far, away);
+  ok('that move adds no walked distance or tiles', away.meters === away.meters0 && away.tiles === away.tiles0, away);
 
   const back = await p.evaluate(() => {
     let sets = 0;
@@ -122,8 +122,8 @@ function fixAt(lat, lng, acc) {
     setPos = sp;
     return { mid, after };
   });
-  ok('return from far still takes two accurate fixes', back.mid.far && !back.after.far, back);
-  ok('return does not add the crew-dot gap', back.after.meters === back.after.meters0, back);
+  ok('later home fixes do not turn the crew-home map back on', !back.mid.far && !back.after.far, back);
+  ok('those fixes do not add a distance gap', back.after.meters === back.after.meters0, back);
 
   const stale = await p.evaluate(() => {
     const clouds = window.__cloud || 0;

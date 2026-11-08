@@ -31,7 +31,7 @@ function placeReal25(lat,lng){G.jump=true;if(G.pos)G.pos=[lat,lng];if(G.gps)G.gp
 // ---------- position: real GPS stays private; the game position sits on your home-map hex ----------
 G.real25=null;
 const _sp25=setPos;setPos=function(lat,lng){try{
-  if(!isFar()&&farFrom(lat,lng)&&P.name){clearNear25();G._homeProof25=null;const h=home25();if(h){P.far25={on:true,anchor:null,since:Date.now()};save();try{pushMember();}catch(e){}try{banner25();}catch(e){}toast(`🛰️ You're far from the crew. You'll play on the crew home map: ${h.name}`);}}
+  // 12i: distance no longer forces remote mode. A saved far25 flag can still be cleared by a real home fix or by base15's one-time migration.
   if(isFar()&&!farFrom(lat,lng)){
     const dev=(G.dev&&(G.dev.walk||G.dev.drive||G.dev.tp||G.dev.hold));
     if(dev){clearNear25();return _sp25.apply(this,arguments);} // dev tools move the dot; they do not end the real-GPS mode

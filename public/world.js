@@ -34,7 +34,7 @@ function tileInfo(id){if(_tileCache[id])return _tileCache[id];const T=BAL.tiles,
     const y=r();out.tier=y<T.tierChance.epic?'epic':y<T.tierChance.epic+T.tierChance.rare?'rare':'common';
     out.yield=Math.max(1,Math.round(T.dailyYield[out.tier]*T.resMult[out.res]));}
   return _tileCache[id]=out;}
-function grossIncome(){const inc={scrap:0,food:0,water:0,fuel:0,parts:0},all=new Set(Object.keys(P.tiles));if(BAL.stronghold.areaIncome)shAreaIds().forEach(i=>all.add(i));for(const id of all){const t=tileInfo(id);if(t.res)inc[t.res]+=t.yield;}return inc;}
+function grossIncome(){const inc={scrap:0,food:0,water:0,fuel:0,parts:0},all=new Set(Object.keys(P.tiles));if(BAL.stronghold.areaIncome)shAreaIds().forEach(i=>all.add(i));for(const id of all){if(typeof inSupply15==='function'&&!inSupply15(id))continue;const t=tileInfo(id);if(t.res)inc[t.res]+=t.yield;}return inc;}
 function towerUpkeep(){const u={scrap:0,food:0,water:0,fuel:0,parts:0},n=Object.values(W().towers).filter(t=>t.state!=='down').length;for(const k in BAL.tower.upkeep)u[k]+=BAL.tower.upkeep[k]*n;return u;}
 // What you'll personally net at the next reset (after the 25% alliance share and tower upkeep)
 function expectedIncome(){const g=grossIncome(),u=towerUpkeep(),o={};for(const k in g){const share=Math.round(g[k]*BAL.reset.allianceShare);o[k]=g[k]-share-u[k];}return o;}
@@ -63,7 +63,7 @@ function enemyLand25(id){
   try{if(typeof factionAt==='function'&&factionAt(id))return true;}catch(e){}
   const o=G.terr&&G.terr[id];
   return !!((o&&o.ai&&!o.released)||(W().raider&&W().raider[id]));}
-function claimPath(prev,cur){const T=BAL.tiles,ids=new Set([hexAt(...cur).id]);
+function claimPath(prev,cur){if(G._noClaim25)return 0;const T=BAL.tiles,ids=new Set([hexAt(...cur).id]);
   // Only the single hex you're standing in is claimed/revealed. No path fill-in, no neighbors.
   if(explore([...ids]))drawWorld();ids.forEach(id=>{if(P.tiles[id]&&P.tiles[id].area){P.tiles[id].area=false;}});// driving over a Stronghold-area hex makes it truly yours
   const prevId=prev?hexAt(...prev).id:null,curId=hexAt(...cur).id;

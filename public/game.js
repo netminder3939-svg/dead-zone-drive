@@ -43,12 +43,13 @@ setInterval(dayNight,60e3);dayNight();
 
 // ---------- position ----------
 function setPos(lat,lng){
-  if(G.pos){const d=distM(G.pos[0],G.pos[1],lat,lng);if(d<2000){P.stats.meters+=d;P.contrib.km+=d/1000;questProg('meters',Math.round(d));}}
-  const prev=G.jump?null:G.pos;G.jump=false;const first=!G.pos;G.pos=[lat,lng];meMarker.setLatLng(G.pos).addTo(map);reachCircle.setLatLng(G.pos).addTo(map);
+  const jumping=!!G.jump;
+  if(G.pos&&!jumping){const d=distM(G.pos[0],G.pos[1],lat,lng);if(d<2000){P.stats.meters+=d;P.contrib.km+=d/1000;questProg('meters',Math.round(d));}}
+  const prev=jumping?null:G.pos;G.jump=false;const first=!G.pos;G.pos=[lat,lng];meMarker.setLatLng(G.pos).addTo(map);reachCircle.setLatLng(G.pos).addTo(map);
   if(first||G.gps&&G.gps.recenter){map.setView(G.pos,16);if(G.gps)G.gps.recenter=false;}
   NET.setCenter(lat,lng);
   if(!G.lmCenter||distM(lat,lng,...G.lmCenter)>1500)loadLandmarks(lat,lng);
-  spawnMonsters();checkLandmarks();if(P.world&&(!G.gpsWeak||G.dev.walk||G.dev.drive||G.dev.tp||G.dev.hold))claimPath(prev,G.pos);UI.claimBtn();save();
+  spawnMonsters();checkLandmarks();if(!G._noClaim25&&P.world&&(!G.gpsWeak||G.dev.walk||G.dev.drive||G.dev.tp||G.dev.hold))claimPath(prev,G.pos);UI.claimBtn();save();
 }
 // v20 GPS rewrite. Before: any error or a slow first fix (>6 s, normal on a cold start) teleported you to Rathdrum and the map
 // stayed there; no accuracy filter, so a ±500 m wifi guess claimed the wrong hex; iOS stops the watch when the app is hidden
@@ -61,12 +62,16 @@ function gpsFix(p){const c=p.coords,acc=Math.round(c.accuracy||9999),now=Date.no
   if(G.gps.fallback&&acc<=GPS.showAcc){G.gps.fallback=false;G.jump=true;G.gps.recenter=true;G.gps.forceNext=true;toast('📡 Found you');}
   if(acc>GPS.showAcc){G.gps.state='weak';return gpsChip();}            // useless fix: ignore it completely
   G.gpsWeak=acc>GPS.claimAcc;G.gps.state=G.gpsWeak?'weak':'ok';
+  const when=G.gps.fixT||0,fresh=when>0&&now-when<=10000&&!(G._claimLast25&&when<G._claimLast25);
+  if(!fresh)return gpsChip(); // stale or out-of-order: do not move and do not claim
   if(G.pos){const d=distM(G.pos[0],G.pos[1],c.latitude,c.longitude),dt=Math.max(1,(now-(G.gps.lastMove||now))/1000);
     if(d<Math.max(GPS.minMoveM,Math.min(acc,30)/2)&&!G.gps.forceNext){return gpsChip();}   // GPS drift while standing still
-    if(d/dt>GPS.maxSpeedMs&&d>300)G.jump=true;}                                        // glitch / teleport: move, but no path claims
+    if(d/dt>GPS.maxSpeedMs&&d>300)G.jump=true;}                                        // glitch / teleport: move, but do not claim
   G.gps.forceNext=false;G.gps.lastMove=now;P.lastPos=[c.latitude,c.longitude];
-  G._realCross25=G.gps.state==='ok'&&acc<=60&&!(G.dev.walk||G.dev.drive||G.dev.tp||G.dev.hold);
-  try{setPos(c.latitude,c.longitude);}finally{G._realCross25=false;}
+  G._claimLast25=when;
+  G._realCross25=G.gps.state==='ok'&&acc<=60&&!(G.dev.walk||G.dev.drive||G.dev.tp||G.dev.hold)&&!G.jump;
+  G._noClaim25=!!G.jump;
+  try{setPos(c.latitude,c.longitude);}finally{G._realCross25=false;G._noClaim25=false;}
   gpsChip();}
 function gpsErr(e){G.gps.errs++;if(e&&e.code===1){G.gps.state='denied';gpsChip();if(!G.gps.toldDenied){G.gps.toldDenied=1;toast('📡 Location is blocked. Allow location for this site in your browser settings, then reload.');}}
   else{G.gps.state=G.pos?'weak':'waiting';gpsChip();if(G.gps.errs>=3)gpsRestart();}

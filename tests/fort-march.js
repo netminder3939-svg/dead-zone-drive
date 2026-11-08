@@ -1,5 +1,6 @@
 // Enemy-fort march gate. A fort blocks only its own hex. A zone fort does not block the other hexes.
 const { chromium } = require('playwright');
+require('./bindlog').bind('fort-march');
 const HOME = { latitude: 47.8135, longitude: -116.8968, accuracy: 8 };
 let failed = 0;
 const ok = (name, cond, extra) => {
@@ -119,6 +120,62 @@ const ok = (name, cond, extra) => {
   ok('a won march captures the fort once with the existing ring reward', fought.win.afterWin.taken === true && fought.win.afterWin.ringHeld === 7 && fought.win.afterWin.scrap > fought.win.beforeWin.scrap && fought.win.afterWin.gear === fought.win.beforeWin.gear + 1, fought.win);
   ok('resolving the same win again does not pay or claim twice', fought.dup.dup.scrap === fought.dup.snap.scrap && fought.dup.dup.gear === fought.dup.snap.gear && fought.dup.dup.tiles === fought.dup.snap.tiles, fought.dup);
   ok('a fort taken before arrival is not captured again', fought.stale.scrap === fought.stale.staleScrap && fought.stale.takenAt === 1 && fought.stale.tiles === 0, fought.stale);
+  const overlap = await p.evaluate(async (fort) => {
+    const claims = [];
+    const orig = claimTile;
+    claimTile = function (id) { claims.push({ id, march: G._marchId || '' }); return orig.apply(this, arguments); };
+    const routeOf = (from, to) => (typeof claimRoute26 === 'function' ? claimRoute26(from, to) : [from, to]);
+    const adj = hexRing(...idQR(fort), 1).map(x => x.id).find(id => id !== fort && !enemyAt(id));
+    const beyond = hexRing(...idQR(fort), 3).map(x => x.id).find(id => { const line = routeOf(adj, id); const i = line.indexOf(fort); return i > 0 && i < line.length - 1; });
+    const line = routeOf(adj, beyond || fort);
+    const fortAt = line.indexOf(fort);
+    const before = new Set(line.slice(0, fortAt));
+    const after = new Set(line.slice(fortAt + 1));
+    const clear = () => { W().enemyTaken = {}; P.tiles = {}; P.marchDone = {}; G._fortQ = {}; claims.length = 0; for (const id of line) { delete P.tiles[id]; if (G.terr && G.terr[id] && !G.terr[id].ai) delete G.terr[id]; } delete W().enemyTaken[fort]; };
+    const byMarch = march => claims.filter(c => c.march === march).map(c => c.id);
+    const scrap = () => P.res.scrap | 0, gear = () => P.inv.length;
+    const mk = (id, troops) => ({ uid: P.uid, name: P.name, from: adj, to: beyond || fort, startT: Date.now() - 5000, dur: 1000, state: 'out', troops, unit: frozenMe(), power: 10, escorts: {} });
+    clear(); TP().home = 8000;
+    const a = mk('ovA', 0), b = mk('ovB', 8000);
+    const s0 = scrap(), g0 = gear(), taken0 = W().enemyTaken[fort] || 0;
+    await Promise.all([resolveMarch('ovA', a), resolveMarch('ovB', b)]);
+    const aClaims = byMarch('ovA'), bClaims = byMarch('ovB');
+    const zeroOnward = aClaims.filter(id => id === fort || after.has(id));
+    const winner = W().enemyTaken[fort] ? (bClaims.includes(fort) || b.result && /Claimed|Skipped|Nothing/.test(b.result) ? 'ovB' : 'ovA') : '';
+    const winClaims = byMarch('ovB');
+    const blocked = mk('ovC', 8000);
+    const s1 = scrap(), g1 = gear(), taken1 = W().enemyTaken[fort];
+    claims.length = 0;
+    await resolveMarch('ovC', blocked);
+    const blockedClaims = byMarch('ovC');
+    const ownedBy = { uid: 'other-player', by: 'Other', ai: false, t: 1 };
+    clear();
+    G.terr[fort] = { ...ownedBy };
+    W().enemyTaken[fort] = 111;
+    const changed = mk('ovD', 8000);
+    const s2 = scrap(), g2 = gear();
+    claims.length = 0;
+    await resolveMarch('ovD', changed);
+    const changedClaims = byMarch('ovD');
+    const s3 = scrap(), g3 = gear();
+    P.marchDone.ovD = 1;
+    await resolveMarch('ovD', changed);
+    claimTile = orig;
+    return {
+      fort, beyond, fortAt, before: [...before], after: [...after],
+      zero: { result: a.result || '', claimed: a.claimed || [], tiles: aClaims, onward: zeroOnward },
+      winner: { id: 'ovB', result: b.result || '', claimed: b.claimed || [], tiles: winClaims, tookFort: bClaims.includes(fort) || !!W().enemyTaken[fort] },
+      scrap: s1 - s0, gear: g1 - g0, taken: !!taken1 && taken1 !== taken0,
+      blocked: { result: blocked.result || '', onward: blockedClaims.filter(id => id === fort || after.has(id)), tiles: blockedClaims },
+      changed: { result: changed.result || '', onward: changedClaims.filter(id => after.has(id)), scrap: s3 - s2, gear: g3 - g2, takenStill: W().enemyTaken[fort], owner: G.terr[fort] && G.terr[fort].uid },
+      reloadScrap: scrap() - s3, reloadGear: gear() - g3
+    };
+  }, found.fort);
+  ok('the zero-troop march claims nothing on or past the fort', overlap.zero.onward.length === 0, overlap.zero);
+  ok('the winning march is the one that captures, and the capture pays once', overlap.taken && overlap.winner.id === 'ovB' && overlap.scrap === 204 && overlap.gear === 1, { scrap: overlap.scrap, gear: overlap.gear, winner: overlap.winner.result, zero: overlap.zero.result });
+  ok('a march that arrives after the capture claims nothing onward', overlap.blocked.onward.length === 0, overlap.blocked);
+  ok('an ownership change before arrival does not pay or claim onward', overlap.changed.onward.length === 0 && overlap.changed.scrap === 0 && overlap.changed.gear === 0 && overlap.changed.takenStill === 111 && overlap.changed.owner === 'other-player', overlap.changed);
+  ok('resolving that march again after reload pays nothing more', overlap.reloadScrap === 0 && overlap.reloadGear === 0, overlap);
 
   const friendly = await p.evaluate((id) => {
     W().enemyTaken[id] = Date.now();
