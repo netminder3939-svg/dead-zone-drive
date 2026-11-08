@@ -47,6 +47,9 @@ function ago13(t){if(!t)return'just now';const s=Math.round((Date.now()-t)/1000)
 // ---------- adopt the server copy ----------
 window.profile13=fp;
 window.applySave13=function(profile,rev,lease){adopt(profile,rev,lease,'bank-collect');};
+window.staleSave13=function(doc){onRemote(doc,true);};
+window.saveGuard13=function(doc){if(!doc)return null;if((doc.rev|0)!==(S.rev|0))return'rev';
+  const lease=doc.lease;if(lease&&lease.dev&&lease.dev!==S.dev&&lease.t&&Date.now()-lease.t<T13.staleLeaseMs)return'lease';return null;};
 function adopt(o,rev,lease,why){
   const keep={};for(const k of LOCAL)if(P[k]!==undefined)keep[k]=P[k];
   for(const k of Object.keys(P))if(!LOCAL.has(k)&&!(k in o))delete P[k];
