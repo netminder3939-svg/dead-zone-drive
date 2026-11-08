@@ -111,13 +111,15 @@ const ok = (name, cond, extra) => {
     return {
       beyond, adj,
       loss: { beforeLoss, afterLoss, win: loss.win },
-      win: { beforeWin, afterWin, flag: win.win },
+      win: { beforeWin, afterWin, flag: win.win, loot: win.loot || {} },
       dup: { snap, dup },
       stale: { scrap: scrap0(), staleScrap, takenAt: W().enemyTaken[fort], result: stale.result || '', tiles: Object.keys(P.tiles).length }
     };
   }, found.fort);
   ok('a lost fort fight does not capture it or the hexes beyond it', fought.loss.afterLoss.taken === false && fought.loss.afterLoss.claimedFort === false && fought.loss.afterLoss.beyond === false && fought.loss.afterLoss.scrap === fought.loss.beforeLoss.scrap, fought.loss);
-  ok('a won march captures the fort once with the existing ring reward', fought.win.afterWin.taken === true && fought.win.afterWin.ringHeld === 7 && fought.win.afterWin.scrap > fought.win.beforeWin.scrap && fought.win.afterWin.gear === fought.win.beforeWin.gear + 1, fought.win);
+  const paidOnce = fought.win.afterWin.scrap - fought.win.beforeWin.scrap;
+  ok('a won march captures the fort once with the existing ring reward', fought.win.afterWin.taken === true && fought.win.afterWin.ringHeld === 7 && paidOnce > 0 && fought.win.afterWin.gear === fought.win.beforeWin.gear + 1, fought.win);
+  ok('the march report names that stronghold reward and the return trip does not carry it', /Stronghold captured/.test(fought.win.afterWin.result) && fought.win.afterWin.result.includes(String(paidOnce)) && (fought.win.loot.scrap | 0) !== paidOnce, fought.win);
   ok('resolving the same win again does not pay or claim twice', fought.dup.dup.scrap === fought.dup.snap.scrap && fought.dup.dup.gear === fought.dup.snap.gear && fought.dup.dup.tiles === fought.dup.snap.tiles, fought.dup);
   ok('a fort taken before arrival is not captured again', fought.stale.scrap === fought.stale.staleScrap && fought.stale.takenAt === 1 && fought.stale.tiles === 0, fought.stale);
   const overlap = await p.evaluate(async (fort) => {
@@ -218,6 +220,35 @@ const ok = (name, cond, extra) => {
     }), 400));
   }, found.neutral);
   ok('a normal march on the neutral hex dispatches once', march.sent.length === 1 && march.sent[0] > 0 && march.why == null, march);
+
+  const shown = await p.evaluate(async () => {
+    G.playLocked = false;
+    W();
+    const me = hexAt(...G.pos).id;
+    let fort = null;
+    for (let ring = 1; ring <= 40 && !fort; ring++) for (const x of hexRing(...idQR(me), ring)) if (enemyAt(x.id) && !(W().enemyTaken && W().enemyTaken[x.id])) { fort = x.id; break; }
+    const adj = hexRing(...idQR(fort), 1).map(x => x.id).find(id => !enemyAt(id));
+    P.lvl = 1; TP().home = 8000; P.hp = 99999; P.marchDone = {}; P.marchPaid = {};
+    const scrap = () => P.res.scrap | 0, gear = () => (P.inv || []).length, tiles = () => Object.keys(P.tiles || {}).length;
+    const s0 = scrap(), g0 = gear();
+    const m = { uid: P.uid, name: P.name, from: adj, to: fort, startT: Date.now() - 8000, dur: 1000, state: 'out', troops: 8000, unit: frozenMe(), power: 10, escorts: {} };
+    await resolveMarch('show1', m);
+    const paid = scrap() - s0, gearPaid = gear() - g0, held = tiles();
+    const again = scrap();
+    await resolveMarch('show1', m);
+    const dup = scrap() - again;
+    m.state = 'arrived'; m.startT = Date.now() - 20000; m.dur = 1000;
+    await returnMarch('show1', m);
+    const home = scrap() - again - dup;
+    save();
+    const stored = JSON.parse(localStorage.getItem('wl_p') || '{}');
+    return { result: m.result || '', paid, gearPaid, held, dup, home, state: m.state, loot: m.loot || {}, storedScrap: stored.res && stored.res.scrap, storedTiles: stored.tiles ? Object.keys(stored.tiles).length : 0, storedGear: (stored.inv || []).length };
+  });
+  ok('a stronghold march shows the capture once and the trip home does not pay it again', /Stronghold captured/.test(shown.result) && shown.paid > 0 && shown.result.includes(String(shown.paid)) && shown.gearPaid === 1 && shown.held >= 7 && shown.dup === 0 && shown.state === 'done' && shown.home === (shown.loot.scrap | 0) && (shown.loot.scrap | 0) !== shown.paid, shown);
+  await p.reload({ waitUntil: 'load' });
+  await p.waitForFunction(() => typeof P !== 'undefined' && P.res, null, { timeout: 15000 });
+  const back = await p.evaluate(() => ({ scrap: P.res.scrap | 0, tiles: Object.keys(P.tiles || {}).length, gear: (P.inv || []).length }));
+  ok('the stronghold reward is still there after reload', back.scrap >= shown.storedScrap && back.tiles === shown.storedTiles && back.gear === shown.storedGear && back.tiles >= 7, { shown, back });
 
   console.log('pageerrors', errs.slice(0, 4));
   ok('no page errors', errs.length === 0, errs.slice(0, 3));
