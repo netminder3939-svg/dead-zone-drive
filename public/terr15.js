@@ -73,6 +73,7 @@
   // ---- 3) miles: rewrite distances in the page text (km -> mi, m -> ft)
   const fmtNum=v=>v<10?(Math.round(v*10)/10).toString():Math.round(v).toLocaleString();
   function toMi(txt){return txt
+    .replace(/±(\d[\d,]*)m\b/g,(m,n)=>{const v=parseFloat(n.replace(/,/g,''));return v>=1609?'±'+fmtNum(v/MI)+' mi':'±'+Math.round(v*3.28084).toLocaleString()+' ft';})
     .replace(/(\d[\d,]*(?:\.\d+)?)\s?km\/h\b/g,(m,n)=>fmtNum(parseFloat(n.replace(/,/g,''))/1.60934)+' mph')
     .replace(/(\d[\d,]*(?:\.\d+)?)\s?km\b/g,(m,n)=>fmtNum(parseFloat(n.replace(/,/g,''))/1.60934)+' mi')
     .replace(/(\d[\d,]*(?:\.\d+)?) m\b(?![a-zA-Z])/g,(m,n)=>{const v=parseFloat(n.replace(/,/g,''));if(!isFinite(v))return m;return v>=1609?fmtNum(v/MI)+' mi':Math.max(10,Math.round(v*3.28084/10)*10).toLocaleString()+' ft';})
@@ -80,11 +81,22 @@
   window.toMi15=toMi;
   function fixNode(n){if(n.nodeType===3){const p=n.parentNode;if(!p||/^(SCRIPT|STYLE|TEXTAREA|INPUT)$/.test(p.nodeName))return;const t=n.nodeValue;
       if(t.trim()==='km'){n.nodeValue=t.replace('km','mi');const b=p.previousElementSibling;if(b&&/^\s*\d[\d,]*(\.\d+)?\s*$/.test(b.textContent)){const v=parseFloat(b.textContent.replace(/,/g,''))/1.60934;b.textContent=v<10?v.toFixed(1):Math.round(v).toLocaleString();}return;}
-      if(/\d\s?km\b|\d m\b|every km|per km|km driven/.test(t)){const x=toMi(t);if(x!==t)n.nodeValue=x;}return;}
+      if(/\d\s?km\b|\d m\b|±\d[\d,]*m\b|every km|per km|km driven/.test(t)){const x=toMi(t);if(x!==t)n.nodeValue=x;}return;}
     if(n.nodeType===1&&n.childNodes&&!/^(SCRIPT|STYLE|TEXTAREA)$/.test(n.nodeName)){const w=document.createTreeWalker(n,NodeFilter.SHOW_TEXT);const L=[];let x;while((x=w.nextNode()))L.push(x);L.forEach(fixNode);}}
   window.fixMiles15=()=>fixNode(document.body);
   const mo=new MutationObserver(ms=>{for(const m of ms){if(m.type==='characterData')fixNode(m.target);else m.addedNodes.forEach(fixNode);}});
   const startMo=()=>{if(!document.body)return setTimeout(startMo,200);mo.observe(document.body,{subtree:true,childList:true,characterData:true});fixNode(document.body);};startMo();
+
+  // ---- 4) phones: keep the status line, chips and base rail just under wherever the top bar ends (it wraps on small screens)
+  function layout15(){try{const hud=document.getElementById('hud'),md=document.getElementById('mode'),st=document.getElementById('status'),op=document.getElementById('op15'),mc=document.getElementById('mcards');if(!hud)return;
+      if(innerWidth>600){for(const e of [md,st,op,mc])if(e&&e.dataset.l15){e.style.removeProperty('top');e.style.removeProperty('bottom');delete e.dataset.l15;}return;}
+      const b=Math.round(hud.getBoundingClientRect().bottom);if(md){md.style.setProperty('top',(b+2)+'px','important');md.dataset.l15=1;}
+      if(st){st.style.setProperty('top',(b+(md&&md.offsetHeight?md.offsetHeight+4:2))+'px','important');st.dataset.l15=1;}
+      const sb=st?Math.round(st.getBoundingClientRect().bottom):b;
+      if(op){op.style.setProperty('top',(sb+10)+'px','important');op.dataset.l15=1;}
+      if(mc&&mc.offsetHeight){const want=sb+10;if(mc.dataset.l15||Math.round(mc.getBoundingClientRect().top)<want){mc.style.setProperty('top',want+'px','important');mc.style.setProperty('bottom','auto','important');mc.dataset.l15=1;}}}catch(e){}}
+  window.layout15=layout15;
+  const startLayout=()=>{const hud=document.getElementById('hud');if(!hud)return setTimeout(startLayout,300);try{new ResizeObserver(()=>layout15()).observe(hud);const s=document.getElementById('status');if(s)new ResizeObserver(()=>layout15()).observe(s);}catch(e){}addEventListener('resize',layout15);setInterval(layout15,2000);layout15();};startLayout();
 
   const st=document.createElement('style');st.textContent=`.sup15{background:#2a1f05;border:1px solid #6b5212;color:#ffd98a;padding:6px 8px;border-radius:8px;font-size:12px;margin:0 0 8px}`;document.head.appendChild(st);
 })();

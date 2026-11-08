@@ -140,8 +140,13 @@
     if(!P.tiles[id])claimTile(id);try{shClaimArea();}catch(e){}P.startSh26=1;P.startShMoved26=1;P.op15='sh';save();try{pushMember();}catch(e){}
     allianceLog(`🏰 ${P.name} moved their Stronghold to the alliance HQ${old?' (their old spot is now a Home Outpost)':''}`);UI.closeModal();setOp15('sh');}
   window.moveSh15=moveSh15;
-  function pick15(kind){G.pick15=kind;G.pick15At=Date.now();try{UI.closeModal();UI.close&&UI.close();}catch(e){}
-    toast(kind==='hq'?'🏛️ Tap the hex for the alliance HQ':kind==='sh'?`🏰 Tap a free hex within ${B15.hqMi} mi of the HQ`:`🚩 Tap a free hex within ${B15.fwdNearMi} mi of a teammate's land`);}
+  function pickBar15(){let el=document.getElementById('pick15');const k=G.pick15&&Date.now()-(G.pick15At||0)<=180e3?G.pick15:null;if(!k){if(el)el.remove();if(G.pick15&&!k)G.pick15=null;return;}
+    if(!el){el=document.createElement('div');el.id='pick15';document.body.appendChild(el);}
+    const t=k==='hq'?'🏛️ Tap the hex for the alliance HQ':k==='sh'?`🏰 Tap a free hex within ${B15.hqMi} mi of the HQ`:`🚩 Tap a free hex within ${B15.fwdNearMi} mi of a teammate's land`;
+    if(el.dataset.k!==k){el.dataset.k=k;el.innerHTML=`<span>${t}</span><button onclick="G.pick15=null;pickBar15()">Cancel</button>`;}}
+  window.pickBar15=pickBar15;setInterval(()=>{try{pickBar15();}catch(e){}},1000);
+  function pick15(kind){G.pick15=kind;G.pick15At=Date.now();setTimeout(pickBar15,0);try{UI.closeModal();UI.close&&UI.close();}catch(e){}
+    }
   window.pick15=pick15;
   const _it15=UI.infoTile;UI.infoTile=function(id){if(G.pick15&&Date.now()-(G.pick15At||0)>180e3)G.pick15=null;const k=G.pick15;if(!k)return _it15.apply(this,arguments);
     if(k==='hq'){return UI.modal(`<h2>🏛️ Alliance HQ here?</h2><p>${hexName(id)}. Teammates can jump here and build their Strongholds within ${B15.hqMi} mi.</p><input id="hq15name" maxlength="24" placeholder="HQ name (e.g. Rathdrum)" value="${esc15((hq15()||{}).name||'')}"><div class="btns24"><button class="red24" onclick="setHq15('${id}',$('#hq15name').value)">✅ Place HQ</button><button class="ghost24" onclick="G.pick15=null;UI.closeModal()">Cancel</button></div>`);}
@@ -190,10 +195,14 @@
 
   // ---------- operating bar ----------
   function bar15(force){let el=document.getElementById('op15');const L=myBases15();if(!P.name||!L.length){if(el)el.remove();return;}
-    const cb=curBase15(),h=opHex15(),key=cb+'|'+L.join(',')+'|'+portalList15().length;if(el&&!force&&el.dataset.k===key)return;
+    const cb=curBase15(),h=opHex15(),key=cb+'|'+L.join(',')+'|'+portalList15().length+'|'+(G.op15open?1:0);if(el&&!force&&el.dataset.k===key)return;
     if(!el){el=document.createElement('div');el.id='op15';document.body.appendChild(el);}el.dataset.k=key;
-    el.innerHTML=`<button class="${cb==='gps'?'on':''}" title="Here (GPS)" aria-label="Play from where you are (GPS)" onclick="setOp15('gps')">📍</button>`+L.slice(0,4).map(id=>`<button class="${h===id?'on':''}" title="${baseLabel15(id)}" aria-label="Operate from ${baseLabel15(id)}" onclick="setOp15('${id===shHex15()?'sh':id}')">${baseLabel15(id).split(' ')[0]}</button>`).join('')+`<button title="Bases and portal" aria-label="Bases and portal" onclick="UI.bases15()">${portalList15().length?'🌀':'⚙︎'}</button>`;}
-  setInterval(()=>{try{bar15();}catch(e){}},1500);
+    // collapsed: one button showing where you play from (+ a dot while troops are in the portal); tap to open the list
+    const cur=h?baseLabel15(h).split(' ')[0]:'📍',dot=portalList15().length?'<small>🌀</small>':'';
+    if(!G.op15open){el.className='';el.innerHTML=`<button class="on" title="Where you play from" aria-label="Where you play from: ${h?baseLabel15(h):'GPS'}. Tap to change" onclick="G.op15open=1;bar15(true)">${cur}${dot}</button>`;return;}
+    el.className='open';
+    el.innerHTML=`<button class="${cb==='gps'?'on':''}" title="Here (GPS)" aria-label="Play from where you are (GPS)" onclick="G.op15open=0;setOp15('gps')">📍</button>`+L.slice(0,4).map(id=>`<button class="${h===id?'on':''}" title="${baseLabel15(id)}" aria-label="Operate from ${baseLabel15(id)}" onclick="G.op15open=0;setOp15('${id===shHex15()?'sh':id}')">${baseLabel15(id).split(' ')[0]}</button>`).join('')+`<button title="Bases and portal" aria-label="Bases and portal" onclick="G.op15open=0;bar15(true);UI.bases15()">${portalList15().length?'🌀':'⚙︎'}</button>`;}
+  window.bar15=bar15;setInterval(()=>{try{bar15();}catch(e){}},1500);
 
   // ---------- migration: old automatic remote mode ----------
   function migrate15(){try{if(!P.world||P.mig15)return;if(P.far25){if(P.far25.on&&shHex15())P.op15='sh';delete P.far25;}P.mig15=1;save();}catch(e){}}
@@ -202,7 +211,8 @@
 
   const st=document.createElement('style');st.textContent=`#op15{position:fixed;top:calc(env(safe-area-inset-top,0px) + 214px);right:8px;z-index:590;display:flex;flex-direction:column;gap:5px;background:rgba(20,16,12,.86);padding:5px;border-radius:14px;border:1px solid #6b5a3a}
   #op15 button{width:42px;height:42px;min-height:0;min-width:0;padding:0;margin:0;font:400 19px/1 system-ui,sans-serif;text-transform:none;letter-spacing:0;background:#1d1a16;color:#ddd;border:1px solid #3a3226;border-radius:10px;display:flex;align-items:center;justify-content:center;box-shadow:none}
-  #op15 button.on{background:#ffd24a;border-color:#ffd24a;box-shadow:0 0 0 2px #ffd24a55}#op15 small{font-size:9px;color:#ffd24a}
+  #op15 button.on{background:#ffd24a;border-color:#ffd24a;box-shadow:0 0 0 2px #ffd24a55}#op15.open{flex-direction:row-reverse}#op15 button{position:relative}#op15 small{position:absolute;right:-4px;top:-6px;font-size:12px}
   body.drive #op15{display:none}.hq15ico{transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;font-size:26px;filter:drop-shadow(0 2px 3px #000)}.hq15ico b{font-size:11px;background:#111;color:#ffd24a;padding:0 5px;border-radius:6px;white-space:nowrap}
-  .op15{margin-bottom:8px}#hq15name{width:100%;padding:8px;border-radius:8px;border:1px solid #444;background:#151515;color:#eee;margin:6px 0}#pt15from{width:100%;padding:9px;margin:6px 0;border-radius:8px;border:1px solid #6b5a3a;background:#151515;color:#eee;font-size:14px}`;document.head.appendChild(st);
+  #pick15{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 72px);z-index:870;display:flex;gap:10px;align-items:center;background:#241c10f2;border:1.5px solid #ffd24a;color:#ffe9a8;padding:8px 10px 8px 14px;border-radius:14px;font-size:14px;width:min(520px,calc(100vw - 24px));box-sizing:border-box;box-shadow:0 4px 14px #000a}
+  #pick15 span{flex:1 1 auto;line-height:1.3}#pick15 button{flex:0 0 auto}.op15{margin-bottom:8px}#hq15name{width:100%;padding:8px;border-radius:8px;border:1px solid #444;background:#151515;color:#eee;margin:6px 0}#pt15from{width:100%;padding:9px;margin:6px 0;border-radius:8px;border:1px solid #6b5a3a;background:#151515;color:#eee;font-size:14px}`;document.head.appendChild(st);
 })();

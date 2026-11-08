@@ -37,7 +37,7 @@
   // run the horde step once per front, each with its own clans, centre and daily take counter
   const _hs15=hordeStep;hordeStep=function(k,ev){const B=BAL.factions,fx=FX(),all=B.list,a0=fx.anchor,tk0=fx.takes;
     try{B.list=all.filter(d=>!d.front15);G._front15=null;_hs15.call(this,k,ev);
-      for(const [K,f] of Object.entries(fronts())){const t=k*HB().stepMin*60e3;if(t<f.since)continue;B.list=defsOf15(K);fx.anchor=f.anchor;f.takes=f.takes||{};fx.takes=f.takes;G._front15=K;
+      for(const [K,f] of Object.entries(fronts())){const t=k*HB().stepMin*60e3;if(t<f.since-1000)continue;/* stepMin is 2/3 min: k*step float rounding can land a hair under since */B.list=defsOf15(K);fx.anchor=f.anchor;f.takes=f.takes||{};fx.takes=f.takes;G._front15=K;
         try{_hs15.call(this,k,ev);
           for(const d of B.list){const x=fx.f[d.id];if(x&&!x.g15){x.g15=1;for(const s of (x.squads||[]))s.restUntil=Math.max(s.restUntil||0,f.since+F15.graceH*3600e3);}}}
         catch(e){console.warn('front15 step',K,e);}}}

@@ -108,3 +108,13 @@ An immediate save (`cloudSave(true)`, which several older features call) skipped
 - New fields: `rg`/`al` on hexes, `p14` and `g26.t` on members, `op15` and `portal15` in saves. Older builds ignore all of them.
 - New docs (`meta/hq`, `meta/terrv`, `bankReq/*`) can stay.
 - With 12g rules the bank is open again.
+
+## QA pass (Nov 8, after the first 12i commit)
+A crawler opened every tab and sub-tab, tapped every safe button and map card on phone (iPhone 13 / SE, Pixel 7) and desktop sizes: **0 script errors**. Fixed:
+- **Phone top bar** (from 12d): the "Log out" text button ran off the right edge and squeezed the resources into a 31 px column covering the status chips. Phones now show a ⏻ icon, resources wrap onto their own rows, and the status line, chips, Marches panel and base rail sit under wherever the top bar ends (small phones included).
+- **Long toasts** were one line and ran off both sides; they wrap now.
+- **Base rail** reached the 🚗 Drive button on normal phones. It's now one button showing where you play from, and it opens sideways.
+- **Map picking** (HQ, Stronghold spot, Forward Outpost) had no visible cue and stayed armed for 3 minutes. It now shows a bar with Cancel.
+- **GPS accuracy** now shows in ft/mi too.
+- **Regional fronts bug:** float rounding (the horde step is 2/3 min) could make a brand-new front skip its first step, so its clans never spawned. Tolerance added; 8/8 runs pass.
+Tools: `tests/qa/` (crawl, phone layout fit, rail, unit text scan).
