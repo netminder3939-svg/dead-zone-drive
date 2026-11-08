@@ -158,11 +158,11 @@ UI.raidAlert=function(msg,hex){const d=document.createElement('div');d.className
   if(hex&&typeof map!=='undefined'){const c=L.circle(hexCenter(...idQR(hex)),{radius:HEX_R*2,color:'#ff2a2a',weight:4,fillOpacity:.25,className:'raidpulse'}).addTo(map);setTimeout(()=>c.remove(),8000);}};
 
 // ---------- tile menu: March option ----------
-const _infoTileM=UI.infoTile;UI.infoTile=function(id){_infoTileM.call(this,id);if(!G.pos)return;addMarchBtn(id);};
+const _infoTileM=UI.infoTile;UI.infoTile=function(id){_infoTileM.call(this,id);if(document.getElementById('btnMarch'))return;addMarchBtn(id);};
 const _infoFacM=UI.infoFaction;UI.infoFaction=function(id){_infoFacM.call(this,id);addMarchBtn(id);};
 // v19.2: a mob's Fight card offers March when the mob sits on your own or an ally's hex
 const _infoMonM=UI.infoMon;UI.infoMon=function(mid,lvl,key,lat,lng){_infoMonM.apply(this,arguments);try{const id=key.split('@')[0];if(G.pos&&friendlyHex(id))addMarchBtn(id);}catch(e){}};
-function addMarchBtn(id){const box=document.querySelector('#modalBody .ibtns');if(!box)return;const why=canMarch(id),from=marchFrom(),dur=marchDur(from,id),tg=marchTarget(id);
+function addMarchBtn(id){const box=document.querySelector('#modalBody .ibtns');if(!box||document.getElementById('btnMarch'))return;if(!G.pos){const b=document.createElement('button');b.className='fight';b.id='btnMarch';b.disabled=true;b.innerHTML='🚩 March<br><small>Waiting for GPS</small>';box.prepend(b);return;}const why=canMarch(id),from=marchFrom(),dur=marchDur(from,id),tg=marchTarget(id);
   const mb=friendlyHex(id)&&!squadAt(id)?mobAt(id):null,p=mb?predict(()=>marchUnits({unit:frozenMe(),escorts:{}}),()=>mutantUnits(mb.mid,mb.lvl)):tg.units.length?predict(()=>marchUnits({unit:frozenMe(),escorts:{}}),()=>marchTarget(id).units):null;
   const b=document.createElement('button');b.className='fight';b.id='btnMarch';b.disabled=!!why;
   b.innerHTML=`🚩 March · ${fmtDur(dur)} there, ${fmtDur(dur)} back${why?`<br><small>${why}</small>`:`<br><small>${friendlyHex(id)?(squadAt(id)?'Fight the squad there · no claim':mb?`Fight the Lv${mb.lvl} ${MONSTERS[mb.mid].name} there · no claim`:'Patrol your own hex · no fight, no claim'):tg.kind==='open'?'Claim this open ground':'Fight on arrival'}${p?(p.win?' · ✅ likely win':' · ❌ likely loss'):''}${friendlyHex(id)?'':' · '+pathTxt(from,id)}</small>`}`;
@@ -228,7 +228,7 @@ const _raidUI=UI.raid;UI.raid=function(id){_raidUI.call(this,id);const b=$('#rhi
 function pathTxt(from,to){const track=typeof claimRoute26==='function'?claimRoute26(from,to):marchTrack(from,to);const path=track.slice(1).filter(h=>!(typeof claimSkip26==='function'?claimSkip26(h):allied(h))&&marchTarget(h).kind!=='fort') /* v19.1 / v26-11: same rule as the resolve, so the card matches the inbox */,left=BAL.tiles.dailyClaimCap-claimsToday().n,n=Math.min(path.length,left);
   return `claims up to ${pl(n,'hex','hexes')} along the path (every hex you don't hold yet)${path.length>left?` (cap: ${left} left today)`:''}`;}
 // v16: Intercept a horde squad: a march aimed at the squad, fought (fixed math) wherever the squad is when you arrive.
-const _infoSquadI=UI.infoSquad;UI.infoSquad=function(fid,sid){_infoSquadI.call(this,fid,sid);const t=findSquad(fid,sid);const box=document.querySelector('#modalBody .ibtns');if(!t||!box||!G.pos)return;
+const _infoSquadI=UI.infoSquad;UI.infoSquad=function(fid,sid){_infoSquadI.call(this,fid,sid);const t=findSquad(fid,sid);const box=document.querySelector('#modalBody .ibtns');if(!t||!box||document.getElementById('btnIntercept'))return;if(!G.pos){const b=document.createElement('button');b.className='fight';b.id='btnIntercept';b.disabled=true;b.innerHTML='🚩 Intercept (march)<br><small>Waiting for GPS</small>';box.prepend(b);return;}
   const sp=squadPower(t.f,t.s,nowS()),p=predict(()=>marchUnits({unit:frozenMe(),escorts:{}}),()=>[bandUnit('Squad',sp)]),meet=interceptHex(t.s),dur=marchDur(marchFrom(),meet);
   const b=document.createElement('button');b.className='fight';b.id='btnIntercept';b.innerHTML=`🚩 Intercept (march) · ${fmtDur(dur)}<br><small>Squad power ${sp} · ${p.win?'✅ likely win':'❌ likely loss'} · meets it ${meet===t.s.pos?'where it stands':'on its path'}: ${hexName(meet)}</small>`;
   oneTap(b,()=>sendMarch(interceptHex(t.s),{kind:'intercept',fid,sid}));box.prepend(b);};
