@@ -25,11 +25,12 @@
 
   // ---- 2) horde grows with the team (average army)
   // Army strength in tier-1 troops: (home + stationed) x tier power. Published as m.p14 so every phone scales the same way.
-  function myArmy14(){try{const t=TP();let n=t.home||0;for(const k in (t.stationed||{}))n+=(t.stationed[k]&&t.stationed[k].n)||0;return Math.round(n*(window.myTp26?myTp26():1));}catch(e){return 0;}}
+  function myArmy14(){try{const t=TP();let n=t.home||0;for(const k in (t.stationed||{}))n+=(t.stationed[k]&&t.stationed[k].n)||0;for(const p of (t.portal15||[]))n+=p.n||0;return Math.round(n*(window.myTp26?myTp26():1));}catch(e){return 0;}}
   window.myArmy14=myArmy14;
   HOOK.member(function(m){try{m.p14=myArmy14();}catch(e){}return m;});
   // Team average, not the strongest: one big army must not make raids crush newer teammates.
-  function strongest14(){const v={};try{if(P.uid)v[P.uid]=myArmy14();const ms=(G.al&&G.al.members)||{};for(const k in ms){if(isMe(k))continue;const n=+ms[k].p14||0;if(n>0)v[k]=n;}}catch(e){}
+  function strongest14(){const v={};let only=null;try{only=typeof frontUids15==='function'?frontUids15():null;}catch(e){}
+    try{if(P.uid&&(!only||only.has(P.uid)))v[P.uid]=myArmy14();const ms=(G.al&&G.al.members)||{};for(const k in ms){if(isMe(k))continue;if(only&&!only.has(k))continue;const n=+ms[k].p14||0;if(n>0)v[k]=n;}}catch(e){}
     const a=Object.values(v).filter(n=>n>0);return a.length?a.reduce((x,y)=>x+y,0)/a.length:0;}
   const BASE14={cap:HE.capBase,conv:HE.convPerH,res:HE.resPerH},MAXS14=10;
   function scale14(){return Math.min(MAXS14,Math.max(1,strongest14()/BASE14.cap));}
@@ -38,5 +39,5 @@
   bankOf=function(f){try{const s=scale14();HE.capBase=BASE14.cap*s;HE.convPerH=BASE14.conv*s;HE.resPerH=BASE14.res*s;}catch(e){}return _bank14.apply(this,arguments);};
   window.bankOf=bankOf;
   // Visible label for this combined build. The service worker cache is ddd-v26-12h-integrated, not Claude's ddd-v26-12h.
-  try{document.documentElement.dataset.build='12h-integrated-2';const who=document.querySelector('#hud .who');if(who&&!document.getElementById('build14')){const el=document.createElement('span');el.id='build14';el.textContent='12h-integrated-2';el.title='Build 12h-integrated-2';el.style.cssText='display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#2a241c;color:#e7d7c1;font:600 10px system-ui;letter-spacing:.02em;vertical-align:middle';who.appendChild(el);}}catch(e){}
+  try{document.documentElement.dataset.build='12i-integrated';const who=document.querySelector('#hud .who');if(who&&!document.getElementById('build14')){const el=document.createElement('span');el.id='build14';el.textContent='12i-integrated';el.title='Build 12i-integrated';el.style.cssText='display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#2a241c;color:#e7d7c1;font:600 10px system-ui;letter-spacing:.02em;vertical-align:middle';who.appendChild(el);}}catch(e){}
 })();

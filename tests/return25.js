@@ -89,73 +89,22 @@ async function fix(context, page, g, wait) {
   const homeTiles = s.tiles, homeMeters = s.meters, homeScrap = s.scrap;
   await fix(c, p, BONNERS);
   s = await snap(p);
-  ok('Bonners Ferry turns the crew map on', s.far && s.banner.includes('Rathdrum') && s.saved, s);
+  ok('Bonners Ferry does not force the crew-home map', !s.far && !s.banner, s);
   ok('107 km jump adds no meters, scrap, or tiles', s.meters === homeMeters && s.scrap === homeScrap && s.tiles === homeTiles, s);
-  ok('game dot stays on the home map', s.pos && Math.abs(s.pos[0] - HOME.latitude) < 0.01, s.pos);
-  const claims = await p.evaluate(() => { try { return claimPath(G.pos, [G.pos[0] + 0.002, G.pos[1]]); } catch (e) { return 'err'; } });
-  ok('walk claims stay off while remote', claims === 0, claims);
-
-  await p.evaluate(() => { UI.open('base'); UI.sub.base = 'pipes'; UI.render(); });
-  const noteFar = await p.evaluate(() => (document.querySelector('.farnote25') || {}).textContent || '');
-  ok('Base warning shows while remote', noteFar.includes("can't build pipelines") && noteFar.includes('Rathdrum'), noteFar);
-
-  // far-drive credit unchanged: short steps pay, a jump over 3 km does not
-  await p.evaluate(() => { G.drive.on = true; });
-  await fix(c, p, { latitude: BONNERS.latitude + 800 / 111320, longitude: BONNERS.longitude, accuracy: 8 });
-  await fix(c, p, { latitude: BONNERS.latitude + 1600 / 111320, longitude: BONNERS.longitude, accuracy: 8 });
-  s = await snap(p);
-  ok('short far drive still pays the existing per-km rate', s.far && s.scrap === homeScrap + 20, s);
-  const paid = s.scrap;
-  await fix(c, p, { latitude: BONNERS.latitude + (1600 + 8000) / 111320, longitude: BONNERS.longitude, accuracy: 8 });
-  s = await snap(p);
-  ok('an 8 km far step pays nothing more', s.scrap === paid && s.far, s);
-  await p.evaluate(() => { G.drive.on = false; });
-
-  const watch0 = await p.evaluate(() => G.gps.watch);
-  await p.evaluate(() => {
-    const proto = Document.prototype;
-    Object.defineProperty(proto, 'visibilityState', { configurable: true, get: () => 'hidden' });
-    Object.defineProperty(proto, 'hidden', { configurable: true, get: () => true });
-    document.dispatchEvent(new Event('visibilitychange'));
-    Object.defineProperty(proto, 'visibilityState', { configurable: true, get: () => 'visible' });
-    Object.defineProperty(proto, 'hidden', { configurable: true, get: () => false });
-    document.dispatchEvent(new Event('visibilitychange'));
+  ok('the dot follows the real GPS fix', s.pos && Math.abs(s.pos[0] - BONNERS.latitude) < 0.05, s.pos);
+  const base = await p.evaluate(() => {
+    W(); const id = hexAt(47.8135, -116.8968).id;
+    P.world.sh = { hex: id, state: 'up', hpPct: 1 };
+    P.op15 = 'sh';
+    const meters = P.stats.meters;
+    const before = Object.keys(P.tiles).length;
+    setOp15('sh');
+    const claims = claimPath([47.82, -116.9], [47.83, -116.9]);
+    return { op: P.op15, claims, tiles: Object.keys(P.tiles).length, before, meters, after: P.stats.meters, far: !!(P.far25 && P.far25.on) };
   });
-  await p.waitForTimeout(400);
-  const watch1 = await p.evaluate(() => G.gps.watch);
-  s = await snap(p);
-  ok('resume restarts GPS and does not clear remote mode', watch1 !== watch0 && s.far, { watch0, watch1, far: s.far });
+  ok('operating from a base does not drive-claim and adds no distance', base.claims === 0 && base.tiles === base.before && base.after === base.meters && !base.far, base);
 
-  // poor accuracy at the home town must not exit
-  await fix(c, p, { latitude: CLOSE.latitude, longitude: CLOSE.longitude, accuracy: 250 });
-  s = await snap(p);
-  ok('a ±250 m fix does not leave remote mode', s.far && s.saved, s);
-
-  // dev coordinates must not leave remote mode
-  await p.evaluate(() => { G.dev.hold = true; G.gps.state = 'dev'; setPos(47.82, -116.8968); });
-  s = await snap(p);
-  ok('dev position does not leave remote mode', s.far, s);
-  await p.evaluate(() => { G.dev.hold = false; G.gps.state = 'ok'; G.gps.acc = 8; });
-
-  // boundary: 42 km, 39 km, 42 km, 39 km must stay remote; the next inside fix confirms
-  const atKm = km => ({ latitude: HOME.latitude + km / 111.32, longitude: HOME.longitude, accuracy: 8 });
-  for (const km of [42, 39, 42, 39]) {
-    await fix(c, p, atKm(km));
-    s = await snap(p);
-    ok('still remote after a ' + km + ' km fix in the wobble', s.far, { km, armed: s.armed, meters: s.meters });
-  }
-  ok('the last inside fix is only waiting, not confirmed', s.armed === true && s.far, s);
-  const before = await snap(p);
-  const cloudBefore = before.cloud;
-  await fix(c, p, atKm(38));
-  s = await snap(p);
-  ok('second inside fix leaves remote mode', !s.far && !s.saved && !s.banner, s);
-  ok('exit does not add the gap from the crew dot', s.meters === before.meters, { before: before.meters, after: s.meters });
-  ok('exit does not grant resources', s.scrap === before.scrap, s);
-  ok('exit claims at most the hex underfoot', s.tiles - before.tiles <= 1, { before: before.tiles, after: s.tiles });
-  ok('exit still did not call cloudSave or notePlay', s.cloud === cloudBefore && s.notes === 0, s);
-
-  await p.evaluate(() => { UI.open('base'); UI.sub.base = 'pipes'; UI.render(); });
+  await p.evaluate(() => { P.op15 = 'gps'; UI.open('base'); UI.sub.base = 'pipes'; UI.render(); });
   const noteHome = await p.evaluate(() => (document.querySelector('.farnote25') || {}).textContent || '');
   s = await snap(p);
   ok('Base warning is gone and the far pipeline block is gone', !noteHome && !s.pipe.includes('Far-away'), { noteHome, pipe: s.pipe });
@@ -165,13 +114,18 @@ async function fix(context, page, g, wait) {
   const claimed = await p.evaluate(() => { G.playLocked = false; W(); const n = claimPath(G.pos, [G.pos[0] + 0.003, G.pos[1]]); return { n, tiles: Object.keys(P.tiles).length }; });
   ok('a later real step can claim again', !s.far && claimed.n > 0 && claimed.tiles > tiles0, claimed);
 
-  // This session already has a fresh accurate home fix. A stale flag is not a new GPS sample, so it does not stay and it does not upload.
+  // The last real fix was Bonners, so there is no fresh home proof. A reapplied leftover flag can show. It must not upload or add distance, and two accurate home fixes clear it.
   const cloudAt = s.cloud;
   const metersAt = s.meters;
   await p.evaluate(() => { P.far25 = { on: true, anchor: null, since: 1 }; save(); banner25(); if (window.onProfile25) onProfile25(); });
   s = await snap(p);
-  ok('a reapplied flag clears from the fresh home fix without a new drive', !s.far && !s.saved && !s.banner, s);
-  ok('clearing the reapplied flag does not call cloudSave or add distance', s.cloud === cloudAt && s.meters === metersAt, s);
+  ok('without a fresh home proof a reapplied flag can show', s.far && !!s.banner, s);
+  ok('showing that flag does not call cloudSave or add distance', s.cloud === cloudAt && s.meters === metersAt, s);
+  await fix(c, p, HOME);
+  await fix(c, p, { latitude: HOME.latitude + 0.0002, longitude: HOME.longitude, accuracy: 8 });
+  s = await snap(p);
+  ok('two accurate home fixes clear the reapplied flag', !s.far && !s.banner, s);
+  ok('clearing it does not upload or add the long gap', s.meters < 1000 && s.cloud === cloudAt, s);
 
   console.log(failed ? 'FAILED ' + failed : 'ALL PASS');
   await b.close();

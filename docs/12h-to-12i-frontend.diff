@@ -1,0 +1,658 @@
+diff --git a/public/bal14.js b/public/bal14.js
+index c339029..0255d18 100644
+--- a/public/bal14.js
++++ b/public/bal14.js
+@@ -25,11 +25,13 @@
+ 
+   // ---- 2) horde grows with the team (average army)
+   // Army strength in tier-1 troops: (home + stationed) x tier power. Published as m.p14 so every phone scales the same way.
+-  function myArmy14(){try{const t=TP();let n=t.home||0;for(const k in (t.stationed||{}))n+=(t.stationed[k]&&t.stationed[k].n)||0;return Math.round(n*(window.myTp26?myTp26():1));}catch(e){return 0;}}
++  function myArmy14(){try{const t=TP();let n=t.home||0;for(const k in (t.stationed||{}))n+=(t.stationed[k]&&t.stationed[k].n)||0;for(const p of (t.portal15||[]))n+=p.n||0;return Math.round(n*(window.myTp26?myTp26():1));}catch(e){return 0;}}
+   window.myArmy14=myArmy14;
+   HOOK.member(function(m){try{m.p14=myArmy14();}catch(e){}return m;});
+   // Team average, not the strongest: one big army must not make raids crush newer teammates.
+-  function strongest14(){const v={};try{if(P.uid)v[P.uid]=myArmy14();const ms=(G.al&&G.al.members)||{};for(const k in ms){if(isMe(k))continue;const n=+ms[k].p14||0;if(n>0)v[k]=n;}}catch(e){}
++  // 12i: while a regional front runs, only players with a base in that front count (front15.js sets the context)
++  function strongest14(){const v={};let only=null;try{only=typeof frontUids15==='function'?frontUids15():null;}catch(e){}
++    try{if(P.uid&&(!only||only.has(P.uid)))v[P.uid]=myArmy14();const ms=(G.al&&G.al.members)||{};for(const k in ms){if(isMe(k))continue;if(only&&!only.has(k))continue;const n=+ms[k].p14||0;if(n>0)v[k]=n;}}catch(e){}
+     const a=Object.values(v).filter(n=>n>0);return a.length?a.reduce((x,y)=>x+y,0)/a.length:0;}
+   const BASE14={cap:HE.capBase,conv:HE.convPerH,res:HE.resPerH},MAXS14=10;
+   function scale14(){return Math.min(MAXS14,Math.max(1,strongest14()/BASE14.cap));}
+diff --git a/public/base15.js b/public/base15.js
+new file mode 100644
+index 0000000..13025b3
+--- /dev/null
++++ b/public/base15.js
+@@ -0,0 +1,208 @@
++// base15 (TEST, build 12i) Play anywhere, together. Approved by Pope Nov 8.
++//  * Rule: you claim and connect pipelines only where you physically are (GPS). Anywhere else you act with marches.
++//  * Alliance HQ: the leader or an officer places it. "Jump to HQ", and build or move your Stronghold within 5 mi of it.
++//    Moving your Stronghold turns the old spot into your Home Outpost, so driving, pipelines and resources keep working there.
++//  * Bases: Stronghold, Home Outpost (1, built where you stand), Forward Outposts (2, placed remotely within 6 mi of a
++//    teammate's land). Each base has its own troops. Marches leave from the base you operate from, with that base's troops.
++//  * Portal: move troops between your bases. 20 min + 10 min per 100 km, max 3 h. No return penalty. Troops in the portal
++//    can't fight. Resources are never stored at a base, so they never travel.
++//  * Operating base: "📍 Here" (GPS, the default; driving always uses it) or one of your bases. From a base, the map and
++//    your actions sit on that base and walking/driving claims are off.
++(function(){
++  const MI=1609.34;
++  const B15={hqMi:5,fwdNearMi:6,fwdMax:2,homeMax:1,portalBaseMin:20,portalPer100kmMin:10,portalCapH:3,moveCooldownH:24*7};
++  window.B15=B15;
++  const now=()=>(typeof nowS==='function'?nowS():Date.now());
++  const ctr=id=>hexCenter(...idQR(id));
++  const kmBetween=(a,b)=>{const x=ctr(a),y=ctr(b);return distM(x[0],x[1],y[0],y[1])/1000;};
++  const mi=km=>(km/1.60934);
++  const fmtMi=km=>{const m=mi(km);return m<10?m.toFixed(1)+' mi':Math.round(m)+' mi';};
++  window.fmtMi15=fmtMi;
++
++  // ---------- bases ----------
++  function shHex15(){const s=W().sh;return s&&s.hex&&s.state!=='down'?s.hex:null;}
++  function ops15(kind){return Object.entries(W().outposts||{}).filter(([,o])=>o.state!=='down'&&(kind?o.kind===kind:true));}
++  function homeOp15(){const e=ops15('home')[0];return e?e[0]:null;}
++  function isBase15(id){if(!id)return false;if(id===shHex15())return true;const o=(W().outposts||{})[id];return !!(o&&o.state!=='down');}
++  function baseLabel15(id){if(id===shHex15())return'🏰 Stronghold';const o=(W().outposts||{})[id]||{};return o.kind==='home'?'🏡 Home Outpost':o.kind==='fwd'?'🚩 Forward Outpost':'⛺ Outpost';}
++  function myBases15(){const out=[];const s=shHex15();if(s)out.push(s);for(const [id,o] of ops15())if(o.state==='up'||o.kind)out.push(id);return out;}
++  Object.assign(window,{shHex15,homeOp15,isBase15,baseLabel15,myBases15});
++  // troops per base: the Stronghold's troops are TP().home; an outpost's troops are stationed on its hex
++  function poolOf15(b){if(!b||b===shHex15()||b==='sh')return TP().home||0;const s=stationed()[b];return s&&Date.now()>=(s.at||0)?s.n:0;}
++  function addPool15(b,n){if(n<=0)return;if(!b||b==='sh'||b===shHex15()||!isBase15(b)){TP().home+=n;return;}const s=stationed(),c=s[b];s[b]={...(c||{}),n:((c&&c.n)||0)+n,at:Math.min((c&&c.at)||0,Date.now()),from:b,b15o:b};}
++  function takePool15(b,n){if(!b||b==='sh'||b===shHex15()){const k=Math.min(n,TP().home);TP().home-=k;return k;}const s=stationed(),c=s[b];if(!c)return 0;const k=Math.min(n,c.n);c.n-=k;if(c.n<=0)delete s[b];return k;}
++  Object.assign(window,{poolOf15,addPool15,takePool15});
++
++  // ---------- operating base ----------
++  function curBase15(){const b=P.op15;if(!b||b==='gps')return'gps';if(b==='sh')return shHex15()?'sh':'gps';return isBase15(b)?b:'gps';}
++  function opHex15(){const b=curBase15();return b==='gps'?null:b==='sh'?shHex15():b;}
++  function outpostMode15(){const b=curBase15();return b!=='gps'&&b!=='sh'&&b!==shHex15();}
++  window.curBase15=curBase15;window.opHex15=opHex15;
++  G.real15=null;
++  const _sp15=setPos;setPos=function(lat,lng){try{G.real15=[lat,lng];const h=opHex15();
++      if(h){try{if(typeof realFix25==='function')realFix25(lat,lng);}catch(e){}const c=ctr(h);if(!G.pos||hexAt(...G.pos).id!==h){G.jump=true;return _sp15.call(this,c[0],c[1]);}return;}}catch(e){console.warn('op15 pos',e);}
++    return _sp15.apply(this,arguments);};
++  window.setPos=setPos;
++  function setOp15(b){P.op15=b||'gps';save();const h=opHex15();
++    try{if(h){const c=ctr(h);G.jump=true;_sp15(c[0],c[1]);map.setView(c,16);}else{if(G.real15){G.jump=true;_sp15(G.real15[0],G.real15[1]);map.setView(G.real15,16);}}drawWorld();}catch(e){}
++    toast(h?`${baseLabel15(h)}: you're operating from here. Marches leave from this base.`:'📍 Back on your GPS position');bar15(true);try{UI.closeModal();}catch(e){}}
++  window.setOp15=setOp15;
++  // walking / driving claims only on GPS
++  const _cp15=claimPath;claimPath=function(){if(curBase15()!=='gps')return 0;return _cp15.apply(this,arguments);};
++  // driving always uses GPS
++  const _td15=toggleDrive;toggleDrive=async function(){if(!(G.drive&&G.drive.on)&&curBase15()!=='gps'){P.op15='gps';save();if(G.real15){G.jump=true;_sp15(G.real15[0],G.real15[1]);}bar15(true);}return _td15.apply(this,arguments);};
++  window.toggleDrive=toggleDrive;
++
++  // ---------- marches leave from a base, with that base's troops ----------
++  marchFrom=function(){const h=opHex15()||shHex15();if(h)return h;return G.pos?hexAt(...G.pos).id:null;};
++  window.marchFrom=marchFrom;
++  // synchronous screens and actions that read TP().home: show/use the outpost's troops while operating from an outpost
++  function withPool15(fn,ctx,args){if(!outpostMode15())return fn.apply(ctx,args);const b=opHex15(),s=stationed(),e=s[b],k=e?e.n:0,keep=TP().home;TP().home=k;delete s[b];
++    try{return fn.apply(ctx,args);}finally{const left=TP().home;TP().home=keep;if(left>0)s[b]={...(e||{at:0,from:b}),n:left,b15o:b};}}
++  for(const name of ['addMarchBtn','stationTroops']){try{const f=window[name];if(typeof f!=='function')continue;const w=function(){return withPool15(f,this,arguments);};window[name]=w;
++      if(name==='addMarchBtn')addMarchBtn=w;else stationTroops=w;}catch(e){}}
++  // stations made from an outpost go back to that outpost when recalled
++  const _st15=stationTroops;stationTroops=function(h,n){const b=outpostMode15()?opHex15():null;const r=_st15.apply(this,arguments);try{if(b){const s=stationed()[h];if(s)s.b15o=b;save();}}catch(e){}return r;};window.stationTroops=stationTroops;
++  const _rs15=recallStation;recallStation=function(h){const s=stationed()[h],b=s&&s.b15o&&s.b15o!==h?s.b15o:null;const n0=TP().returning.length;const r=_rs15.apply(this,arguments);try{if(b)for(let i=n0;i<TP().returning.length;i++)TP().returning[i].b15=b;save();}catch(e){}return r;};window.recallStation=recallStation;
++  // sending a march from an outpost: only that outpost's troops can go
++  const _sm15=sendMarch;sendMarch=async function(){if(!outpostMode15())return _sm15.apply(this,arguments);const b=opHex15(),t=TP(),s=stationed(),e=s[b],k=e?e.n:0;
++    if(k<=0)return toast('🚫 No troops at this outpost. 🌀 Portal some here first.');
++    const pre=new Set(Object.keys(t.away||{})),keep=t.home;t.home=k;delete s[b];
++    try{return await _sm15.apply(this,arguments);}
++    finally{let taken=0;t.awayBase15=t.awayBase15||{};for(const id of Object.keys(t.away||{}))if(!pre.has(id)){taken+=t.away[id]||0;t.awayBase15[id]=b;}
++      const x=t.home,leftOut=Math.max(0,k-taken);t.home=keep+Math.max(0,x-leftOut);if(leftOut>0)s[b]={...(e||{at:0,from:b}),n:leftOut,b15o:b};save();}};
++  window.sendMarch=sendMarch;
++  // the march comes home to the base it left from
++  const _rm15=returnMarch;returnMarch=async function(id,m){const t=TP(),b=(t.awayBase15||{})[id];if(!b)return _rm15.apply(this,arguments);const n=t.away[id]||0;const r=await _rm15.apply(this,arguments);
++    try{if(t.away[id]==null){const k=Math.min(n,t.home);if(k>0){t.home-=k;addPool15(b,k);}delete t.awayBase15[id];save();}}catch(e){}return r;};
++  window.returnMarch=returnMarch;
++  try{const _rmt15=recallMarchTroops;recallMarchTroops=function(id){const b=(TP().awayBase15||{})[id],n0=TP().returning.length;const r=_rmt15.apply(this,arguments);try{if(b){for(let i=n0;i<TP().returning.length;i++)TP().returning[i].b15=b;delete TP().awayBase15[id];save();}}catch(e){}return r;};window.recallMarchTroops=recallMarchTroops;}catch(e){}
++  // returning troops tagged with a base land there (not at the Stronghold)
++  const _tt15=troopTick;troopTick=function(){try{const t=TP();if(Array.isArray(t.returning)){const due=t.returning.filter(r=>r.b15&&r.at<=Date.now());if(due.length){t.returning=t.returning.filter(r=>!due.includes(r));let n=0;for(const r of due){addPool15(r.b15,r.n);n+=r.n;}save();toast(`🏠 ${n.toLocaleString()} troops are back at ${baseLabel15(due[0].b15)}`);}}}catch(e){}return _tt15.apply(this,arguments);};
++  window.troopTick=troopTick;
++
++  // ---------- portal ----------
++  function portalMs15(a,b){const km=kmBetween(a,b);const min=B15.portalBaseMin+B15.portalPer100kmMin*km/100;return Math.round(Math.min(B15.portalCapH*60,min)*60e3);}
++  window.portalMs15=portalMs15;
++  function portalList15(){const t=TP();t.portal15=t.portal15||[];return t.portal15;}
++  function portal15(from,to,n){from=from==='sh'?shHex15():from;to=to==='sh'?shHex15():to;
++    if(!isBase15(from)||!isBase15(to)||from===to)return toast('🚫 Pick two of your bases');n=Math.floor(n);if(!(n>0))return toast('🚫 Pick how many troops');
++    const k=takePool15(from,n);if(k<=0)return toast('🚫 No troops there');const d=portalMs15(from,to),t0=now();
++    portalList15().push({id:'p'+t0.toString(36)+Math.random().toString(36).slice(2,5),n:k,from,to,st:t0,at:t0+d});save();
++    toast(`🌀 ${k.toLocaleString()} troops in the portal · arrive at ${baseLabel15(to)} in ${fmtDur(d)}`);allianceLog(`🌀 ${P.name} sent ${k.toLocaleString()} troops through the portal (${fmtMi(kmBetween(from,to))})`);try{UI.closeModal();UI.hud();}catch(e){}}
++  window.portal15=portal15;
++  setInterval(()=>{try{if(!P.world)return;const L=portalList15(),t=now(),due=L.filter(p=>p.at<=t);if(!due.length)return;
++      TP().portal15=L.filter(p=>!due.includes(p));for(const p of due){addPool15(p.to,p.n);report(`🌀 ${p.n.toLocaleString()} troops arrived at ${baseLabel15(p.to)} (${hexName(p.to)})`,true);}save();try{UI.hud();}catch(e){}}catch(e){}},4000);
++  const _ta15=troopsAway;troopsAway=function(){let n=_ta15.apply(this,arguments);try{n+=portalList15().reduce((a,p)=>a+p.n,0);}catch(e){}return n;};window.troopsAway=troopsAway;
++
++  // ---------- outposts: Home + Forward ----------
++  const _ol15=outpostsLive;outpostsLive=function(){return Object.values(W().outposts||{}).filter(o=>o.state!=='down'&&!o.kind).length;};window.outpostsLive=outpostsLive;
++  function placeSpecial15(id,kind){const w=W(),c=outpostCost();w.outposts=w.outposts||{};
++    if(factionAt(id))return toast('🚫 Retake this hex from the raiders first');const o=G.terr[id];if(o&&!o.released&&(o.ai||(o.uid&&!isMe(o.uid))))return toast(o.ai?'🚫 Raiders hold that hex':'🚫 That hex belongs to a teammate');
++    if(w.outposts[id]&&w.outposts[id].state!=='down')return toast('🚫 There is already an outpost here');
++    if(id===shHex15())return toast('🚫 That is your Stronghold');
++    if(kind==='home'&&ops15('home').length>=B15.homeMax)return toast('🚫 You already have a Home Outpost');
++    if(kind==='fwd'&&ops15('fwd').length>=B15.fwdMax)return toast(`🚫 You already have ${B15.fwdMax} Forward Outposts`);
++    if(!canPay(c))return toast('🚫 Not enough resources');pay(c);
++    w.outposts[id]={state:'capturing',kind,start:Date.now(),endsAt:Date.now()+BAL.outpost.holdMin*60e3,hpPct:1};if(!P.tiles[id])claimTile(id);
++    save();drawWorld();try{pushMember();}catch(e){}toast(`${kind==='home'?'🏡':'🚩'} Building: holds for ${BAL.outpost.holdMin} min, then it's up`);allianceLog(`${kind==='home'?'🏡':'🚩'} ${P.name} is building a ${kind==='home'?'Home':'Forward'} Outpost`);UI.closeModal();}
++  window.placeSpecial15=placeSpecial15;
++  function teammateLandNear15(id,km){for(const [hx,o] of Object.entries(G.terr||{})){if(!o||o.ai||o.released||!o.uid||isMe(o.uid))continue;if(kmBetween(hx,id)<=km)return o.uid;}
++    const M=(G.al&&G.al.members)||{};for(const [uid,m] of Object.entries(M)){if(isMe(uid)||!Array.isArray(m.defs))continue;for(const d of m.defs){if(d&&d.hex&&kmBetween(d.hex,id)<=km)return uid;}}return null;}
++  window.teammateLandNear15=teammateLandNear15;
++  function fwdOk15(id){if(!teammateLandNear15(id,B15.fwdNearMi*MI/1000))return`Forward Outposts go within ${B15.fwdNearMi} mi of a teammate's land`;return null;}
++  // Build menu: Home Outpost where you stand (GPS only)
++  const _bd15=UI.build;UI.build=function(){_bd15.apply(this,arguments);try{if(!G.pos)return;const mb=$('#modalBody');if(!mb||mb.querySelector('.home15'))return;const id=hexAt(...G.pos).id,gps=curBase15()==='gps',has=ops15('home').length>=B15.homeMax;
++      const c=outpostCost(),cost=Object.entries(c).map(([k,v])=>`<span class="${(P.res[k]||0)<v?'short':''}">${v} ${RES[k]}</span>`).join(' ');
++      const why=has?'You already have one':!gps?'Switch to 📍 Here (GPS): it goes where you actually are':null;
++      mb.insertAdjacentHTML('beforeend',`<div class="row home15"><div class="grow"><b>🏡 Home Outpost</b><small>${cost}</small><small>Where you live or play by GPS. Drives, pipelines and resources work around it. 1 per player, doesn't count toward your outpost limit.</small>${why?`<small>❌ ${why}</small>`:''}</div><button ${why?'disabled':''} onclick="placeSpecial15('${id}','home')">Build</button></div>`);}catch(e){console.warn('home15',e);}};
++  // pipelines can start at your Home Outpost while you are physically near it
++  try{const _po15=pipeOrigin;pipeOrigin=function(){const ho=homeOp15(),r=G.real15;if(ho&&r){const c=ctr(ho);if(distM(r[0],r[1],c[0],c[1])<=(PIPE.maxKm||5)*1000)return ho;}return _po15.apply(this,arguments);};window.pipeOrigin=pipeOrigin;}catch(e){}
++
++  // ---------- Alliance HQ ----------
++  function hq15(){return G.hq15&&G.hq15.hq||null;}
++  window.hqHex15=()=>{const h=hq15();return h&&h.hex||null;};
++  function nearHq15(id){const h=hq15();return !!(h&&kmBetween(h.hex,id)<=B15.hqMi*MI/1000);}
++  window.drawHq15=function(){try{if(typeof map==='undefined')return;if(!G.layers.hq15)G.layers.hq15=L.layerGroup().addTo(map);const g=G.layers.hq15;g.clearLayers();const h=hq15();if(!h)return;const c=ctr(h.hex);
++    L.marker(c,{icon:L.divIcon({className:'mk hq15mk',html:`<div class="hq15ico">🏛️<b>${esc15(h.name||'HQ')}</b></div>`,iconSize:[0,0]}),zIndexOffset:600}).on('click',()=>UI.hq15()).addTo(g);
++    L.circle(c,{radius:B15.hqMi*MI,color:'#ffd24a',weight:1,opacity:.5,fillOpacity:.03,dashArray:'6 6',interactive:false}).addTo(g);}catch(e){}};
++  HOOK.draw(function(){drawHq15();});
++  window.jumpHq15=function(){const h=hq15();if(!h)return toast('No HQ yet');try{map.setView(ctr(h.hex),15);G.view15=ctr(h.hex);}catch(e){}UI.closeModal&&UI.closeModal();try{UI.close&&UI.close();}catch(e){}};
++  function startOk15(id){const h=hq15();if(!h)return'No HQ yet';if(!nearHq15(id))return`Keep within ${B15.hqMi} mi of the HQ`;
++    const o=G.terr[id];if(o&&!o.released&&(o.ai||(o.uid&&!isMe(o.uid))))return o.ai?'Raiders hold that hex':'That hex belongs to a teammate';
++    if(factionAt(id))return'Raiders hold that hex';if(typeof allyBldNear==='function'&&allyBldNear(id,1))return"Too close to a teammate's building (keep 2 hexes away)";return null;}
++  function autoHqHex15(){const h=hq15();if(!h)return null;const [q,r]=idQR(h.hex);for(let ring=2;ring<=20;ring++)for(const x of hexRing(q,r,ring))if(hexDist(x.id,h.hex)===ring&&!startOk15(x.id))return x.id;return null;}
++  function moveSh15(id){const why=startOk15(id);if(why)return toast('🚫 '+why);const w=W(),s=w.sh,t=Date.now();
++    if(s&&s.movedAt15&&t-s.movedAt15<B15.moveCooldownH*3600e3)return toast(`🚫 You can move your Stronghold again in ${fmtDur(B15.moveCooldownH*3600e3-(t-s.movedAt15))}`);
++    const old=s&&s.state!=='down'?s.hex:null;
++    if(old&&old!==id&&!ops15('home').length){w.outposts=w.outposts||{};w.outposts[old]={state:'up',kind:'home',start:t,endsAt:t,hpPct:1,fromSh15:1};}
++    if(s&&s.state!=='down'){s.hex=id;s.hpPct=s.hpPct??1;s.movedAt15=t;}else{w.sh={hex:id,hpPct:1,state:'up',buildEnd:0,everBuilt:true,movedAt15:t};P.stronghold=P.stronghold||{level:1};}
++    if(!P.tiles[id])claimTile(id);try{shClaimArea();}catch(e){}P.startSh26=1;P.startShMoved26=1;P.op15='sh';save();try{pushMember();}catch(e){}
++    allianceLog(`🏰 ${P.name} moved their Stronghold to the alliance HQ${old?' (their old spot is now a Home Outpost)':''}`);UI.closeModal();setOp15('sh');}
++  window.moveSh15=moveSh15;
++  function pick15(kind){G.pick15=kind;G.pick15At=Date.now();try{UI.closeModal();UI.close&&UI.close();}catch(e){}
++    toast(kind==='hq'?'🏛️ Tap the hex for the alliance HQ':kind==='sh'?`🏰 Tap a free hex within ${B15.hqMi} mi of the HQ`:`🚩 Tap a free hex within ${B15.fwdNearMi} mi of a teammate's land`);}
++  window.pick15=pick15;
++  const _it15=UI.infoTile;UI.infoTile=function(id){if(G.pick15&&Date.now()-(G.pick15At||0)>180e3)G.pick15=null;const k=G.pick15;if(!k)return _it15.apply(this,arguments);
++    if(k==='hq'){return UI.modal(`<h2>🏛️ Alliance HQ here?</h2><p>${hexName(id)}. Teammates can jump here and build their Strongholds within ${B15.hqMi} mi.</p><input id="hq15name" maxlength="24" placeholder="HQ name (e.g. Rathdrum)" value="${esc15((hq15()||{}).name||'')}"><div class="btns24"><button class="red24" onclick="setHq15('${id}',$('#hq15name').value)">✅ Place HQ</button><button class="ghost24" onclick="G.pick15=null;UI.closeModal()">Cancel</button></div>`);}
++    if(k==='sh'){const why=startOk15(id);if(why){toast('🚫 '+why);return;}const old=shHex15();return UI.modal(`<h2>🏰 Stronghold here?</h2><p>${hexName(id)} near the alliance HQ.${old&&!homeOp15()?' Your current Stronghold spot becomes your 🏡 Home Outpost, so driving and pipelines keep working there.':''} Moving again is possible after 7 days.</p><div class="btns24"><button class="red24" onclick="G.pick15=null;moveSh15('${id}')">✅ Build here</button><button class="ghost24" onclick="UI.closeModal()">Pick another</button></div>`);}
++    if(k==='fwd'){const why=fwdOk15(id);if(why){toast('🚫 '+why);return;}const c=outpostCost(),cost=Object.entries(c).map(([kk,v])=>`${v} ${RES[kk]}`).join(' ');
++      return UI.modal(`<h2>🚩 Forward Outpost here?</h2><p>${hexName(id)}. It guards the hexes around it like any outpost. 🌀 Portal troops in to defend it and march from it. You can't claim by walking here unless you're really there.</p><p class="tiny">Cost ${cost} · ${ops15('fwd').length}/${B15.fwdMax} used</p><div class="btns24"><button class="red24" onclick="G.pick15=null;placeSpecial15('${id}','fwd')">✅ Build</button><button class="ghost24" onclick="UI.closeModal()">Pick another</button></div>`);}
++    return _it15.apply(this,arguments);};
++  window.setHq15=async function(id,name){if(!isOfficer15())return toast('🚫 Only the leader or officers can place the HQ');const c=ctr(id),nm=clean15(name)||'HQ';G.pick15=null;
++    try{await hqTx15(cur=>{if(!cur)throw new Error('Claim leadership first');return{...cur,hq:{hex:id,name:nm,by:P.uid,byName:P.name,t:Date.now()}};});
++      allianceLog(`🏛️ ${P.name} set the alliance HQ: ${nm}`);toast('🏛️ HQ placed');UI.closeModal();drawHq15();}catch(e){toast('🚫 '+(e.message||e));}};
++
++  // ---------- Alliance tab: 🏛️ HQ ----------
++  try{AT26.hq={n:'🏛️ HQ',parts:['hq']};UI.SUBS.alliance=Object.entries(AT26).map(([k,v])=>[k,v.n]);}catch(e){}
++  function hqHtml15(){const h=hq15(),me=P.uid,rk=myRank15(),s=shHex15(),M=(G.al&&G.al.members)||{};let x=`<h2>🏛️ Alliance HQ</h2>`;
++    if(!ranksOn15())return x+`<p>Nobody leads this alliance yet. The leader places the HQ, names officers and approves bank withdrawals.</p><button class="red24" onclick="claimLeader15()">👑 Claim leadership</button>`;
++    if(h){const d=s?kmBetween(h.hex,s):null;x+=`<div class="row"><div class="grow"><b>${esc15(h.name)}</b><small>${hexName(h.hex)} · set by ${esc15(h.byName||'the leader')}${d!=null?` · your Stronghold is ${fmtMi(d)} away`:''}</small></div><button onclick="jumpHq15()">🧭 Jump</button></div>`;
++      if(!s||d>B15.hqMi*MI/1000)x+=`<div class="row"><div class="grow"><b>Play next to the crew</b><small>Build your Stronghold within ${B15.hqMi} mi of the HQ. ${s?'Your current spot becomes your 🏡 Home Outpost so driving, pipelines and resources keep working there.':''}</small></div><button class="red24" onclick="jumpHq15();setTimeout(()=>pick15('sh'),300)">🏰 Pick a spot</button></div>`;}
++    else x+=`<p class="tiny">No HQ yet.${isOfficer15()?'':' The leader or an officer places it.'}</p>`;
++    if(isOfficer15())x+=`<div class="btns24"><button onclick="pick15('hq')">🏛️ ${h?'Move':'Place'} HQ (tap the map)</button></div>`;
++    const lu=leaderUid15(),lm=M[lu]||{};if(rk==='officer'&&lu&&Date.now()-(lm.lastActive||0)>=14*864e5)x+=`<button class="ghost24" onclick="takeOver15()">👑 Take over (leader inactive 14+ days)</button>`;
++    // ranks
++    const rows=Object.entries(M).sort((a,c)=>({leader:0,officer:1,member:2}[rankOf15(a[0])]-{leader:0,officer:1,member:2}[rankOf15(c[0])]));
++    x+=`<h3>Ranks</h3><p class="tiny">👑 Leader: ranks, titles, HQ, bank. ⭐ Officers: titles, HQ, bank. Tap a name to set a title${rk==='leader'?' or rank':''}.</p>`+rows.map(([u,m])=>`<div class="rp26" onclick="UI.person26('${u}')"><span class="ri">${typeof av24==='function'?av24(u,26):'👤'}</span><div class="grow"><b>${esc15(isMe(u)?P.name+' (you)':m.name||'Teammate')}</b>${badge15(u)||'<span class="rkx15"></span>'}</div><span class="chev">›</span></div>`).join('');
++    // bases
++    x+=`<h3>Your bases</h3>`+basesHtml15();return x;}
++  function basesHtml15(){const L=myBases15(),cb=curBase15();let x='';
++    x+=`<div class="row"><div class="grow"><b>📍 Here (GPS)</b><small>Claim by walking and driving where you really are</small></div>${cb==='gps'?'<span class="tiny">● now</span>':`<button onclick="setOp15('gps')">Use</button>`}</div>`;
++    for(const id of L){const n=poolOf15(id),on=opHex15()===id;x+=`<div class="row"><div class="grow"><b>${baseLabel15(id)}</b><small>${hexName(id)} · 🪖 ${n.toLocaleString()} troops</small></div>${on?'<span class="tiny">● now</span>':`<button onclick="setOp15('${id===shHex15()?'sh':id}')">Operate</button>`}<button onclick="UI.portal15('${id}')">🌀</button></div>`;}
++    const P15=portalList15();if(P15.length)x+=`<h3>🌀 In the portal</h3>`+P15.map(p=>`<div class="row"><div class="grow">${p.n.toLocaleString()} troops → ${baseLabel15(p.to)}<small>arrive in ${fmtDur(Math.max(0,p.at-now()))}</small></div></div>`).join('');
++    const f=ops15('fwd').length;x+=`<p class="tiny">🚩 Forward Outposts ${f}/${B15.fwdMax}: open a teammate's card and tap "Forward Outpost near them".</p>`;return x;}
++  UI.hq15=function(){try{this.tab='alliance';this.sub.alliance='hq';UI.open?UI.open('alliance'):UI.render();}catch(e){UI.modal(hqHtml15());}};
++  UI.bases15=function(){UI.modal(`<h2>🏰 Your bases</h2>`+basesHtml15());};
++  HOOK.render(function(){try{if(this.tab!=='alliance'||this.sub.alliance!=='hq')return;const b=$('#sheetBody');if(!b||b.querySelector('.p-hq'))return;b.innerHTML=this.subnav('alliance')+`<section class="part26 p-hq">${hqHtml15()}</section>`;}catch(e){console.warn('hq15',e);}});
++  // portal screen
++  UI.portal15=function(to){const L=myBases15().filter(b=>b!==to&&poolOf15(b)>0);if(!L.length)return toast('🚫 No other base has troops to send');
++    const opt=L.map(b=>`<option value="${b}">${baseLabel15(b)} · ${poolOf15(b).toLocaleString()} troops · ${fmtDur(portalMs15(b,to))}</option>`).join('');
++    UI.modal(`<h2>🌀 Portal troops to ${baseLabel15(to)}</h2><p class="tiny">${hexName(to)} · 20 min + about 10 min for every 60 mi, max 3 h. No return penalty. Troops in the portal can't fight.</p>
++      <select id="pt15from">${opt}</select><div class="btns24">${[.25,.5,1].map(f=>`<button onclick="portal15($('#pt15from').value,'${to}',Math.floor(poolOf15($('#pt15from').value)*${f}))">${f===1?'All':Math.round(f*100)+'%'}</button>`).join('')}</div>`);};
++  // teammate card: forward outpost near them + jump
++  const _pp15=UI.person26;if(_pp15)UI.person26=function(uid){const r=_pp15.apply(this,arguments);try{if(isMe(uid))return r;const mb=$('#modalBody');if(!mb||mb.querySelector('.fw15'))return r;const m=((G.al&&G.al.members)||{})[uid]||{};
++      const d=(Array.isArray(m.defs)?m.defs:[]).find(x=>x&&x.k==='sh'&&x.hex)||(Array.isArray(m.defs)?m.defs:[]).find(x=>x&&x.hex);if(!d)return r;
++      mb.insertAdjacentHTML('beforeend',`<div class="btns24 fw15"><button onclick="map.setView(hexCenter(...idQR('${d.hex}')),14);UI.closeModal();try{UI.close()}catch(e){}">🧭 Jump to their base</button><button ${ops15('fwd').length>=B15.fwdMax?'disabled':''} onclick="map.setView(hexCenter(...idQR('${d.hex}')),14);pick15('fwd')">🚩 Forward Outpost near them</button></div>`);}catch(e){}return r;};
++  // outpost card: kind + troops + portal
++  const _io15=UI.infoOutpost;UI.infoOutpost=function(id){const r=_io15.apply(this,arguments);try{const o=(W().outposts||{})[id];const mb=$('#modalBody');if(!o||!mb||mb.querySelector('.op15'))return r;
++      mb.insertAdjacentHTML('afterbegin',`<div class="op15"><b>${baseLabel15(id)}</b> · 🪖 ${poolOf15(id).toLocaleString()} troops here${o.state==='up'?`<div class="btns24"><button onclick="UI.portal15('${id}')">🌀 Portal troops here</button>${opHex15()===id?'':`<button onclick="setOp15('${id}')">Operate from here</button>`}</div>`:''}</div>`);}catch(e){}return r;};
++
++  // ---------- operating bar ----------
++  function bar15(force){let el=document.getElementById('op15');const L=myBases15();if(!P.name||!L.length){if(el)el.remove();return;}
++    const cb=curBase15(),h=opHex15(),key=cb+'|'+L.join(',')+'|'+portalList15().length;if(el&&!force&&el.dataset.k===key)return;
++    if(!el){el=document.createElement('div');el.id='op15';document.body.appendChild(el);}el.dataset.k=key;
++    el.innerHTML=`<button class="${cb==='gps'?'on':''}" title="Here (GPS)" aria-label="Play from where you are (GPS)" onclick="setOp15('gps')">📍</button>`+L.slice(0,4).map(id=>`<button class="${h===id?'on':''}" title="${baseLabel15(id)}" aria-label="Operate from ${baseLabel15(id)}" onclick="setOp15('${id===shHex15()?'sh':id}')">${baseLabel15(id).split(' ')[0]}</button>`).join('')+`<button title="Bases and portal" aria-label="Bases and portal" onclick="UI.bases15()">${portalList15().length?'🌀':'⚙︎'}</button>`;}
++  setInterval(()=>{try{bar15();}catch(e){}},1500);
++
++  // ---------- migration: old automatic remote mode ----------
++  function migrate15(){try{if(!P.world||P.mig15)return;if(P.far25){if(P.far25.on&&shHex15())P.op15='sh';delete P.far25;}P.mig15=1;save();}catch(e){}}
++  setInterval(migrate15,3000);
++  window.isFar25=()=>curBase15()!=='gps';
++
++  const st=document.createElement('style');st.textContent=`#op15{position:fixed;top:calc(env(safe-area-inset-top,0px) + 214px);right:8px;z-index:590;display:flex;flex-direction:column;gap:5px;background:rgba(20,16,12,.86);padding:5px;border-radius:14px;border:1px solid #6b5a3a}
++  #op15 button{width:42px;height:42px;min-height:0;min-width:0;padding:0;margin:0;font:400 19px/1 system-ui,sans-serif;text-transform:none;letter-spacing:0;background:#1d1a16;color:#ddd;border:1px solid #3a3226;border-radius:10px;display:flex;align-items:center;justify-content:center;box-shadow:none}
++  #op15 button.on{background:#ffd24a;border-color:#ffd24a;box-shadow:0 0 0 2px #ffd24a55}#op15 small{font-size:9px;color:#ffd24a}
++  body.drive #op15{display:none}.hq15ico{transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;font-size:26px;filter:drop-shadow(0 2px 3px #000)}.hq15ico b{font-size:11px;background:#111;color:#ffd24a;padding:0 5px;border-radius:6px;white-space:nowrap}
++  .op15{margin-bottom:8px}#hq15name{width:100%;padding:8px;border-radius:8px;border:1px solid #444;background:#151515;color:#eee;margin:6px 0}#pt15from{width:100%;padding:9px;margin:6px 0;border-radius:8px;border:1px solid #6b5a3a;background:#151515;color:#eee;font-size:14px}`;document.head.appendChild(st);
++})();
+diff --git a/public/front15.js b/public/front15.js
+new file mode 100644
+index 0000000..eec3c7c
+--- /dev/null
++++ b/public/front15.js
+@@ -0,0 +1,52 @@
++// front15 (TEST, build 12i) Regional horde fronts.
++//  The horde used to be one simulation around one spot, so a base far away (Kansas) never saw a raider.
++//  Now bases that sit within 15 mi of each other form a front. The main front is centred on the HQ (or the first
++//  Stronghold). Any base more than 15 mi from every front opens a new front: its own three raider clans spawn around it,
++//  rest 48 h first, and scale to the armies of the players who have bases in that front. All fronts live in the same
++//  shared horde doc, so every phone runs the same history. Max 6 extra fronts; a front with no base for 7 days closes.
++(function(){
++  const F15={frontKm:15*1.60934,maxFronts:6,graceH:48,closeDays:7};
++  window.F15=F15;
++  const ctr=id=>hexCenter(...idQR(id));
++  const km=(a,b)=>{const x=ctr(a),y=ctr(b);return distM(x[0],x[1],y[0],y[1])/1000;};
++  const BASE_DEFS=BAL.factions.list.filter(d=>!d.front15).map(d=>({...d}));
++  // every base in the alliance (shared through member docs: Strongholds and outposts), plus mine
++  function allBases15(){const out=[];const add=(hex,uid,name)=>{if(hex&&typeof hex==='string'&&/^-?\d+_-?\d+$/.test(hex))out.push({hex,uid,name});};
++    try{const s=W().sh;if(s&&s.state!=='down')add(s.hex,P.uid,P.name);for(const [id,o] of Object.entries(W().outposts||{}))if(o.state!=='down')add(id,P.uid,P.name);}catch(e){}
++    try{for(const [uid,m] of Object.entries((G.al&&G.al.members)||{})){if(isMe(uid)||!Array.isArray(m.defs))continue;for(const d of m.defs)if(d&&(d.k==='sh'||d.k==='op'))add(d.hex,uid,m.name);}}catch(e){}
++    return out.sort((a,b)=>a.hex<b.hex?-1:a.hex>b.hex?1:0);}
++  window.allBases15=allBases15;
++  function fronts(){const fx=FX();fx.fronts15=fx.fronts15||{};return fx.fronts15;}
++  function defsOf15(K){return BASE_DEFS.map(d=>({...d,id:d.id+'~'+K,front15:K,name:d.name+((fronts()[K]&&fronts()[K].label)?' · '+fronts()[K].label:'')}));}
++  // register every front's clans so lookups by id (names, colours, strategies) work everywhere
++  function registerDefs15(){const B=BAL.factions,keep=B.list.filter(d=>!d.front15);const extra=[];for(const K of Object.keys(fronts()))extra.push(...defsOf15(K));B.list=[...keep,...extra];
++    try{for(const d of extra){const base=d.id.split('~')[0];if(typeof STRAT_OF!=='undefined'&&STRAT_OF[base]&&!STRAT_OF[d.id])STRAT_OF[d.id]=STRAT_OF[base];}}catch(e){}}
++  window.registerDefs15=registerDefs15;
++  // open / close fronts
++  function planFronts15(){const fx=FX();if(!fx.start||!fx.anchor)return false;const F=fronts(),t=Date.now();let ch=false;
++    const anchors=()=>[fx.anchor,...Object.values(F).map(f=>f.anchor)];const bases=allBases15();
++    for(const b of bases){if(Object.keys(F).length>=F15.maxFronts)break;if(anchors().some(a=>km(a,b.hex)<=F15.frontKm))continue;
++      const step=HB().stepMin*60e3;F[b.hex]={anchor:b.hex,since:Math.floor(t/step)*step,label:(b.name?b.name+"'s area":'far front'),takes:{}};ch=true;break;}  // one per pass: deterministic and gentle
++    for(const [K,f] of Object.entries(F)){const live=bases.some(b=>km(b.hex,f.anchor)<=F15.frontKm);if(live){f.seen=t;continue;}
++      if(t-(f.seen||f.since)>F15.closeDays*864e5){for(const id of Object.keys(fx.f))if(id.endsWith('~'+K))delete fx.f[id];delete F[K];ch=true;try{fxDirty();}catch(e){}}}
++    if(ch)registerDefs15();return ch;}
++  window.planFronts15=planFronts15;
++  // which players count toward a front's horde scaling (bal14 reads this)
++  G._front15=null;
++  window.frontUids15=function(){const fx=FX(),a=G._front15?(fronts()[G._front15]||{}).anchor:fx.anchor;if(!a)return null;const u=new Set();for(const b of allBases15())if(km(b.hex,a)<=F15.frontKm)u.add(b.uid);return u.size?u:null;};
++  // run the horde step once per front, each with its own clans, centre and daily take counter
++  const _hs15=hordeStep;hordeStep=function(k,ev){const B=BAL.factions,fx=FX(),all=B.list,a0=fx.anchor,tk0=fx.takes;
++    try{B.list=all.filter(d=>!d.front15);G._front15=null;_hs15.call(this,k,ev);
++      for(const [K,f] of Object.entries(fronts())){const t=k*HB().stepMin*60e3;if(t<f.since)continue;B.list=defsOf15(K);fx.anchor=f.anchor;f.takes=f.takes||{};fx.takes=f.takes;G._front15=K;
++        try{_hs15.call(this,k,ev);
++          for(const d of B.list){const x=fx.f[d.id];if(x&&!x.g15){x.g15=1;for(const s of (x.squads||[]))s.restUntil=Math.max(s.restUntil||0,f.since+F15.graceH*3600e3);}}}
++        catch(e){console.warn('front15 step',K,e);}}}
++    finally{B.list=all;fx.anchor=a0;fx.takes=tk0;G._front15=null;}
++    try{for(const f of Object.values(fronts()))Object.keys(f.takes||{}).sort().slice(0,-3).forEach(d=>delete f.takes[d]);}catch(e){}};
++  window.hordeStep=hordeStep;
++  const _fc15=factionCatchUp;factionCatchUp=function(){try{registerDefs15();planFronts15();}catch(e){console.warn('front15',e);}return _fc15.apply(this,arguments);};
++  window.factionCatchUp=factionCatchUp;
++  // a horde doc from another phone may carry new fronts
++  try{const _ah15=adoptHorde;adoptHorde=function(){const r=_ah15.apply(this,arguments);try{registerDefs15();}catch(e){}return r;};window.adoptHorde=adoptHorde;}catch(e){}
++  setTimeout(()=>{try{registerDefs15();}catch(e){}},500);
++})();
+diff --git a/public/index.html b/public/index.html
+index 8a02c7b..76c76ef 100644
+--- a/public/index.html
++++ b/public/index.html
+@@ -86,4 +86,8 @@
+ <script src="fix13.js"></script>
+ <script src="sync13.js"></script>
+ <script src="bal14.js"></script>
++<script src="rank15.js"></script>
++<script src="base15.js"></script>
++<script src="front15.js"></script>
++<script src="terr15.js"></script>
+ </body></html>
+diff --git a/public/net.js b/public/net.js
+index 3689651..313d69c 100644
+--- a/public/net.js
++++ b/public/net.js
+@@ -181,7 +181,8 @@ class FirebaseNet {
+   setCenter(){}
+   onPlayers(f){this.playersFeed(s=>{const a=[];s.forEach(d=>{const v=d.data();if(d.id!==this.uid&&Date.now()-v.t<15*60e3)a.push({uid:d.id,...v});});f(a);});}
+   onRaids(f){this.fs.onSnapshot(this.col('raids'),s=>{const o={};s.forEach(d=>o[d.id]={id:d.id,...d.data()});f(o);});}
+-  onTerritory(f){this.fs.onSnapshot(this.col('territory'),s=>{const o={};s.forEach(d=>o[d.id]=d.data());f(o);});}
++  onTerritory(f){if(window.terrFeed15)return window.terrFeed15(this,f); // 12i: region loading (terr15.js)
++    this.fs.onSnapshot(this.col('territory'),s=>{const o={};s.forEach(d=>o[d.id]=d.data());f(o);});}
+   // Fog of war: each member's explored hex ids (170 m cells, never raw GPS) shared with the alliance.
+   onExplored(f){this.fs.onSnapshot(this.col('explored'),s=>{const a=[];s.forEach(d=>{if(d.id!==this.uid)a.push(...(d.data().ids||[]));});f(a);});}
+   shareExplored(ids){if(!ids.length)return;this.fs.setDoc(this.fs.doc(this.col('explored'),this.uid),{ids:this.fs.arrayUnion(...ids)},{merge:true}).catch(()=>{});}
+diff --git a/public/rank15.js b/public/rank15.js
+new file mode 100644
+index 0000000..9f013aa
+--- /dev/null
++++ b/public/rank15.js
+@@ -0,0 +1,147 @@
++// rank15 (TEST, build 12i) Alliance ranks, clan titles, Alliance HQ data, and bank withdrawals that need approval.
++//  * One doc teams/{team}/meta/hq: {hq:{hex,lat,lng,name,by,byName,t}, roles:{uid:'leader'|'officer'}, titles:{uid:text}}.
++//    The first member to claim leadership creates it. The rules (preview-auth-rules-12i) enforce who can change what:
++//    leader = ranks, titles, HQ, hand over leadership; officer = titles + HQ; member = nothing.
++//    An officer can take over a leader who has been inactive 14+ days.
++//  * Bank: leader and officers withdraw directly. Members send a request (bankReq/{id}); a leader or officer approves or
++//    denies it; the member's phone then collects it in one transaction (bank -amt, request paid). Rules check all of it.
++//    Until someone claims leadership the bank stays open (old behaviour), so nothing breaks on teams without a leader yet.
++//  * Research spends the bank, so it is leader/officer only once ranks exist.
++(function(){
++  const RANKS15={leader:{ico:'👑',n:'Leader'},officer:{ico:'⭐',n:'Officer'},member:{ico:'',n:'Member'}};
++  const TAKEOVER_DAYS15=14,TITLE_MAX15=24;
++  window.RANKS15=RANKS15;
++  G.hq15=null; // {exists, hq, roles, titles}
++  G.bankReq15={};
++  const fire=()=>typeof NET!=='undefined'&&NET.mode==='firebase'&&!!NET.fs;
++  const LK=()=> 'wl_hq15_'+((typeof NET!=='undefined'&&NET.team)||'local');
++  const RK=()=> 'wl_bankreq15_'+((typeof NET!=='undefined'&&NET.team)||'local');
++  const lget=k=>{try{return JSON.parse(localStorage.getItem(k)||'null');}catch(e){return null;}};
++  const lset=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
++  const esc=s=>String(s==null?'':s).replace(/[&<>"'`]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c]));
++  window.esc15=esc;
++  function clean15(s){return String(s||'').replace(/[<>&"'`]/g,'').replace(/\s+/g,' ').trim().slice(0,TITLE_MAX15);}
++  window.clean15=clean15;
++
++  // ---------- state ----------
++  function hqState(d){const x=d||{};G.hq15={exists:!!d,hq:x.hq||null,roles:x.roles||{},titles:x.titles||{},leader:x.leader||null};
++    try{if(typeof onHq15==='function')onHq15();}catch(e){}try{if(UI.tab==='alliance')UI.render();}catch(e){}try{drawHq15();}catch(e){}}
++  function rankOf15(uid){const r=G.hq15&&G.hq15.roles||{};return r[uid]||'member';}
++  function myRank15(){return P.uid?rankOf15(P.uid):'member';}
++  function isOfficer15(uid){const r=uid?rankOf15(uid):myRank15();return r==='leader'||r==='officer';}
++  function ranksOn15(){return !!(G.hq15&&G.hq15.exists);}
++  function titleOf15(uid){return (G.hq15&&G.hq15.titles||{})[uid]||'';}
++  function leaderUid15(){if(G.hq15&&G.hq15.leader)return G.hq15.leader;const r=G.hq15&&G.hq15.roles||{};return Object.keys(r).find(u=>r[u]==='leader')||null;}
++  Object.assign(window,{rankOf15,myRank15,isOfficer15,ranksOn15,titleOf15,leaderUid15});
++
++  // ---------- feeds ----------
++  function startFeeds15(){if(G._feeds15)return;if(typeof NET==='undefined'||!NET.mode)return;
++    if(fire()){if(!NET.uid)return;G._feeds15=1;
++      NET.share('metaHq15',()=>NET.fs.doc(NET.db,...NET.base,'meta','hq'),s=>hqState(s.exists()?s.data():null),e=>console.warn('hq15',e));
++      NET.share('bankReq15',()=>NET.fs.query(NET.col('bankReq'),NET.fs.orderBy('t','desc'),NET.fs.limit(40)),s=>{const o={};s.forEach(d=>{o[d.id]={id:d.id,...d.data()};});G.bankReq15=o;onReqs15();},e=>console.warn('bankReq15',e));}
++    else if(NET.mode!=='firebase'){G._feeds15=1;hqState(lget(LK()));G.bankReq15=lget(RK())||{};}} // firebase not ready yet: try again next tick
++  setInterval(()=>{try{startFeeds15();}catch(e){}},1500);
++
++  // ---------- writes ----------
++  async function hqTx15(mut){
++    if(fire()){const ref=NET.fs.doc(NET.db,...NET.base,'meta','hq');
++      await NET.fs.runTransaction(NET.db,async tx=>{const d=await tx.get(ref);const cur=d.exists()?d.data():null;const nx=mut(cur?JSON.parse(JSON.stringify(cur)):null);if(!nx)throw new Error('No change');tx.set(ref,nx);});}
++    else{const cur=lget(LK());const nx=mut(cur?JSON.parse(JSON.stringify(cur)):null);if(!nx)throw new Error('No change');lset(LK(),nx);hqState(nx);}}
++  window.hqTx15=hqTx15;
++  async function claimLeader15(){if(!P.uid)return;try{await hqTx15(cur=>{if(cur)throw new Error('This alliance already has a leader');return{leader:P.uid,roles:{[P.uid]:'leader'},titles:{},hq:null,v:1};});
++      allianceLog(`👑 ${P.name} is now the alliance leader`);toast('👑 You are the alliance leader');}catch(e){toast('🚫 '+(e.message||e));}}
++  async function setRank15(uid,rank){if(myRank15()!=='leader')return toast('🚫 Only the leader can change ranks');
++    try{await hqTx15(cur=>{if(!cur)throw new Error('No alliance HQ doc');const r={...cur.roles};
++        let ld=cur.leader||P.uid;if(rank==='leader'){r[uid]='leader';r[P.uid]='officer';ld=uid;}else if(rank==='officer')r[uid]='officer';else delete r[uid];
++        if(r[ld]!=='leader')throw new Error('The alliance needs a leader');return{...cur,roles:r,leader:ld};});
++      const nm=((G.al&&G.al.members||{})[uid]||{}).name||'A teammate';allianceLog(rank==='leader'?`👑 ${P.name} handed leadership to ${nm}`:`${rank==='officer'?'⭐':'🔻'} ${nm} is now ${RANKS15[rank]?RANKS15[rank].n:'a member'}`);UI.closeModal();}
++    catch(e){toast('🚫 '+(e.message||e));}}
++  async function setTitle15(uid,txt){if(!isOfficer15())return toast('🚫 Only the leader or officers can set titles');const t=clean15(txt);
++    try{await hqTx15(cur=>{if(!cur)throw new Error('No alliance HQ doc');const ti={...(cur.titles||{})};if(t)ti[uid]=t;else delete ti[uid];return{...cur,titles:ti};});toast(t?`🏷️ Title set: ${t}`:'🏷️ Title cleared');UI.closeModal();}
++    catch(e){toast('🚫 '+(e.message||e));}}
++  async function takeOver15(){const lu=leaderUid15(),m=((G.al&&G.al.members)||{})[lu]||{};
++    if(myRank15()!=='officer')return toast('🚫 Only an officer can take over');
++    if(Date.now()-(m.lastActive||0)<TAKEOVER_DAYS15*864e5)return toast(`🚫 The leader was active in the last ${TAKEOVER_DAYS15} days`);
++    try{await hqTx15(cur=>{const r={...cur.roles};if(lu)r[lu]='officer';r[P.uid]='leader';return{...cur,roles:r,leader:P.uid,takeover:lu||''};});allianceLog(`👑 ${P.name} took over as leader (the old leader was inactive ${TAKEOVER_DAYS15}+ days)`);}
++    catch(e){toast('🚫 '+(e.message||e));}}
++  Object.assign(window,{claimLeader15,setRank15,setTitle15,takeOver15});
++
++  // ---------- bank requests ----------
++  const RESK=['scrap','food','water','fuel','parts'];
++  async function requestWithdraw15(res,amt,why){amt=Math.floor(Math.abs(+amt||0));if(!amt||!RESK.includes(res))return toast('Pick a resource and amount');
++    const bank=(G.al&&G.al.bank)||{};if((bank[res]||0)<amt)return toast(`The bank only has ${bank[res]||0} ${RES[res]}`);
++    const d={uid:P.uid,name:P.name,res,amt,why:clean15(why||'').slice(0,60),status:'pending'};
++    try{if(fire()){await NET.fs.addDoc(NET.col('bankReq'),{...d,t:NET.fs.serverTimestamp()});}
++      else{const o=lget(RK())||{};const id='r'+Date.now();o[id]={id,...d,t:Date.now()};lset(RK(),o);G.bankReq15=o;onReqs15();}
++      allianceLog(`🙋 ${P.name} asked the bank for ${amt} ${RES[res]}`);toast('🙋 Request sent. A leader or officer has to approve it.');}
++    catch(e){toast('🚫 '+(e.message||e));}try{UI.render();}catch(e){}}
++  async function decideReq15(id,ok){if(!isOfficer15())return toast('🚫 Only the leader or officers can approve');const r=G.bankReq15[id];if(!r||r.status!=='pending')return;
++    const up={status:ok?'approved':'denied',by:P.uid,byName:P.name};
++    try{if(fire())await NET.fs.updateDoc(NET.fs.doc(NET.col('bankReq'),id),{...up,decT:NET.fs.serverTimestamp()});
++      else{const o=lget(RK())||{};o[id]={...o[id],...up,decT:Date.now()};lset(RK(),o);G.bankReq15=o;onReqs15();}
++      allianceLog(`${ok?'✅':'❌'} ${P.name} ${ok?'approved':'denied'} ${poss(r.name)} request for ${r.amt} ${RES[r.res]}`);}
++    catch(e){toast('🚫 '+(e.message||e));}try{UI.render();}catch(e){}}
++  async function cancelReq15(id){const r=G.bankReq15[id];if(!r||r.uid!==P.uid||r.status!=='pending')return;
++    try{if(fire())await NET.fs.updateDoc(NET.fs.doc(NET.col('bankReq'),id),{status:'cancelled'});
++      else{const o=lget(RK())||{};o[id]={...o[id],status:'cancelled'};lset(RK(),o);G.bankReq15=o;onReqs15();}}catch(e){toast('🚫 '+(e.message||e));}try{UI.render();}catch(e){}}
++  // Collect an approved request: one transaction moves it out of the bank and marks it paid; only then is it added to me.
++  const busy15={};
++  async function collect15(id){const r=G.bankReq15[id];if(!r||r.uid!==P.uid||r.status!=='approved'||busy15[id])return;busy15[id]=1;let bal=null;
++    try{if(fire()){const fs=NET.fs,aRef=fs.doc(NET.db,...NET.base,'meta','alliance'),rRef=fs.doc(NET.col('bankReq'),id),lRef=fs.doc(NET.col('bankLog'));
++        await fs.runTransaction(NET.db,async tx=>{const a=await tx.get(aRef),q=await tx.get(rRef);const x=q.exists()?q.data():null;
++          if(!x||x.status!=='approved'||x.uid!==P.uid)throw new Error('Request is not approved any more');
++          const bank={...((a.exists()&&a.data().bank)||{})};const have=bank[x.res]||0;if(have<x.amt)throw new Error(`The bank only has ${have} ${RES[x.res]} now`);
++          bank[x.res]=have-x.amt;bal=bank[x.res];
++          tx.set(aRef,{bank,payReq:id},{merge:true});tx.update(rRef,{status:'paid',paidT:fs.serverTimestamp()});
++          tx.set(lRef,{uid:P.uid,member:P.name,res:x.res,amt:-x.amt,bal,kind:'withdraw',t:fs.serverTimestamp()});});}
++      else{const o=lget(RK())||{};const x=o[id];if(!x||x.status!=='approved')throw new Error('Request is not approved any more');
++        const have=(NET.bankBal?NET.bankBal(x.res):((G.al&&G.al.bank||{})[x.res]||0));if(have<x.amt)throw new Error('The bank is short');
++        if(NET.bankTx)bal=await NET.bankTx(P.uid,P.name,x.res,-x.amt,true);o[id]={...x,status:'paid',paidT:Date.now()};lset(RK(),o);G.bankReq15=o;}
++      P.res[r.res]=(P.res[r.res]||0)+r.amt;P.contrib.withdrawn=(P.contrib.withdrawn||0)+r.amt;save();pushMember();
++      toast(`🏦 Collected ${r.amt} ${RES[r.res]} from the bank${bal!=null?' · bank now '+bal:''}`);try{UI.hud();UI.render();}catch(e){}}
++    catch(e){toast('🚫 '+(e.message||e));}finally{delete busy15[id];}}
++  Object.assign(window,{requestWithdraw15,decideReq15,cancelReq15,collect15});
++  function onReqs15(){try{for(const r of Object.values(G.bankReq15))if(r.uid===P.uid&&r.status==='approved')collect15(r.id);}catch(e){}
++    try{const n=Object.values(G.bankReq15).filter(r=>r.status==='pending').length;if(isOfficer15()&&n&&typeof newsAdd==='function')newsAdd('alliance','bank',`🙋 ${n} bank request${n>1?'s':''} waiting for approval`,'bankreq15');}catch(e){}
++    try{if(UI.tab==='alliance')UI.render();}catch(e){}}
++
++  // Gate the old withdraw button: members request, leader/officers withdraw. Research is leader/officer only.
++  const _btx15=bankTx;bankTx=async function(res,amt){if(G.bankMode==='withdraw'&&ranksOn15()&&!isOfficer15()){const why=($('#bkwhy15')||{}).value||'';return requestWithdraw15(res,amt,why);}return _btx15.apply(this,arguments);};
++  window.bankTx=bankTx;
++  try{const _rs15=NET.research.bind(NET);NET.research=async function(){if(ranksOn15()&&!isOfficer15())throw new Error('Only the leader or officers can spend the bank on research');return _rs15.apply(NET,arguments);};}catch(e){}
++  // LocalNet: the stock bankTx throws on overdraw, so a collect works the same offline.
++
++  // ---------- UI: bank part ----------
++  function bankUi15(){try{if(UI.tab!=='alliance')return;const b=$('#sheetBody');const box=b&&b.querySelector('.p-bank');if(!box||box.querySelector('.bk15'))return;
++    const reqs=Object.values(G.bankReq15||{}).sort((a,c)=>(c.t&&c.t.toMillis?c.t.toMillis():c.t||0)-(a.t&&a.t.toMillis?a.t.toMillis():a.t||0));
++    const mine=reqs.filter(r=>r.uid===P.uid&&['pending','approved','denied'].includes(r.status)).slice(0,5),pend=reqs.filter(r=>r.status==='pending');
++    let h=`<div class="bk15">`;
++    if(!ranksOn15())h+=`<p class="tiny">🔓 The bank is open to everyone until someone claims leadership in 🏛️ HQ. After that, members ask and the leader or officers approve.</p>`;
++    else if(!isOfficer15()){h+=`<p class="tiny">🔒 Withdrawals need approval from the leader or an officer. Pick an amount and tap Request.</p><input id="bkwhy15" maxlength="60" placeholder="What's it for? (optional)">`;}
++    else h+=`<p class="tiny">${RANKS15[myRank15()].ico} You can withdraw directly and approve members' requests.</p>`;
++    const row=r=>`<div class="row"><div class="grow"><b>${esc(r.name)}</b> · ${r.amt.toLocaleString()} ${RES[r.res]||''}<small>${r.why?esc(r.why)+' · ':''}${({pending:'⏳ waiting',approved:'✅ approved, collecting…',denied:'❌ denied'+(r.byName?' by '+esc(r.byName):''),paid:'paid'})[r.status]||r.status}</small></div>`;
++    if(isOfficer15()&&pend.length)h+=`<h3>🙋 Requests (${pend.length})</h3>`+pend.map(r=>row(r)+`<button onclick="decideReq15('${r.id}',true)">✅ Approve</button><button class="ghost24" onclick="decideReq15('${r.id}',false)">❌</button></div>`).join('');
++    if(mine.length)h+=`<h3>Your requests</h3>`+mine.map(r=>row(r)+(r.status==='pending'?`<button class="ghost24" onclick="cancelReq15('${r.id}')">Cancel</button>`:'')+'</div>').join('');
++    const go0=box.querySelector('#bkgo'),row0=go0&&go0.closest('.row');if(row0)row0.insertAdjacentHTML('afterend',h+'</div>');else box.insertAdjacentHTML('beforeend',h+'</div>');
++    if(ranksOn15()&&!isOfficer15()&&G.bankMode==='withdraw'){const go=box.querySelector('#bkgo');if(go)go.textContent='Request';}}catch(e){console.warn('bk15',e);}}
++
++  // ---------- UI: ranks + titles on the crew list and person card ----------
++  function badge15(uid){const r=rankOf15(uid),t=titleOf15(uid);return (r!=='member'?`<span class="rk15 rk-${r}">${RANKS15[r].ico} ${RANKS15[r].n}</span>`:'')+(t?`<span class="tt15">🏷️ ${esc(t)}</span>`:'');}
++  window.badge15=badge15;
++  function badgeRows15(){try{if(UI.tab!=='alliance')return;document.querySelectorAll('#sheetBody .rp26').forEach(el=>{if(el.querySelector('.rk15,.tt15,.rkx15'))return;const m=(el.getAttribute('onclick')||'').match(/person26\('([^']+)'\)/);if(!m)return;
++      const h=badge15(m[1]);const b=el.querySelector('b');if(b)b.insertAdjacentHTML('afterend',h||'<span class="rkx15"></span>');});}catch(e){}}
++  // The Alliance tab assembles its sections after the normal render hooks, so these run after the whole render.
++  const _r15=UI.render;UI.render=function(){const o=_r15.apply(this,arguments);bankUi15();badgeRows15();return o;};
++  const _pc15=UI.person26;if(_pc15)UI.person26=function(uid){const r=_pc15.apply(this,arguments);try{const mb=$('#modalBody');if(!mb||mb.querySelector('.pc15'))return r;
++    const me=isMe(uid),rk=rankOf15(uid),t=titleOf15(uid);let h=`<div class="pc15">${badge15(uid)||'<span class="tiny">Member</span>'}`;
++    if(ranksOn15()&&isOfficer15())h+=`<div class="row"><input id="tt15in" maxlength="${TITLE_MAX15}" placeholder="Clan title (e.g. Road Captain)" value="${esc(t)}"><button onclick="setTitle15('${uid}',$('#tt15in').value)">🏷️ Set title</button></div>`;
++    if(ranksOn15()&&myRank15()==='leader'&&!me)h+=`<div class="btns24">${rk!=='officer'?`<button onclick="setRank15('${uid}','officer')">⭐ Make officer</button>`:`<button class="ghost24" onclick="setRank15('${uid}','member')">🔻 Make member</button>`}<button class="ghost24" onclick="if(confirm15('Hand leadership to this player? You become an officer.'))setRank15('${uid}','leader')">👑 Hand over leadership</button></div>`;
++    mb.insertAdjacentHTML('afterbegin',h+'</div>');}catch(e){console.warn('pc15',e);}return r;};
++  // a no-dialog confirm: the game never uses browser dialogs (they block the app)
++  window.confirm15=function(msg){const k='_c15_'+msg;if(G[k]&&Date.now()-G[k]<6000){delete G[k];return true;}G[k]=Date.now();toast('Tap again to confirm: '+msg);return false;};
++
++  // ---------- styles ----------
++  const st=document.createElement('style');st.textContent=`.rk15{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;font-size:11px;font-weight:700;background:#3a2c08;color:#ffd24a}.rk15.rk-officer{background:#14304a;color:#8fd0ff}
++  .tt15{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;font-size:11px;background:#262626;color:#ddd}.pc15{margin:0 0 10px}.pc15 .row input,#bkwhy15{flex:1;min-width:0;padding:8px;border-radius:8px;border:1px solid #444;background:#151515;color:#eee}
++  #bkwhy15{width:100%;margin:6px 0}.bk15 h3{margin:12px 0 6px}`;document.head.appendChild(st);
++})();
+diff --git a/public/sw.js b/public/sw.js
+index ed84fc9..b8ca316 100644
+--- a/public/sw.js
++++ b/public/sw.js
+@@ -1,6 +1,6 @@
+ // Dead Zone Drive service worker: network-first for the app (so updates show right away),
+ // falling back to cache when offline. Map tiles and Firebase are never cached here.
+-const C='ddd-v26-12h';
++const C='ddd-v26-12i';
+ self.addEventListener('install',e=>self.skipWaiting());
+ self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+ self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==location.origin)return;
+diff --git a/public/sync13.js b/public/sync13.js
+index bdcbb8f..e703525 100644
+--- a/public/sync13.js
++++ b/public/sync13.js
+@@ -14,7 +14,7 @@
+ //  * Per-device fields (position, notifications, old sync metadata) are never synced.
+ (function(){
+ 'use strict';
+-const LOCAL=new Set(['uid','pos','lat','lng','news','_rev','_ackedRev','_handoff','_userEdit','_userBase','_tab','_armHold','_seen','sync26',
++const LOCAL=new Set(['uid','op15','pos','lat','lng','news','_rev','_ackedRev','_handoff','_userEdit','_userBase','_tab','_armHold','_seen','sync26',
+   'heal26c','heal26cDone','heal26cNote','heal26cDrives','heal26cParts','heal26cPipe','heal26cPipeNote']);
+ const T13={flushMs:1500,ownerMinGapMs:20e3,gestureMs:4e3,staleLeaseMs:90e3,heartbeatMs:60e3};
+ const isPhone=/Mobi|iPhone|iPad|Android/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+@@ -130,7 +130,9 @@ async function tick(force){
+   if(!canWrite()){bar();return;}
+   if(!force&&iOwn()&&now-S.lastWrite<T13.ownerMinGapMs&&now-S.lastGesture>T13.gestureMs)return; // owner: batch passive ticks
+   if(S.state!=='offline')setStatus('pending','Saving… do not switch devices yet.');
+-  return write(force?'forced':'change');}
++  // 12i fix: 'force' only skips the batching delay. It must never skip the rev check, or a device that has not yet
++  // seen a newer save (e.g. right after the other device took over) overwrites it. Only 'keep mine' in a conflict overrides.
++  return write(force?'forced':'change',false);}
+ async function takeover(why){if(!S.on||iOwn())return;S.lastGesture=Date.now();log('takeover',why);return write('takeover-'+why,false);}
+ // ---------- start ----------
+ async function start(){
+diff --git a/public/terr15.js b/public/terr15.js
+new file mode 100644
+index 0000000..70aed50
+--- /dev/null
++++ b/public/terr15.js
+@@ -0,0 +1,90 @@
++// terr15 (TEST, build 12i) Territory by region, tiles pay near your bases, and miles everywhere.
++//  1) Region loading. Every phone used to read EVERY claimed hex of the alliance on each app open. With tiles that never
++//     fade and long drives, that would eat the free 50,000 reads/day. Now each hex doc carries a region cell `rg`
++//     (about 17 x 15 mi) and the alliance id `al` (for a future shared world). A phone listens only to the cells around
++//     where you are, your bases, the HQ, and wherever the map is looking. One listener per cell, so moving the map
++//     never re-reads cells it already has.
++//     Migration: until meta/terrv says v2, phones load the whole collection (old way) and stamp `rg`/`al` on every doc
++//     that lacks it (rules allow a write that only adds those two fields). When none is left, v2 is set and every
++//     phone switches to region loading.
++//  2) Tiles you own pay their daily output only within 10 mi of one of your bases (Stronghold or any outpost).
++//     They stay yours forever unless someone captures them; drop an outpost nearby and they pay again.
++//  3) Distances show in miles (and feet).
++(function(){
++  const T15={cellLat:0.25,cellLng:0.35,ring:1,maxCells:45,keepMin:10,supplyMi:10};
++  window.T15=T15;
++  const MI=1609.34;
++  function cellOf15(lat,lng){return Math.floor(lat/T15.cellLat)+'_'+Math.floor(lng/T15.cellLng);}
++  function cellOfHex15(id){const c=hexCenter(...idQR(id));return cellOf15(c[0],c[1]);}
++  window.cellOfHex15=cellOfHex15;window.cellOf15=cellOf15;
++  // ---- stamp every claim with its region + alliance
++  try{const _ch=NET.claimHex.bind(NET);NET.claimHex=function(id,data){const d={...(data||{})};try{d.rg=cellOfHex15(id);d.al=NET.team||'';}catch(e){}return _ch(id,d);};}catch(e){}
++
++  // ---- which cells this phone needs
++  function points15(){const pts=[];const add=ll=>{if(ll&&isFinite(ll[0])&&isFinite(ll[1]))pts.push(ll);};
++    add(G.real15||G.pos);add(G.pos);try{for(const b of (typeof myBases15==='function'?myBases15():[]))add(hexCenter(...idQR(b)));}catch(e){}
++    try{const h=typeof hqHex15==='function'&&hqHex15();if(h)add(hexCenter(...idQR(h)));}catch(e){}
++    try{if(typeof map!=='undefined'&&map.getCenter){const c=map.getCenter();add([c.lat,c.lng]);}}catch(e){}
++    return pts;}
++  function wanted15(){const s=new Set();for(const [la,ln] of points15()){const a=Math.floor(la/T15.cellLat),b=Math.floor(ln/T15.cellLng);
++      for(let i=-T15.ring;i<=T15.ring;i++)for(let j=-T15.ring;j<=T15.ring;j++)s.add((a+i)+'_'+(b+j));}return [...s].slice(0,T15.maxCells);}
++  window.wanted15=wanted15;
++
++  // ---- the feed (called by FirebaseNet.onTerritory)
++  const S15={net:null,cb:null,mode:null,cells:{},full:null,fullUnsub:null,merged:{},stamping:false};
++  window.TERR15=S15;
++  function emit15(){const o={};if(S15.full)Object.assign(o,S15.full);for(const c of Object.values(S15.cells))Object.assign(o,c.docs||{});S15.merged=o;try{S15.cb&&S15.cb({...o});}catch(e){console.warn('terr15 cb',e);}}
++  function listenCell15(cell){const n=S15.net,fs=n.fs;if(S15.cells[cell]){S15.cells[cell].used=Date.now();return;}
++    const c=S15.cells[cell]={docs:{},used:Date.now(),unsub:null};
++    c.unsub=fs.onSnapshot(fs.query(n.col('territory'),fs.where('rg','==',cell)),s=>{const o={};s.forEach(d=>o[d.id]=d.data());c.docs=o;emit15();},e=>console.warn('terr15 cell',cell,e));}
++  function refresh15(){if(S15.mode!=='region')return;const w=wanted15(),t=Date.now();for(const c of w)listenCell15(c);
++    for(const [k,c] of Object.entries(S15.cells))if(!w.includes(k)&&t-c.used>T15.keepMin*60e3){try{c.unsub&&c.unsub();}catch(e){}delete S15.cells[k];emit15();}}
++  window.refresh15=refresh15;
++  function goRegion15(){if(S15.mode==='region')return;S15.mode='region';try{S15.fullUnsub&&S15.fullUnsub();}catch(e){}S15.fullUnsub=null;refresh15();
++    setTimeout(()=>{S15.full=null;emit15();},4000); // keep the old snapshot until the cells have answered
++    console.log('terr15: region loading on',Object.keys(S15.cells).length,'cells');}
++  async function stamp15(docs){if(S15.stamping)return;S15.stamping=true;const n=S15.net,fs=n.fs;
++    try{const todo=Object.entries(docs).filter(([,d])=>d&&!d.rg);let ok=0,fail=0;
++      for(const [id] of todo.slice(0,400)){try{await fs.setDoc(fs.doc(n.col('territory'),id),{rg:cellOfHex15(id),al:n.team||''},{merge:true});ok++;}catch(e){fail++;}}
++      console.log('terr15 stamp',ok,'ok',fail,'failed',todo.length,'needed');
++      if(!fail&&todo.length<=400){await fs.setDoc(fs.doc(n.db,...n.base,'meta','terrv'),{v:2,t:fs.serverTimestamp(),by:n.uid||''});goRegion15();}}
++    catch(e){console.warn('terr15 stamp',e);}finally{S15.stamping=false;}}
++  window.terrFeed15=function(net,f){S15.net=net;S15.cb=f;const fs=net.fs;
++    (async()=>{let v=0;try{const d=await fs.getDoc(fs.doc(net.db,...net.base,'meta','terrv'));v=d.exists()?(d.data().v||0):0;}catch(e){}
++      if(v>=2)return goRegion15();
++      S15.mode='full';S15.fullUnsub=fs.onSnapshot(net.col('territory'),s=>{const o={};s.forEach(d=>o[d.id]=d.data());S15.full=o;emit15();if(S15.mode==='full')stamp15(o);},e=>console.warn('terr15 full',e));})();};
++  setInterval(()=>{try{refresh15();}catch(e){}},10e3);
++  let _mv15=null;const hookMap=()=>{try{if(typeof map==='undefined'||map._t15)return;map._t15=1;map.on('moveend',()=>{clearTimeout(_mv15);_mv15=setTimeout(()=>{try{refresh15();}catch(e){}},1500);});}catch(e){}};
++  setInterval(hookMap,2000);
++
++  // ---- 2) tiles pay only within 10 mi of a base
++  let _sup=null,_supT=0;
++  function supplyCentres15(){const t=Date.now();if(_sup&&t-_supT<5000)return _sup;_supT=t;_sup=[];try{for(const b of (typeof myBases15==='function'?myBases15():[]))_sup.push(hexCenter(...idQR(b)));}catch(e){}return _sup;}
++  function inSupply15(id){const C=supplyCentres15();if(!C.length)return true; // no base yet: nothing is cut off
++    const [a,b]=hexCenter(...idQR(id));for(const c of C)if(distM(a,b,c[0],c[1])<=T15.supplyMi*MI)return true;return false;}
++  window.inSupply15=inSupply15;
++  function supplyCount15(){let n=0,off=0;for(const id of Object.keys(P.tiles||{})){n++;if(!inSupply15(id))off++;}return{n,off};}
++  window.supplyCount15=supplyCount15;
++  HOOK.tile(function(id){try{if(!P.tiles[id]||inSupply15(id))return;const mb=$('#modalBody');if(!mb||mb.querySelector('.sup15'))return;
++    mb.insertAdjacentHTML('afterbegin',`<p class="sup15">📦 Out of supply: more than ${T15.supplyMi} mi from your bases, so it pays nothing each day. It stays yours. Build an outpost within ${T15.supplyMi} mi and it pays again.</p>`);}catch(e){}});
++  HOOK.render(function(){try{if(this.tab!=='base')return;const b=$('#sheetBody');if(!b||b.querySelector('.sup15b'))return;const s=supplyCount15();if(!s.off)return;
++    const h=b.querySelector('h2');(h||b).insertAdjacentHTML(h?'afterend':'afterbegin',`<p class="sup15 sup15b">📦 ${s.off.toLocaleString()} of your ${s.n.toLocaleString()} hexes are more than ${T15.supplyMi} mi from your bases and don't pay. Build an outpost near them.</p>`);}catch(e){}});
++
++  // ---- 3) miles: rewrite distances in the page text (km -> mi, m -> ft)
++  const fmtNum=v=>v<10?(Math.round(v*10)/10).toString():Math.round(v).toLocaleString();
++  function toMi(txt){return txt
++    .replace(/(\d[\d,]*(?:\.\d+)?)\s?km\/h\b/g,(m,n)=>fmtNum(parseFloat(n.replace(/,/g,''))/1.60934)+' mph')
++    .replace(/(\d[\d,]*(?:\.\d+)?)\s?km\b/g,(m,n)=>fmtNum(parseFloat(n.replace(/,/g,''))/1.60934)+' mi')
++    .replace(/(\d[\d,]*(?:\.\d+)?) m\b(?![a-zA-Z])/g,(m,n)=>{const v=parseFloat(n.replace(/,/g,''));if(!isFinite(v))return m;return v>=1609?fmtNum(v/MI)+' mi':Math.max(10,Math.round(v*3.28084/10)*10).toLocaleString()+' ft';})
++    .replace(/\bevery km\b/g,'every 0.6 mi').replace(/\bper km\b/g,'per 0.6 mi').replace(/\bkm driven\b/g,'driven');}
++  window.toMi15=toMi;
++  function fixNode(n){if(n.nodeType===3){const p=n.parentNode;if(!p||/^(SCRIPT|STYLE|TEXTAREA|INPUT)$/.test(p.nodeName))return;const t=n.nodeValue;
++      if(t.trim()==='km'){n.nodeValue=t.replace('km','mi');const b=p.previousElementSibling;if(b&&/^\s*\d[\d,]*(\.\d+)?\s*$/.test(b.textContent)){const v=parseFloat(b.textContent.replace(/,/g,''))/1.60934;b.textContent=v<10?v.toFixed(1):Math.round(v).toLocaleString();}return;}
++      if(/\d\s?km\b|\d m\b|every km|per km|km driven/.test(t)){const x=toMi(t);if(x!==t)n.nodeValue=x;}return;}
++    if(n.nodeType===1&&n.childNodes&&!/^(SCRIPT|STYLE|TEXTAREA)$/.test(n.nodeName)){const w=document.createTreeWalker(n,NodeFilter.SHOW_TEXT);const L=[];let x;while((x=w.nextNode()))L.push(x);L.forEach(fixNode);}}
++  window.fixMiles15=()=>fixNode(document.body);
++  const mo=new MutationObserver(ms=>{for(const m of ms){if(m.type==='characterData')fixNode(m.target);else m.addedNodes.forEach(fixNode);}});
++  const startMo=()=>{if(!document.body)return setTimeout(startMo,200);mo.observe(document.body,{subtree:true,childList:true,characterData:true});fixNode(document.body);};startMo();
++
++  const st=document.createElement('style');st.textContent=`.sup15{background:#2a1f05;border:1px solid #6b5212;color:#ffd98a;padding:6px 8px;border-radius:8px;font-size:12px;margin:0 0 8px}`;document.head.appendChild(st);
++})();
+diff --git a/public/v25c.js b/public/v25c.js
+index 56fca79..9b8b4ab 100644
+--- a/public/v25c.js
++++ b/public/v25c.js
+@@ -15,7 +15,8 @@ function farFrom(lat,lng){const h=home25();return h?distM(lat,lng,h.lat,h.lng)/1
+ // ---------- position: real GPS stays private; the game position sits on your home-map hex ----------
+ G.real25=null;
+ const _sp25=setPos;setPos=function(lat,lng){try{
+-  if(!isFar()&&farFrom(lat,lng)&&P.name){const h=home25();if(h){P.far25={on:true,anchor:null,since:Date.now()};save();try{pushMember();}catch(e){}toast(`🛰️ You're far from the crew. You'll play on the crew home map: ${h.name}`);}}
++  // 12i: removed. GPS distance never switches a player into remote mode any more (it cut off long drives at 50 km and
++  // never switched back). Playing from a base far away is now a choice: base15.js (Alliance HQ, operating base, portal).
+   if(isFar()&&farFrom(lat,lng)){realFix(lat,lng);const a=anchor25();if(a){const c=hexCenter(...idQR(a));if(!G.pos||hexAt(...G.pos).id!==a){G.jump=true;return _sp25.call(this,c[0],c[1]);}return;}
+     const h=home25();if(!G.pos||distM(G.pos[0],G.pos[1],h.lat,h.lng)>20000){G.jump=true;_sp25.call(this,h.lat,h.lng);}startPick25();return;}}catch(e){console.warn('home25 pos',e);}
+   return _sp25.apply(this,arguments);};
+diff --git a/public/v26d.js b/public/v26d.js
+index 30963d7..b0e0564 100644
+--- a/public/v26d.js
++++ b/public/v26d.js
+@@ -30,7 +30,8 @@ const _ad26d=adoptHorde;adoptHorde=function(doc){try{const r=JSON.parse(doc&&doc
+   dropStale26();return _ad26d.apply(this,arguments);};
+ const _pub26d=publishHorde;publishHorde=function(){if(dropStale26())return;try{FX().fe=fe26();}catch(e){}return _pub26d.apply(this,arguments);};
+ // re-aim at the current Stronghold
+-const _fcu26d=factionCatchUp;factionCatchUp=function(){dropStale26();try{const fx=FX(),s=P.world&&P.world.sh;if(fx.start&&s&&s.hex&&s.state!=='down'&&fx.anchor!==s.hex)fx.anchor=s.hex;}catch(e){}return _fcu26d.apply(this,arguments);};
++// 12i: the main horde front is centred on the alliance HQ when there is one (stable for every phone); otherwise on my Stronghold as before.
++const _fcu26d=factionCatchUp;factionCatchUp=function(){dropStale26();try{const fx=FX(),s=P.world&&P.world.sh,hq=typeof hqHex15==='function'?hqHex15():null;const want=hq||(s&&s.hex&&s.state!=='down'?s.hex:null);if(fx.start&&want&&fx.anchor!==want)fx.anchor=want;}catch(e){}return _fcu26d.apply(this,arguments);};
+ // ---- grace
+ function myGrace26(){const s=P.world&&P.world.sh;if(s&&s.hex&&!P.born26){P.born26=Date.now();try{save();}catch(e){}}return Math.max(P.born26||0,fe26())+SH26.graceH*3600e3;}
+ window.myGrace26=myGrace26;
+diff --git a/public/wipe11.js b/public/wipe11.js
+index 929d145..e148570 100644
+--- a/public/wipe11.js
++++ b/public/wipe11.js
+@@ -13,7 +13,7 @@ const _devWipe11=devWipe;devWipe=async function(){if(!PVW())return _devWipe11.ap
+   window.__wiping=true;toast('♻️ Resetting the test team…');const fs=NET.fs,db=NET.db,base=NET.base,now=Date.now();
+   let ep=0;try{const d=await fs.getDoc(fs.doc(db,...base,'meta','map'));ep=d.exists()?(d.data().epoch||0):0;}catch(e){}
+   if(!/^pv-/.test(NET.team||'')||!location.hostname.includes('--'))return; // hard guard before any delete
+-  let del=0;for(const c of ['territory','marches','raids','players','saves','activity','bankLog','explored','markers','clock']){try{const snap=await fs.getDocs(fs.collection(db,...base,c));await Promise.all(snap.docs.map(d=>fs.deleteDoc(d.ref).then(()=>del++).catch(e=>console.warn('del',c,e.code))));}catch(e){console.warn('wipe',c,e);}}
++  let del=0;for(const c of ['territory','marches','raids','players','saves','activity','bankLog','bankReq','explored','markers','clock']){try{const snap=await fs.getDocs(fs.collection(db,...base,c));await Promise.all(snap.docs.map(d=>fs.deleteDoc(d.ref).then(()=>del++).catch(e=>console.warn('del',c,e.code))));}catch(e){console.warn('wipe',c,e);}}
+   for(const m of ['alliance','horde','map']){try{await fs.deleteDoc(fs.doc(db,...base,'meta',m));del++;}catch(e){console.warn('del meta',m,e.code);}}
+   try{await fs.setDoc(fs.doc(db,...base,'meta','map'),{epoch:ep+1,fullEpoch:now});}catch(e){console.warn('wipe map',e);}
+   localStorage.setItem('wl_fullEpoch_'+NET.team,now);localStorage.setItem('wl_mapEpoch_'+NET.team,ep+1);console.log('wipe deleted',del);
+diff --git a/public/world.js b/public/world.js
+index c9ea841..7ce53b9 100644
+--- a/public/world.js
++++ b/public/world.js
+@@ -34,7 +34,7 @@ function tileInfo(id){if(_tileCache[id])return _tileCache[id];const T=BAL.tiles,
+     const y=r();out.tier=y<T.tierChance.epic?'epic':y<T.tierChance.epic+T.tierChance.rare?'rare':'common';
+     out.yield=Math.max(1,Math.round(T.dailyYield[out.tier]*T.resMult[out.res]));}
+   return _tileCache[id]=out;}
+-function grossIncome(){const inc={scrap:0,food:0,water:0,fuel:0,parts:0},all=new Set(Object.keys(P.tiles));if(BAL.stronghold.areaIncome)shAreaIds().forEach(i=>all.add(i));for(const id of all){const t=tileInfo(id);if(t.res)inc[t.res]+=t.yield;}return inc;}
++function grossIncome(){const inc={scrap:0,food:0,water:0,fuel:0,parts:0},all=new Set(Object.keys(P.tiles));if(BAL.stronghold.areaIncome)shAreaIds().forEach(i=>all.add(i));for(const id of all){if(typeof inSupply15==='function'&&!inSupply15(id))continue; /* 12i: pays only within 10 mi of a base */const t=tileInfo(id);if(t.res)inc[t.res]+=t.yield;}return inc;}
+ function towerUpkeep(){const u={scrap:0,food:0,water:0,fuel:0,parts:0},n=Object.values(W().towers).filter(t=>t.state!=='down').length;for(const k in BAL.tower.upkeep)u[k]+=BAL.tower.upkeep[k]*n;return u;}
+ // What you'll personally net at the next reset (after the 25% alliance share and tower upkeep)
+ function expectedIncome(){const g=grossIncome(),u=towerUpkeep(),o={};for(const k in g){const share=Math.round(g[k]*BAL.reset.allianceShare);o[k]=g[k]-share-u[k];}return o;}

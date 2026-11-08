@@ -14,7 +14,7 @@
 //  * Per-device fields (position, notifications, old sync metadata) are never synced.
 (function(){
 'use strict';
-const LOCAL=new Set(['uid','pos','lat','lng','news','_rev','_ackedRev','_handoff','_userEdit','_userBase','_tab','_armHold','_seen','sync26',
+const LOCAL=new Set(['uid','op15','pos','lat','lng','news','_rev','_ackedRev','_handoff','_userEdit','_userBase','_tab','_armHold','_seen','sync26',
   'heal26c','heal26cDone','heal26cNote','heal26cDrives','heal26cParts','heal26cPipe','heal26cPipeNote']);
 const T13={flushMs:1500,ownerMinGapMs:20e3,gestureMs:4e3,staleLeaseMs:90e3,heartbeatMs:60e3};
 const isPhone=/Mobi|iPhone|iPad|Android/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
@@ -130,7 +130,7 @@ async function tick(force){
   if(!canWrite()){bar();return;}
   if(!force&&iOwn()&&now-S.lastWrite<T13.ownerMinGapMs&&now-S.lastGesture>T13.gestureMs)return; // owner: batch passive ticks
   if(S.state!=='offline')setStatus('pending','Saving… do not switch devices yet.');
-  return write(force?'forced':'change');}
+  return write(force?'forced':'change',false);}
 async function takeover(why){if(!S.on||iOwn())return;S.lastGesture=Date.now();log('takeover',why);return write('takeover-'+why,false);}
 // ---------- start ----------
 async function start(){

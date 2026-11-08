@@ -13,7 +13,7 @@ const _devWipe11=devWipe;devWipe=async function(){if(!PVW())return _devWipe11.ap
   window.__wiping=true;toast('♻️ Resetting the test team…');const fs=NET.fs,db=NET.db,base=NET.base,now=Date.now();
   let ep=0;try{const d=await fs.getDoc(fs.doc(db,...base,'meta','map'));ep=d.exists()?(d.data().epoch||0):0;}catch(e){}
   if(!/^pv-/.test(NET.team||'')||!location.hostname.includes('--'))return; // hard guard before any delete
-  let del=0;for(const c of ['territory','marches','raids','players','saves','activity','bankLog','explored','markers','clock']){try{const snap=await fs.getDocs(fs.collection(db,...base,c));await Promise.all(snap.docs.map(d=>fs.deleteDoc(d.ref).then(()=>del++).catch(e=>console.warn('del',c,e.code))));}catch(e){console.warn('wipe',c,e);}}
+  let del=0;for(const c of ['territory','marches','raids','players','saves','activity','bankLog','bankReq','explored','markers','clock']){try{const snap=await fs.getDocs(fs.collection(db,...base,c));await Promise.all(snap.docs.map(d=>fs.deleteDoc(d.ref).then(()=>del++).catch(e=>console.warn('del',c,e.code))));}catch(e){console.warn('wipe',c,e);}}
   for(const m of ['alliance','horde','map']){try{await fs.deleteDoc(fs.doc(db,...base,'meta',m));del++;}catch(e){console.warn('del meta',m,e.code);}}
   try{await fs.setDoc(fs.doc(db,...base,'meta','map'),{epoch:ep+1,fullEpoch:now});}catch(e){console.warn('wipe map',e);}
   localStorage.setItem('wl_fullEpoch_'+NET.team,now);localStorage.setItem('wl_mapEpoch_'+NET.team,ep+1);console.log('wipe deleted',del);

@@ -88,6 +88,57 @@ const ok = (name, cond, extra) => {
   ok('driving onto a fort does not capture it', r.fortKept && !!r.fortIdUsed, r);
   ok('a horde outpost is not taken by driving or by a dev move', r.devSkipped && !r.buildingOwned, r);
 
+  const more = await p.evaluate(() => {
+    W(); const me = hexAt(47.8135, -116.8968).id;
+    const ids = hexRing(...idQR(me), 4).map(x => x.id).filter(id => !(enemyAt(id) && !W().enemyTaken[id]));
+    const pending = ids[0], emptyG = ids[1], squadHex = ids[2], ring = ids[3], plain = ids[4];
+    P.tiles = {}; G.terr = {};
+    const fx = FX(); fx.f = { dogs: { home: 'far', tiles: { [pending]: 1, [emptyG]: 1, [squadHex]: 1, [ring]: 1 }, squads: [{ id: 's', pos: squadHex, path: [], target: squadHex, restUntil: 0, woundUntil: 0, trail: [] }], tier: 0, outposts: {} } };
+    fxDirty();
+    TP().stationed = {};
+    TP().stationed[pending] = { n: 25, at: Date.now() + 60000 };
+    TP().stationed[emptyG] = { n: 0, at: Date.now() - 1000 };
+    W().towers = {}; W().towers[me] = { state: 'up', level: 1, hpPct: 1 };
+    let ts = Date.now();
+    const cross = (fromId, toId, stamp) => {
+      const a = hexCenter(...idQR(fromId)), b = hexCenter(...idQR(toId));
+      G.pos = a; G.dev = { walk: false, drive: false, tp: false, hold: false };
+      G.gps.state = 'ok'; G.gps.acc = 8; G.gps.lastMove = (stamp || ts) - 60000; G._claimLast25 = 0; G._homeLast25 = 0;
+      gpsFix({ coords: { latitude: b[0], longitude: b[1], accuracy: 8 }, timestamp: stamp || (ts += 1000) });
+    };
+    const owns = id => !!(P.tiles[id]);
+    cross(me, pending);
+    const pendingClaimed = owns(pending);
+    cross(me, emptyG);
+    const emptyClaimed = owns(emptyG);
+    cross(me, squadHex);
+    const squadKept = !owns(squadHex);
+    cross(me, ring);
+    const ringClaimed = owns(ring) && !(W().towers[ring]);
+    const beforeStale = Object.keys(P.tiles).length;
+    cross(me, plain, Date.now() - 120000);
+    const staleKept = !owns(plain) && Object.keys(P.tiles).length === beforeStale;
+    G.pos = hexCenter(...idQR(me));
+    const jitterTiles = Object.keys(P.tiles).length;
+    gpsFix({ coords: { latitude: 47.8135 + 2 / 111320, longitude: -116.8968, accuracy: 8 }, timestamp: Date.now() });
+    const jitterSame = Object.keys(P.tiles).length === jitterTiles;
+    const far = hexRing(...idQR(me), 20)[10].id;
+    G.terr[far] = { ai: true, by: 'Raiders', t: 1 };
+    G.pos = hexCenter(...idQR(me));
+    G.gps.lastMove = Date.now();
+    const b = hexCenter(...idQR(far));
+    gpsFix({ coords: { latitude: b[0], longitude: b[1], accuracy: 8 }, timestamp: Date.now() + 1000 });
+    const teleportKept = !owns(far);
+    return { pendingClaimed, emptyClaimed, squadKept, ringClaimed, staleKept, jitterSame, teleportKept, reasons: { pending, emptyG, squadHex, ring, plain, far } };
+  });
+  ok('a garrison that has not arrived does not block the claim', more.pendingClaimed, more);
+  ok('an empty garrison does not block the claim', more.emptyClaimed, more);
+  ok('a horde squad standing on the hex blocks the claim', more.squadKept, more);
+  ok('a tile only inside a tower ring is still claimed', more.ringClaimed, more);
+  ok('a stale GPS sample does not claim', more.staleKept, more);
+  ok('jitter does not claim', more.jitterSame, more);
+  ok('a teleport does not claim the landing tile', more.teleportKept, more);
+
   console.log(failed ? 'FAILED ' + failed : 'ALL PASS');
   await b.close();
   process.exit(failed ? 1 : 0);

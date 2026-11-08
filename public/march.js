@@ -93,6 +93,7 @@ function clockProbe(){
     catch(e){throw armNetFail(e);}finally{_probe=null;}})();
   return _probe;
 }
+function fortGate(hx){G._fortQ=G._fortQ||{};const prev=G._fortQ[hx]||Promise.resolve();let release;const gate=new Promise(r=>{release=r;});G._fortQ[hx]=prev.then(()=>gate).catch(()=>{});return {wait:prev,release};}
 async function resolveMarch(id,m){if(G.netOk===false)return;if(G._netNext&&Date.now()<G._netNext)return;if(G._mBusy[id])return;if(P.marchDone&&P.marchDone[id])return;G._mBusy[id]=1;try{
   let srv;try{srv=await clockProbe();}catch(e){if(e&&e.backoff)return;throw e;}if(srv<m.startT+m.dur)return; // honest server clock check
   const units=marchUnits(m),ic=interceptor(m),out={state:'arrived'};let f;
@@ -114,8 +115,8 @@ async function resolveMarch(id,m){if(G.netOk===false)return;if(G._netNext&&Date.
     // v26-11: exact hex line, and skip only real ownership. A guarded pipeline is not "already ours".
     const path=(typeof claimRoute26==='function'?claimRoute26(m.from,m.to):marchTrack(m.from,m.to)).slice(1),got=[],loot={};let lost=null,capHit=false,last=null;const cap=BAL.tiles.dailyClaimCap,cd=claimsToday();let room=cap-cd.n+1; // +1 = the claim reserved at send
     for(const hx of path){if(typeof claimSkip26==='function'?claimSkip26(hx):allied(hx))continue;if(room<=0){capHit=true;break;}const tg=marchTarget(hx);
-      if(tg.kind==='fort'){if(!(enemyAt(hx)&&!W().enemyTaken[hx]))continue;const owned=G.terr&&G.terr[hx];if(owned&&!owned.ai&&!owned.released&&owned.uid&&!(typeof isMe==='function'&&isMe(owned.uid)))continue;if(P.tiles&&P.tiles[hx])continue;
-        const f2=runFight(marchUnits(m),fortUnits(hx));last=f2;if(!f2.win){lost=hx;break;}if(!W().enemyTaken[hx])captureEnemy(hx);continue;}
+      if(tg.kind==='fort'){if(!(enemyAt(hx)&&!W().enemyTaken[hx]))continue;const gate=fortGate(hx);await gate.wait;try{if(!(enemyAt(hx)&&!W().enemyTaken[hx]))continue;const owned=G.terr&&G.terr[hx];if(owned&&!owned.ai&&!owned.released&&owned.uid&&!(typeof isMe==='function'&&isMe(owned.uid)))continue;if(P.tiles&&P.tiles[hx])continue;
+        const f2=runFight(marchUnits(m),fortUnits(hx));last=f2;if(!f2.win){lost=hx;break;}if(!W().enemyTaken[hx])captureEnemy(hx);}finally{gate.release();}continue;}
       let f2=null;if(tg.units.length){f2=runFight(marchUnits(m),tg.units);last=f2;}
       if(f2&&!f2.win){lost=hx;break;}got.push(hx);room--;for(const[k,v] of Object.entries(tg.loot||{}))loot[k]=(loot[k]||0)+v;}
     f=last||f;out.win=!lost;out.kind='path';out.claimed=got;if(ic&&out.win)for(const[k,v] of Object.entries(BAL.march.interceptLoot))loot[k]=(loot[k]||0)+v;out.loot=got.length||ic?loot:{};

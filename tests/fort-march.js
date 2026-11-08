@@ -119,6 +119,24 @@ const ok = (name, cond, extra) => {
   ok('a won march captures the fort once with the existing ring reward', fought.win.afterWin.taken === true && fought.win.afterWin.ringHeld === 7 && fought.win.afterWin.scrap > fought.win.beforeWin.scrap && fought.win.afterWin.gear === fought.win.beforeWin.gear + 1, fought.win);
   ok('resolving the same win again does not pay or claim twice', fought.dup.dup.scrap === fought.dup.snap.scrap && fought.dup.dup.gear === fought.dup.snap.gear && fought.dup.dup.tiles === fought.dup.snap.tiles, fought.dup);
   ok('a fort taken before arrival is not captured again', fought.stale.scrap === fought.stale.staleScrap && fought.stale.takenAt === 1 && fought.stale.tiles === 0, fought.stale);
+  const overlap = await p.evaluate(async (fort) => {
+    const adj = hexRing(...idQR(fort), 1).map(x => x.id).find(id => id !== fort && !enemyAt(id));
+    const beyond = hexRing(...idQR(fort), 3).map(x => x.id).find(id => { const line = claimRoute26(adj, id); const i = line.indexOf(fort); return i > 0 && i < line.length - 1; });
+    W().enemyTaken = {}; P.tiles = {}; P.marchDone = {}; G._fortQ = {}; TP().home = 8000;
+    const line = (typeof claimRoute26 === 'function' ? claimRoute26(adj, beyond || fort) : [adj, fort]);
+    for (const id of line) { delete P.tiles[id]; if (G.terr && G.terr[id] && !G.terr[id].ai) delete G.terr[id]; }
+    delete W().enemyTaken[fort];
+    const scrap = () => P.res.scrap | 0, gear = () => P.inv.length;
+    const mk = (id, troops) => ({ uid: P.uid, name: P.name, from: adj, to: beyond || fort, startT: Date.now() - 5000, dur: 1000, state: 'out', troops, unit: frozenMe(), power: 10, escorts: {} });
+    const a = mk('ovA', 0), b = mk('ovB', 8000);
+    const s0 = scrap(), g0 = gear();
+    const p1 = resolveMarch('ovA', a);
+    const p2 = resolveMarch('ovB', b);
+    await p1; await p2;
+    const beyondOwned = beyond ? !!(P.tiles[beyond]) : false;
+    return { scrap: scrap() - s0, gear: gear() - g0, taken: !!W().enemyTaken[fort], beyondOwned, aResult: a.result || '', bResult: b.result || '' };
+  }, found.fort);
+  ok('overlapping arrivals capture the fort once', overlap.taken && overlap.gear === 1 && overlap.scrap === 204, overlap);
 
   const friendly = await p.evaluate((id) => {
     W().enemyTaken[id] = Date.now();
