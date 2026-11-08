@@ -21,21 +21,31 @@ function verdict(p,hasEnemy){if(!hasEnemy)return['ok','✅ No fight expected'];i
 G.troopRisk=null;
 // v20 fix: step5 puts the slot counter first in the button, and the old picker overwrote it (firstChild). Update the time text node instead.
 function setMarchLabel(btn,t){for(const n of btn.childNodes)if(n.nodeType===3&&/March/.test(n.nodeValue)){n.nodeValue=t;return;}}
-const _tr3_amb=addMarchBtn;addMarchBtn=function(id){_tr3_amb.apply(this,arguments);try{const btn=$('#btnMarch'),old=document.querySelector('#modalBody .troopsel');if(!btn||btn.disabled||!old)return;
+const _tr3_amb=addMarchBtn;addMarchBtn=function(id){_tr3_amb.apply(this,arguments);try{if(document.querySelector('#modalBody .troopsel3'))return;const btn=$('#btnMarch'),old=document.querySelector('#modalBody .troopsel');if(!btn||btn.disabled||!old)return;
   const enemy=_tr3_enemy(id),home=TP().home,maxN=Math.min(home,marchTroopCap()),mw=enemy?minToWin(maxN,enemy):0;
-  const opts=[['None',0]];if(enemy&&mw!=null&&mw>0&&mw<maxN)opts.push(['Min to win',mw]);if(maxN>=200)opts.push(['Half',Math.round(maxN/2/100)*100]);if(maxN>0)opts.push([`Max ${maxN.toLocaleString()}`,maxN]);
   const row=document.createElement('div');row.className='row troopsel3';row.style.width='100%';old.replaceWith(row);
   if(G.troopSend==null||G.troopSend>maxN)G.troopSend=0;if(enemy&&mw!=null)G.troopSend=Math.min(maxN,mw);
-  const draw=()=>{const n=G.troopSend||0,p=marchPreview(n,enemy),[vk,vt]=verdict(p,!!enemy),tot=Math.max(1,p.you+p.them),d=marchDur(marchFrom(),id);
-    G.troopRisk=enemy&&(!p.win||p.pct>=TR3.riskyLossPct)?p:null;
-    row.innerHTML=`<div class="grow"><b>🪖 Troops</b> <small>${home.toLocaleString()} home · max ${marchTroopCap().toLocaleString()} per march${isHungry()?' · 🍞 Hungry −10% ATK':''}${enemy&&mw==null&&maxN?' · can\'t win with the troops at home':''}</small>
-      <div class="seg">${opts.map(([l,v])=>`<button class="${v===n?'on':''}" data-n="${v}">${l}</button>`).join('')}</div>
-      ${enemy?`<div class="pbar"><i style="width:${Math.round(100*p.you/tot)}%"></i></div><small>⚡ You ${p.you.toLocaleString()} vs Them ${p.them.toLocaleString()}</small>`:''}
+  else if(!enemy&&!(G.troopSend>0)&&home>0&&typeof defaultSend25==='function')G.troopSend=Math.min(maxN,defaultSend25());
+  const clamp=v=>Math.max(0,Math.min(maxN,Math.round(+v||0)));
+  row.innerHTML=`<div class="grow trooppick"><div class="tnrow"><label for="trange">🪖 Troops <b class="tnow">0</b></label><input id="tnum" class="tnum" type="number" inputmode="numeric" min="0" max="${maxN}" step="1" value="0" aria-label="Troop count"></div>
+    <input id="trange" type="range" min="0" max="${maxN}" step="1" value="0" aria-valuemin="0" aria-valuemax="${maxN}" aria-valuenow="0" aria-label="Troops to send">
+    <small class="tmeta">${home.toLocaleString()} home · max ${marchTroopCap().toLocaleString()} per march${isHungry()?' · 🍞 Hungry −10% ATK':''}${enemy&&mw==null&&maxN?' · can\'t win with the troops at home':''}</small>
+    <div class="tpv"></div></div>`;
+  const range=row.querySelector('#trange'),num=row.querySelector('#tnum'),pv=row.querySelector('.tpv'),now=row.querySelector('.tnow');
+  const paint=()=>{const n=clamp(G.troopSend),p=marchPreview(n,enemy),[vk,vt]=verdict(p,!!enemy),tot=Math.max(1,p.you+p.them),d=marchDur(marchFrom(),id);
+    G.troopSend=n;G.troopRisk=enemy&&(!p.win||p.pct>=TR3.riskyLossPct)?p:null;
+    range.value=String(n);num.value=String(n);range.setAttribute('aria-valuenow',String(n));now.textContent=n.toLocaleString();
+    pv.innerHTML=`${enemy?`<div class="pbar"><i style="width:${Math.round(100*p.you/tot)}%"></i></div><small>⚡ You ${p.you.toLocaleString()} vs Them ${p.them.toLocaleString()}</small>`:''}
       <small>🎒 Load ${marchLoad(n)} · 🐢 ${fmtDur(d)} each way${n&&enemy?` · 💀 ~${p.wounded.toLocaleString()} wounded, ~${p.dead.toLocaleString()} dead`:''}</small>
-      <div class="verdict ${vk}">${vt}</div></div>`;
-    row.querySelectorAll('button[data-n]').forEach(b=>b.onclick=e=>{e.stopPropagation();G.troopSend=+b.dataset.n;draw();});
+      <div class="verdict ${vk}">${vt}</div>`;
     setMarchLabel(btn,`🚩 March · ${fmtDur(d)} there, ${fmtDur(d)} back`);};
-  draw();}catch(e){console.warn('send screen',e);}};
+  const pick=v=>{G.troopSend=clamp(v);paint();};
+  range.addEventListener('input',()=>pick(range.value));
+  num.addEventListener('input',()=>pick(num.value));
+  num.addEventListener('change',()=>pick(num.value));
+  paint();
+  document.querySelectorAll('#modalBody .row').forEach(el=>{if(!el.closest('.troopsel3')&&/Predicted:/.test(el.textContent||''))el.remove();});
+  }catch(e){console.warn('send screen',e);}};
 const _tr3_send=sendMarch;sendMarch=async function(to,opt){const r=G.troopRisk;G.troopRisk=null;
   if(r&&!(opt&&opt.confirmed)){const ok=await UI.ask('Risky march',r.win?`You're likely to lose ~${Math.round(r.pct*100)}% of these troops (~${r.wounded.toLocaleString()} wounded, ~${r.dead.toLocaleString()} dead). Send anyway?`:`This march is likely to lose. ~${r.wounded.toLocaleString()} wounded and ~${r.dead.toLocaleString()} dead. Send anyway?`,'Send');if(!ok)return;}
   return _tr3_send.apply(this,arguments);};

@@ -5,7 +5,7 @@ function garrison26(hex){try{const defs=activeDefs(hex);if(!defs.length)return n
   return fight26({bld:s.bld||bld26x(defs),players},{n:0});}catch(e){return null;}}
 function bld26x(defs){const d=defs.find(x=>['sh','tower','op'].includes(x.kind));return d?{kind:d.kind,lvl:1}:null;}
 window.garrison26=garrison26;
-function cleanCard26(kind,ctx){const mb=$('#modalBody');if(!mb||mb.querySelector('.cc26')||G.markMode||mb.querySelector('input,textarea,select'))return;const ic=mb.querySelector('.icard');if(!ic)return;
+function cleanCard26(kind,ctx){const mb=$('#modalBody');if(!mb||mb.querySelector('.cc26')||G.markMode)return;const typed=[...mb.querySelectorAll('input,textarea,select')].some(el=>!el.closest('.troopsel3'));if(typed)return;const ic=mb.querySelector('.icard');if(!ic)return;
   clearInterval(UI._fc8);mb.querySelectorAll('.fcount').forEach(e=>e.remove());
   const h2=ic.querySelector('h2'),title=h2?h2.innerHTML:'',sub=(ic.querySelector('.ihead .tiny')||{}).textContent||'',art=(ic.querySelector('.iart')||{}).innerHTML||'',chip=mb.querySelector('.tchip');
   let facts=[],extra='',bTitle=null,bSub=null;const btnBox=ic.querySelector('.ibtns')||mb;
@@ -35,6 +35,7 @@ function cleanCard26(kind,ctx){const mb=$('#modalBody');if(!mb||mb.querySelector
   wrap.innerHTML=`<div class="cch26">${art?`<div class="cca26">${art}</div>`:''}<div class="grow"><h2>${bTitle||title}${chip&&!bTitle?` <span class="ccb26">${chip.textContent}</span>`:''}</h2><small>${bSub||esc24(sub)}</small></div><button class="ccx26" onclick="UI.closeModal()">✕</button></div>
     ${facts.length?`<div class="big26">${facts.slice(0,3).map(([v,l])=>`<div><b>${v}</b><small>${l}</small></div>`).join('')}</div>`:''}${extra}<div class="ccbtn26"></div>`;
   const row=wrap.querySelector('.ccbtn26');top.forEach(b=>{b.classList.add('ccmv26');row.appendChild(b);});
+  mb.querySelectorAll('.troopsel3,.troopsel,.warn25').forEach(el=>row.before(el));
   const det=document.createElement('details');det.className='more26';det.innerHTML='<summary>ⓘ More</summary>';
   [...mb.childNodes].forEach(n=>det.appendChild(n));if(chip)chip.remove();if(h2)h2.closest('.ihead')&&h2.closest('.ihead').remove();
   mb.appendChild(wrap);mb.appendChild(det);mb.classList.add('clean26');

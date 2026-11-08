@@ -113,11 +113,11 @@ function drawAllyReturns(){if(typeof map==='undefined'||!P.world)return;if(!G.la
 setInterval(()=>{try{drawAllyReturns();}catch(e){}},2000);
 // ---------- marches commit real troops ----------
 function defaultSend25(){const t=TP(),cap=typeof marchTroopCap==='function'?marchTroopCap():t.home;return Math.max(0,Math.min(t.home,cap,G.troopDefault25||1000));}
-const _send25=sendMarch;sendMarch=async function(to,opt){if(!(G.troopSend>0)){if(TP().home<=0)return toast('🚫 No troops at home. Train troops in Base › Barracks, or wait for marches to return.');G.troopSend=defaultSend25();}
+const _send25=sendMarch;sendMarch=async function(to,opt){if(!(G.troopSend>0)){if(TP().home<=0)return toast('🚫 No troops at home. Train troops in Base › Barracks, or wait for marches to return.');if(!document.querySelector('#modalBody .troopsel3'))G.troopSend=defaultSend25();}
   return _send25.apply(this,arguments);};
-// troop picker always starts on a real number (not 0)
-const _amb25=addMarchBtn;addMarchBtn=function(id){_amb25.apply(this,arguments);try{if(!(G.troopSend>0)&&TP().home>0){const row=document.querySelector('#modalBody .troopsel');const b=row&&[...row.querySelectorAll('button[data-n]')].filter(x=>+x.dataset.n>0)[0];if(b)b.click();else G.troopSend=defaultSend25();}
-  if(TP().home<=0){const btn=document.getElementById('btnMarch');if(btn){btn.disabled=true;btn.insertAdjacentHTML('afterend','<p class="tiny warn25">🪖 No troops at home. Train some in Base › Barracks first.</p>');}}}catch(e){}};
+// troop picker always starts on a real number (not 0). The slider owns an explicit 0.
+const _amb25=addMarchBtn;addMarchBtn=function(id){_amb25.apply(this,arguments);try{if(!(G.troopSend>0)&&TP().home>0&&!document.querySelector('#modalBody .troopsel3')){const row=document.querySelector('#modalBody .troopsel');const b=row&&[...row.querySelectorAll('button[data-n]')].filter(x=>+x.dataset.n>0)[0];if(b)b.click();else G.troopSend=defaultSend25();}
+  if(TP().home<=0){const btn=document.getElementById('btnMarch');if(btn&&!btn.querySelector('.why25')){btn.disabled=true;btn.insertAdjacentHTML('beforeend','<br><small class="why25">No troops at home. Train some in Base › Barracks first.</small>');}}}catch(e){}};
 // ---------- reinforce a teammate's march with real troops ----------
 escortMarch=async function(id,n){const m=G.marches[id];if(!m||m.uid===P.uid||marchPhase(m)[0]!=='out')return;const home=TP().home;
   if(n==null){return UI.modal(`<h2>🛡 Join ${esc24(m.name)}'s march</h2><p class="tiny">Your troops march with theirs, fight in the same battle, share the loot and come home with the march.</p>
@@ -207,7 +207,7 @@ const _isq25=UI.infoSquad;UI.infoSquad=function(fid,sid){_isq25.apply(this,argum
   const d=document.querySelector('#modalBody .diff');const f=FX().f[fid],s=f&&(f.squads||[]).find(x=>x.id===sid);if(d&&s&&isVis(s.pos))d.textContent='🪖 '+kf24(Math.round(squadPower(f,s,Date.now())/TPOW()))+' troops';}catch(e){}};
 G.troopRisk=null;try{Object.defineProperty(G,'troopRisk',{get(){return null;},set(){},configurable:true});}catch(e){}
 const _stripLikely25=()=>{try{document.querySelectorAll('#btnMarch,#btnIntercept,#modalBody small,#modalBody .row').forEach(el=>{if(/likely (win|loss|holds|lost)/i.test(el.textContent||'')){el.innerHTML=el.innerHTML.replace(/\s*[·•]?\s*[✅❌]?\s*likely (win|loss|holds|lost)/gi,'').replace(/Predicted:[^<]*/gi,'Outcome is worked out when the fight starts');}});}catch(e){}};
-const _ambL25=addMarchBtn;addMarchBtn=function(){const r=_ambL25.apply(this,arguments);_stripLikely25();return r;};
+const _ambL25=addMarchBtn;addMarchBtn=function(){if(document.getElementById('btnMarch')){_stripLikely25();return;}const r=_ambL25.apply(this,arguments);_stripLikely25();return r;};
 const _isqL25=UI.infoSquad;UI.infoSquad=function(){_isqL25.apply(this,arguments);_stripLikely25();};
 
 // ---------- horde marches: troops on revealed hexes, hidden in fog ----------

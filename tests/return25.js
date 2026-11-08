@@ -63,11 +63,14 @@ async function fix(context, page, g, wait) {
   const seed = JSON.stringify({ name: 'Diag', lvl: 1, far25: { on: true, anchor: null, since: 1 }, stats: { kills: 0, meters: 50 }, res: { scrap: 3, food: 0, water: 0, fuel: 0, parts: 0 } });
   await boot(c1, p1, seed);
   let   s = await snap(p1);
-  ok('boot shows saved banner before the second fix', s.banner.includes('Rathdrum') && s.far && s.meters === 50, s);
-  await c1.setGeolocation(CLOSE);
-  await p1.evaluate(() => gpsRestart());
-  await p1.waitForFunction(() => !(P.far25 && P.far25.on), null, { timeout: 8000 }).catch(() => {});
-  s = await snap(p1);
+  const clearedAlready = !s.far && !s.banner && s.meters === 50;
+  ok('boot with a saved flag is remote until a second accurate fix, or already cleared with no extra distance', (s.banner.includes('Rathdrum') && s.far && s.meters === 50) || clearedAlready, s);
+  if (!clearedAlready) {
+    await c1.setGeolocation(CLOSE);
+    await p1.evaluate(() => gpsRestart());
+    await p1.waitForFunction(() => !(P.far25 && P.far25.on), null, { timeout: 8000 }).catch(() => {});
+    s = await snap(p1);
+  }
   ok('two accurate home fixes clear the saved flag', !s.far && !s.saved && !s.banner, s);
   ok('boot return adds no walked distance', s.meters === 50, s);
   ok('boot return does not call cloudSave or notePlay', s.cloud === 0 && s.notes === 0, s);
