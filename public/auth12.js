@@ -134,21 +134,38 @@ function blankCharacter(){
   n.xp=0;n.lvl=1;
   return n;
 }
+function whole(v){const n=Number(v);return Number.isFinite(n)?Math.floor(n):0;}
+async function teamEpoch(net){
+  const fs=net.fs,d=await fs.getDoc(fs.doc(net.db,...net.base,'meta','map'));
+  if(!d.exists())return {fe:0,me:0};
+  const x=d.data()||{};
+  return {fe:whole(x.fullEpoch),me:whole(x.epoch)};
+}
 async function createIfAbsent(net,profile){
   const fs=net.fs,ref=fs.doc(net.col('saves'),net.uid);
+  const ep=await teamEpoch(net);
+  const fe=Math.max(whole(profile.fullEpoch),ep.fe),me=Math.max(whole(profile.mapEpoch),ep.me);
+  profile.fullEpoch=fe;profile.mapEpoch=me;
   profile._rev=1;profile._ackedRev=1;profile._handoff=1;profile._userEdit=0;profile._userBase=0;profile.uid=net.uid;
   let existing=null;
   await fs.runTransaction(net.db,async function(tx){
     const s=await tx.get(ref);
     if(s.exists()){existing=s.data();return;}
-    tx.set(ref,{data:JSON.stringify(profile),rev:1,savedAt:Date.now(),baseRev:0,name:profile.name||'',lvl:profile.lvl||1,v:3,fe:profile.fullEpoch||0});
+    tx.set(ref,{data:JSON.stringify(profile),rev:1,savedAt:Date.now(),baseRev:0,name:profile.name||'',lvl:profile.lvl||1,v:3,fe:fe,me:me});
   });
   return existing;
+}
+function importFailed(text){
+  show('choose');
+  const choose=document.getElementById('a12choose');
+  let n=document.getElementById('a12err');
+  if(!n&&choose){n=document.createElement('p');n.id='a12err';n.style.cssText='color:#ffb4a2';choose.insertBefore(n,choose.firstChild);}
+  if(n)n.textContent=text;
 }
 window.auth12Canonical=async function(net){
   show('load');
   let d=null;
-  try{d=await net.loadProfile(net.uid);}catch(e){msg('Could not load the character. Nothing was replaced.');throw e;}
+  try{d=await net.loadProfile(net.uid);}catch(e){show('sign');msg('Could not load the character. Nothing was replaced.');throw e;}
   if(d&&d.data){
     let o;try{o=JSON.parse(d.data);}catch(e){o=null;}
     const pend=readPending(net.uid);
@@ -181,20 +198,27 @@ window.auth12Canonical=async function(net){
     if(parked)noteKept();
     return;
   }
-  show('choose');
-  const choice=await Promise.race([
-    waitClick('a12import').then(function(){return 'import';}),
-    waitClick('a12fresh').then(function(){return 'fresh';})
-  ]);
-  show('load');
-  const held=readPending(net.uid);
-  const profile=choice==='import'?JSON.parse(JSON.stringify(held&&held.profile?held.profile:P)):blankCharacter();
-  let existing=null;
-  try{existing=await createIfAbsent(net,profile);}catch(e){msg('The character was not created. Nothing on the account was replaced.');throw e;}
+  let existing=null,profile=null;
+  for(;;){
+    show('choose');
+    const choice=await Promise.race([
+      waitClick('a12import').then(function(){return 'import';}),
+      waitClick('a12fresh').then(function(){return 'fresh';})
+    ]);
+    show('load');
+    const held=readPending(net.uid);
+    profile=choice==='import'?JSON.parse(JSON.stringify(held&&held.profile?held.profile:P)):blankCharacter();
+    try{existing=await createIfAbsent(net,profile);break;}
+    catch(e){importFailed('The character was not created. Nothing on this device was replaced.');}
+  }
   if(existing&&existing.data){
     applyCanon(JSON.parse(existing.data),existing.rev||1);
     msg('This account already has a character. The one on this device was not uploaded.');
-  }else applyCanon(profile,1);
+  }else{
+    P.fullEpoch=whole(profile.fullEpoch);P.mapEpoch=whole(profile.mapEpoch);
+    try{const team=(typeof NET!=='undefined'&&NET.team)||net.team||'';localStorage.setItem('wl_fullEpoch_'+team,String(P.fullEpoch));localStorage.setItem('wl_mapEpoch_'+team,String(P.mapEpoch));}catch(e){}
+    applyCanon(profile,1);
+  }
   document.getElementById('auth12').remove();
   G.playLocked=false;
   mountLogout();
