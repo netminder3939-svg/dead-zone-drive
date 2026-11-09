@@ -586,6 +586,11 @@ body.night .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) grayscale(.55)
 
 .pipevan26.tap{box-shadow:0 0 0 2px #ffc94a88,0 2px 8px #000}
 .pipevan26.tap:active{transform:translate(-50%,-110%) scale(.96)}
+/* March list tuck: presentation only. The arrow stays on the page and does not cover the bottom nav. */
+#mcToggle{position:fixed;z-index:660;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border-radius:10px;border:1.5px solid #c9a24a;background:#1a140ce8;color:#f2d58a;font:800 22px/1 system-ui,sans-serif;box-shadow:0 2px 8px #000a;touch-action:manipulation;cursor:pointer}
+#mcards.v21.mc-shut{transform:translateX(calc(-100% - 28px));pointer-events:none!important}
+#mcards.v21.mc-open{display:flex!important}
+#shPick26{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 78px);z-index:860;max-width:calc(100vw - 24px);padding:10px 14px;border-radius:14px;border:1.5px solid #c9a24a;background:#241c10f2;color:#ffe9a8;font:700 14px/1.2 system-ui,sans-serif;touch-action:manipulation}
 /* 12i QA: on phones the "Log out" text button pushed off-screen and squeezed the resource strip into one tall column
    over the status chips. Phones get a compact icon; the full label stays on wider screens. */
 @media (max-width:600px){#a12out{font-size:0!important;min-width:34px;width:34px;height:34px;padding:0!important;display:flex;align-items:center;justify-content:center;flex:0 0 34px}

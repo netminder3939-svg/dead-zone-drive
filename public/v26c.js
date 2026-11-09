@@ -129,6 +129,27 @@ function ensureStartSh26(){try{if(!P||!P.name||!G.pos)return;if(!gpsReady26())re
   P.startSh26=1;P.startShMoved26=1;save();try{shClaimArea();}catch(e){}try{pushMember();}catch(e){}try{drawWorld();}catch(e){}
   toast('🏰 Your Stronghold is up. Resources start at 0 — claim hexes and fight to grow.');}catch(e){console.warn('startSh26',e);}}
 window.ensureStartSh26=ensureStartSh26;window.gpsReady26=gpsReady26;window.relocateStartSh26=relocateStartSh26;
+// Test hostnames (and a synthetic flag) ask a fresh player to choose a Stronghold site.
+// Live and the local demo keep the automatic placement above, unchanged.
+function shPickHost26(){try{if(typeof window.__shPickHost26==='boolean')return window.__shPickHost26;return String(location.hostname||'').indexOf('--')>=0;}catch(e){return false;}}
+function shStanding26(){try{const s=W().sh;return !!(s&&s.state!=='down');}catch(e){return false;}}
+function shPickChip26(){let b=document.getElementById('shPick26');
+  const picking=G.pick15==='sh'&&Date.now()-(G.pick15At||0)<=180e3;
+  const need=shPickHost26()&&P&&P.name&&!G.playLocked&&!shStanding26()&&!P.startSh26&&!picking;
+  if(!need){if(b)b.remove();return;}
+  if(!b){b=document.createElement('button');b.id='shPick26';b.type='button';b.setAttribute('aria-label','Choose Stronghold site');b.textContent='🏰 Choose Stronghold site';
+    b.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();try{pick15('sh');}catch(e){}shPickChip26();});document.body.appendChild(b);}}
+function shPickOffer26(){try{if(!P||!P.name||G.playLocked){shPickChip26();return;}W();
+  if(shStanding26()){shPickChip26();return;}
+  if(P.startSh26){shPickChip26();return;}
+  if(!G._shOffer26){G._shOffer26=1;try{pick15('sh');}catch(e){}}
+  shPickChip26();}catch(e){console.warn('shPick26',e);}}
+function shPickConsumes26(e){if(!shPickHost26())return false;if(!(G.pick15==='sh'&&Date.now()-(G.pick15At||0)<=180e3))return false;
+  try{if(P&&P.world&&e&&e.latlng)UI.infoTile(hexAt(e.latlng.lat,e.latlng.lng).id);}catch(err){}return true;}
+const _ensureLive26=ensureStartSh26;
+ensureStartSh26=function(){if(shPickHost26())return shPickOffer26();return _ensureLive26();};
+window.ensureStartSh26=ensureStartSh26;window.shPickHost26=shPickHost26;window.shPickConsumes26=shPickConsumes26;window.shPickChip26=shPickChip26;
+try{const _openSh26=UI.open;UI.open=function(){try{if(shPickHost26()&&G.pick15==='sh'&&typeof cancelShPick26==='function')cancelShPick26();}catch(e){}return _openSh26.apply(this,arguments);};}catch(e){}
 setInterval(()=>{try{ensureStartSh26();}catch(e){}},1500);
 // ---------- v26 pipelines (Jacob Nov 4): drive past a site to unlock it; build in-game (no pin). Cap = 1 per resource type. ----------
 function unlockedSites26(){P.pipeUnlock26=P.pipeUnlock26||{};return P.pipeUnlock26;}

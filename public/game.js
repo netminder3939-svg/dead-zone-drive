@@ -34,7 +34,7 @@ const meMarker=L.marker([0,0],{icon:L.divIcon({className:'',html:'<div class="me
 const reachCircle=L.circle([0,0],{radius:120,color:'#4ad7ff',weight:1,opacity:.4,fillOpacity:.04,interactive:false});
 
 map.on('moveend',()=>drawWorld());
-map.on('click',e=>{if(G.dev.walk&&!G.dev.tp){G.walkTo=[e.latlng.lat,e.latlng.lng];toast('🚶 Walking there');return;} /* v19 dev: tap = walk there */ if(G.dev.tp){G.jump=true;setPos(e.latlng.lat,e.latlng.lng);}else if(P.world)UI.infoTile(hexAt(e.latlng.lat,e.latlng.lng).id);});
+map.on('click',e=>{if(typeof shPickConsumes26==='function'&&shPickConsumes26(e))return;if(G.dev.walk&&!G.dev.tp){G.walkTo=[e.latlng.lat,e.latlng.lng];toast('🚶 Walking there');return;} /* v19 dev: tap = walk there */ if(G.dev.tp){G.jump=true;setPos(e.latlng.lat,e.latlng.lng);}else if(P.world)UI.infoTile(hexAt(e.latlng.lat,e.latlng.lng).id);});
 
 function dayNight(){const h=new Date().getHours()+new Date().getMinutes()/60;let a=0,c='10,20,60';
   if(h<5.5||h>=21)a=.16;else if(h<7)a=.16*(7-h)/1.5;else if(h>=19)a=.16*(h-19)/2;if(h>=17&&h<20){c='120,60,20';a=Math.max(a,.07);}

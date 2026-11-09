@@ -177,7 +177,25 @@ mcardsDraw=function(){const q=s=>document.querySelector(s);let box=q('#mcards');
   h+=reg.map(card).join('')+(reg.length<SLOTS.reg?empty(`⚔️ ${SLOTS.reg-reg.length} regular slot${SLOTS.reg-reg.length>1?'s':''} free · attack / claim`):'');
   h+=`<div class="mhead sub">SUPPORT</div>`+sup.map(card).join('')+(supUsed<SLOTS.sup?empty(`🛡️ ${SLOTS.sup-supUsed} support slot${SLOTS.sup-supUsed>1?'s':''} free · reinforce / guard / escort`):'');
   box.innerHTML=h;box.classList.add('v21');box.classList.toggle('drive',!!(G.drive&&G.drive.on));box.classList.toggle('quiet',innerWidth<1100&&!reg.length&&!sup.length);
-  box.querySelectorAll('.mcard[data-to]').forEach(el=>el.onclick=()=>{const h2=el.dataset.to;if(h2){try{map.setView(hexCenter(...idQR(h2)),Math.max(map.getZoom(),15));}catch(e){}}});};
+  box.querySelectorAll('.mcard[data-to]').forEach(el=>el.onclick=()=>{const h2=el.dataset.to;if(h2){try{map.setView(hexCenter(...idQR(h2)),Math.max(map.getZoom(),15));}catch(e){}}});
+  try{mcToggle26(box);}catch(e){}};
+function mcWant26(box){try{const v=localStorage.getItem('wl_mcOpen');if(v==='0')return false;if(v==='1')return true;}catch(e){}
+  return !(innerWidth<1100&&!box.querySelector('.mcard:not(.empty)'));}
+function mcPlace26(box,btn,open){const tabs=document.getElementById('tabs'),nav=tabs?tabs.getBoundingClientRect():{top:innerHeight-64},phone=innerWidth<1100;let left,top;
+  if(!phone){left=open?318:76;top=108;}
+  else if(open){const r=box.getBoundingClientRect();left=Math.min(innerWidth-48,Math.max(8,(r.width?r.right:52)-22));top=r.height?r.top:Math.max(56,nav.top-52);if(top+44>nav.top-8)top=nav.top-52;if(top<56)top=56;}
+  else{left=8;top=Math.max(56,nav.top-52);}
+  btn.style.left=left+'px';btn.style.top=top+'px';btn.style.bottom='auto';}
+function mcToggle26(box){if(!box)return;let btn=document.getElementById('mcToggle');
+  if(!btn){btn=document.createElement('button');btn.id='mcToggle';btn.type='button';btn.setAttribute('aria-controls','mcards');
+    btn.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();const b=document.getElementById('mcards');if(!b)return;
+      try{localStorage.setItem('wl_mcOpen',b.classList.contains('mc-shut')?'1':'0');}catch(e){}mcToggle26(b);});
+    document.body.appendChild(btn);}
+  const open=mcWant26(box),drive=!!(G.drive&&G.drive.on);
+  box.classList.toggle('mc-shut',!open);box.classList.toggle('mc-open',!!open&&!drive);box.setAttribute('aria-hidden',open?'false':'true');
+  btn.setAttribute('aria-expanded',open?'true':'false');btn.setAttribute('aria-label',open?'Hide marches':'Show marches');btn.textContent=open?'‹':'›';
+  mcPlace26(box,btn,open&&!drive);}
+window.mcToggle26=mcToggle26;
 // ---------- building card (mockup v5 02): own combined defense breakdown only, no predictions ----------
 bldCard=function(hex){const b=bldAt(hex);if(!b)return'';const o=b.o,tp=TPOW(),lv=b.k==='sh'?strongholdLevel():b.k==='tower'?(o.level||1):0,
   r=b.own?(b.k==='sh'?shRadius():b.k==='tower'?towerRadius(o):BAL.outpost.radius):(o.r||1),
