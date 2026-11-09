@@ -131,6 +131,19 @@
   function startOk15(id){const h=hq15();if(!h)return'No HQ yet';if(!nearHq15(id))return`Keep within ${B15.hqMi} mi of the HQ`;
     const o=G.terr[id];if(o&&!o.released&&(o.ai||(o.uid&&!isMe(o.uid))))return o.ai?'Raiders hold that hex':'That hex belongs to a teammate';
     if(factionAt(id))return'Raiders hold that hex';if(typeof allyBldNear==='function'&&allyBldNear(id,1))return"Too close to a teammate's building (keep 2 hexes away)";return null;}
+  window.startOk15=startOk15;
+  function confirmShPick26(id){const why=startOk15(id);if(why)return toast('🚫 '+why);
+    let fresh=true;try{const s=W().sh;fresh=!(s&&s.state!=='down');}catch(e){}
+    const test=typeof shPickHost26==='function'&&shPickHost26();
+    if(test&&fresh){if(G._shCommit26)return;G._shCommit26=id;}
+    G.pick15=null;G.pick15At=0;try{pickBar15();}catch(e){}
+    moveSh15(id);
+    try{const s=W().sh;if(test&&fresh&&!(s&&s.state!=='down'&&s.hex===id))G._shCommit26=0;}catch(e){}
+    try{if(typeof shPickChip26==='function')shPickChip26();}catch(e){}}
+  function cancelShPick26(){const k=G.pick15;G.pick15=null;G.pick15At=0;try{pickBar15();}catch(e){}
+    if(k==='sh'){try{UI.closeModal();}catch(e){}try{const b=document.getElementById('modalBody');if(b)b.innerHTML='';}catch(e){}}
+    try{if(typeof shPickChip26==='function')shPickChip26();}catch(e){}}
+  window.confirmShPick26=confirmShPick26;window.cancelShPick26=cancelShPick26;
   function autoHqHex15(){const h=hq15();if(!h)return null;const [q,r]=idQR(h.hex);for(let ring=2;ring<=20;ring++)for(const x of hexRing(q,r,ring))if(hexDist(x.id,h.hex)===ring&&!startOk15(x.id))return x.id;return null;}
   function moveSh15(id){const why=startOk15(id);if(why)return toast('🚫 '+why);const w=W(),s=w.sh,t=Date.now();
     if(s&&s.movedAt15&&t-s.movedAt15<B15.moveCooldownH*3600e3)return toast(`🚫 You can move your Stronghold again in ${fmtDur(B15.moveCooldownH*3600e3-(t-s.movedAt15))}`);
@@ -143,13 +156,13 @@
   function pickBar15(){let el=document.getElementById('pick15');const k=G.pick15&&Date.now()-(G.pick15At||0)<=180e3?G.pick15:null;if(!k){if(el)el.remove();if(G.pick15&&!k)G.pick15=null;return;}
     if(!el){el=document.createElement('div');el.id='pick15';document.body.appendChild(el);}
     const t=k==='hq'?'🏛️ Tap the hex for the alliance HQ':k==='sh'?`🏰 Tap a free hex within ${B15.hqMi} mi of the HQ`:`🚩 Tap a free hex within ${B15.fwdNearMi} mi of a teammate's land`;
-    if(el.dataset.k!==k){el.dataset.k=k;el.innerHTML=`<span>${t}</span><button onclick="G.pick15=null;pickBar15()">Cancel</button>`;}}
+    if(el.dataset.k!==k){el.dataset.k=k;el.innerHTML=`<span>${t}</span><button type="button" onclick="cancelShPick26()">Cancel</button>`;}}
   window.pickBar15=pickBar15;setInterval(()=>{try{pickBar15();}catch(e){}},1000);
   function pick15(kind){G.pick15=kind;G.pick15At=Date.now();setTimeout(pickBar15,0);try{UI.closeModal();UI.close&&UI.close();}catch(e){}}
   window.pick15=pick15;
   const _it15=UI.infoTile;UI.infoTile=function(id){if(G.pick15&&Date.now()-(G.pick15At||0)>180e3)G.pick15=null;const k=G.pick15;if(!k)return _it15.apply(this,arguments);
     if(k==='hq'){return UI.modal(`<h2>🏛️ Alliance HQ here?</h2><p>${hexName(id)}. Teammates can jump here and build their Strongholds within ${B15.hqMi} mi.</p><input id="hq15name" maxlength="24" placeholder="HQ name (e.g. Rathdrum)" value="${esc15((hq15()||{}).name||'')}"><div class="btns24"><button class="red24" onclick="setHq15('${id}',$('#hq15name').value)">✅ Place HQ</button><button class="ghost24" onclick="G.pick15=null;UI.closeModal()">Cancel</button></div>`);}
-    if(k==='sh'){const why=startOk15(id);if(why){toast('🚫 '+why);return;}const old=shHex15();return UI.modal(`<h2>🏰 Stronghold here?</h2><p>${hexName(id)} near the alliance HQ.${old&&!homeOp15()?' Your current Stronghold spot becomes your 🏡 Home Outpost, so driving and pipelines keep working there.':''} Moving again is possible after 7 days.</p><div class="btns24"><button class="red24" onclick="G.pick15=null;moveSh15('${id}')">✅ Build here</button><button class="ghost24" onclick="UI.closeModal()">Pick another</button></div>`);}
+    if(k==='sh'){const why=startOk15(id);if(why){toast('🚫 '+why);return;}const old=shHex15();return UI.modal(`<h2>🏰 Stronghold here?</h2><p>${hexName(id)} near the alliance HQ.${old&&!homeOp15()?' Your current Stronghold spot becomes your 🏡 Home Outpost, so driving and pipelines keep working there.':''} Moving again is possible after 7 days.</p><div class="btns24"><button class="red24" type="button" onclick="confirmShPick26('${id}')">✅ Build here</button><button class="ghost24" type="button" onclick="UI.closeModal()">Pick another</button><button class="ghost24" type="button" onclick="cancelShPick26()">Cancel</button></div>`);}
     if(k==='fwd'){const why=fwdOk15(id);if(why){toast('🚫 '+why);return;}const c=outpostCost(),cost=Object.entries(c).map(([kk,v])=>`${v} ${RES[kk]}`).join(' ');
       return UI.modal(`<h2>🚩 Forward Outpost here?</h2><p>${hexName(id)}. It guards the hexes around it like any outpost. 🌀 Portal troops in to defend it and march from it. You can't claim by walking here unless you're really there.</p><p class="tiny">Cost ${cost} · ${ops15('fwd').length}/${B15.fwdMax} used</p><div class="btns24"><button class="red24" onclick="G.pick15=null;placeSpecial15('${id}','fwd')">✅ Build</button><button class="ghost24" onclick="UI.closeModal()">Pick another</button></div>`);}
     return _it15.apply(this,arguments);};

@@ -34,7 +34,7 @@ const meMarker=L.marker([0,0],{icon:L.divIcon({className:'',html:'<div class="me
 const reachCircle=L.circle([0,0],{radius:120,color:'#4ad7ff',weight:1,opacity:.4,fillOpacity:.04,interactive:false});
 
 map.on('moveend',()=>drawWorld());
-map.on('click',e=>{if(G.dev.walk&&!G.dev.tp){G.walkTo=[e.latlng.lat,e.latlng.lng];toast('🚶 Walking there');return;} /* v19 dev: tap = walk there */ if(G.dev.tp){G.jump=true;setPos(e.latlng.lat,e.latlng.lng);}else if(P.world)UI.infoTile(hexAt(e.latlng.lat,e.latlng.lng).id);});
+map.on('click',e=>{if(typeof shPickConsumes26==='function'&&shPickConsumes26(e))return;if(G.dev.walk&&!G.dev.tp){G.walkTo=[e.latlng.lat,e.latlng.lng];toast('🚶 Walking there');return;} /* v19 dev: tap = walk there */ if(G.dev.tp){G.jump=true;setPos(e.latlng.lat,e.latlng.lng);}else if(P.world)UI.infoTile(hexAt(e.latlng.lat,e.latlng.lng).id);});
 
 function dayNight(){const h=new Date().getHours()+new Date().getMinutes()/60;let a=0,c='10,20,60';
   if(h<5.5||h>=21)a=.16;else if(h<7)a=.16*(7-h)/1.5;else if(h>=19)a=.16*(h-19)/2;if(h>=17&&h<20){c='120,60,20';a=Math.max(a,.07);}
@@ -76,8 +76,13 @@ function gpsFix(p){const c=p.coords,acc=Math.round(c.accuracy||9999),now=Date.no
 function gpsErr(e){G.gps.errs++;if(e&&e.code===1){G.gps.state='denied';gpsChip();if(!G.gps.toldDenied){G.gps.toldDenied=1;toast('📡 Location is blocked. Allow location for this site in your browser settings, then reload.');}}
   else{G.gps.state=G.pos?'weak':'waiting';gpsChip();if(G.gps.errs>=3)gpsRestart();}
   gpsFallback();}
-function gpsFallback(){if(G.pos)return;G.gps.fallback=true;if(P.lastPos){G.jump=true;G.gpsWeak=true;setPos(...P.lastPos);return;}
-  if(GPS.devHost){G.jump=true;setPos(47.8135,-116.8968);toast('📡 No GPS yet: dev spot at Rathdrum');}}
+function gpsFallback(){if(G.pos)return;G.gps.fallback=true;
+  // A fresh test player is still choosing a Stronghold. The preview spot must not claim a hex or write a new tile.
+  const quiet=typeof shPickHost26==='function'&&shPickHost26();
+  if(quiet)G._noClaim25=true;
+  try{if(P.lastPos){G.jump=true;G.gpsWeak=true;setPos(...P.lastPos);return;}
+    if(GPS.devHost){G.jump=true;setPos(47.8135,-116.8968);toast('📡 No GPS yet: dev spot at Rathdrum');}}
+  finally{if(quiet)G._noClaim25=false;}}
 function gpsRestart(){try{if(G.gps.watch!=null)navigator.geolocation.clearWatch(G.gps.watch);}catch(e){}G.gps.errs=0;
   G.gps.watch=navigator.geolocation.watchPosition(gpsFix,gpsErr,{enableHighAccuracy:true,maximumAge:3000,timeout:20000});
   try{navigator.geolocation.getCurrentPosition(p=>{G.gps.forceNext=true;gpsFix(p);},()=>{},{enableHighAccuracy:true,maximumAge:10000,timeout:15000});}catch(e){}}
