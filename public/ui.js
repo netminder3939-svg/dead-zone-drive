@@ -136,7 +136,7 @@ setInterval(()=>{UI.raidBanner();UI.refreshRaid();const S=P.stronghold;if(S&&S.u
 
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));if(b.dataset.tab==='map'||UI.tab===b.dataset.tab){UI.close();document.querySelector('[data-tab=map]').classList.add('on');}else UI.open(b.dataset.tab);});
 $('#sheetX').onclick=()=>UI.close();$('#sheetX').addEventListener('pointerup',e=>{e.preventDefault();e.stopPropagation();UI.close();});$('#btnCenter').onclick=()=>G.pos&&map.setView(G.pos,16);$('#btnClaim').onclick=()=>UI.build();
-$('#btnDev').onclick=()=>{$('#devbar').classList.toggle('hidden');G.dev.any=true;};
+if($('#btnDev'))$('#btnDev').onclick=()=>{$('#devbar').classList.toggle('hidden');}; // R0: dev tools exist only on TEST (dev0.js); opening them no longer switches off attack range
 document.querySelectorAll('#devbar button').forEach(b=>b.onclick=()=>{const k=b.dataset.dev;
   if(k==='walk'||k==='drive'||k==='tp'){G.dev[k]=!G.dev[k];b.classList.toggle('on',G.dev[k]);toast(k==='tp'?'Tap the map to teleport':(k==='walk'?'Walk ':'Drive ')+(G.dev[k]?'on':'off'));}
   if(k==='daily'){W().lastReset=pacificDate(Date.now()-864e5);runResets().then(()=>UI.render());}

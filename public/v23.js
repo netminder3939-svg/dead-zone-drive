@@ -2,7 +2,6 @@
 // bigger plan marks, profile card + avatar + march flag, recall/station march lines + cards, reinforced-hex markers,
 // tower/outpost explainers, pipeline route labels. Fight math untouched.
 (function(){const q=s=>document.querySelector(s),esc=s=>typeof m2esc==='function'?m2esc(s):String(s);
-const PREVIEW=location.hostname.includes('--')||location.search.includes('local');
 try{delete P.fightView;}catch(e){}
 // ---------- 1 raid bar: X to hide; Alliance tab keeps a red dot while any raid is live
 G._rdism=G._rdism||{};
@@ -15,16 +14,7 @@ const _rb=UI.raidBanner;UI.raidBanner=function(){_rb.apply(this,arguments);try{c
 // ---------- 2 Layers: close X + tap outside
 const _ly=UI.layers;UI.layers=function(keep){_ly.apply(this,arguments);try{const el=q('#laypop');if(!el)return;if(!el.querySelector('.lyx')){const x=document.createElement('button');x.className='lyx';x.textContent='✕';x.onclick=e=>{e.stopPropagation();el.remove();};el.prepend(x);}}catch(e){}};
 document.addEventListener('pointerdown',e=>{const el=q('#laypop');if(!el)return;if(el.contains(e.target)||e.target.closest('#btnLayers,#plLayers'))return;el.remove();},true);
-// ---------- 3 TEST ONLY: drive simulator (D-pad + tap map = drive there). Never on live.
-if(PREVIEW){let pad=null,dir=null,dest=null;const SPD=0.00030; // ~33 m per tick (~120 km/h feel at 1 tick/s)
-  const show=()=>{const on=!!(G.drive&&G.drive.on);if(!on){pad&&pad.remove();pad=null;dir=null;dest=null;return;}
-    if(pad)return;pad=document.createElement('div');pad.id='dsim23';pad.innerHTML=`<small>🧪 TEST drive sim</small><div class="g">${[['↖',-1,-1],['↑',1,0],['↗',1,1],['←',0,-1],['■',0,0],['→',0,1],['↙',-1,-1.001],['↓',-1,0],['↘',-1,1]].map(([t,a,b])=>`<button data-a="${a}" data-b="${b}">${t}</button>`).join('')}</div><small>or tap the map to drive there</small>`;
-    document.body.appendChild(pad);pad.querySelectorAll('button').forEach(b=>b.onclick=e=>{e.stopPropagation();const a=+b.dataset.a,c=Math.round(+b.dataset.b);dest=null;dir=(a||c)?[a,c]:null;toast(dir?'🚗 Driving '+b.textContent:'🚗 Stopped');});};
-  setInterval(()=>{try{show();if(!pad||!G.pos)return;let dl=0,dg=0;
-    if(dest){const dy=dest[0]-G.pos[0],dx=(dest[1]-G.pos[1])*Math.cos(G.pos[0]*Math.PI/180),d=Math.hypot(dy,dx);if(d<SPD){G.dev.hold=true;setPos(dest[0],dest[1]);dest=null;try{pipeDriveCheck();}catch(e){}return;}dl=SPD*dy/d;dg=SPD*dx/d/Math.cos(G.pos[0]*Math.PI/180);}
-    else if(dir){const n=Math.hypot(dir[0],dir[1]);dl=SPD*dir[0]/n;dg=SPD*dir[1]/n/Math.cos(G.pos[0]*Math.PI/180);}else return;
-    G.dev.hold=true;setPos(G.pos[0]+dl,G.pos[1]+dg);map.panTo(G.pos,{animate:true});try{pipeDriveCheck();}catch(e){}}catch(e){}},1000);
-  setTimeout(()=>{try{map.on('click',e=>{if(G.drive&&G.drive.on&&pad){dest=[e.latlng.lat,e.latlng.lng];dir=null;toast('🚗 Driving there');}});}catch(e){}},0);}
+// ---------- 3 (removed R0) the TEST drive simulator pad: real GPS drives work, so it only cluttered drive mode
 // ---------- 4 plan marks: bigger, scale with zoom, sit above resource icons
 const mz=()=>{try{const z=map.getZoom();document.documentElement.style.setProperty('--mz',z>=17?1.7:z>=16?1.45:z>=15?1.2:1);}catch(e){}};
 setTimeout(()=>{try{mz();map.on('zoomend',mz);}catch(e){}},0);
