@@ -34,7 +34,7 @@ function fixAt(lat, lng, acc) {
   }));
   ok('a saved far25 flag does not leave a stuck banner', !boot.far && !boot.banner, boot);
   ok('retiring that flag adds no walked distance', boot.meters === 50, boot);
-  ok('visible build label is 12i-integrated-6-r2', boot.build === '12i-integrated-6-r2', boot);
+  ok('visible build label is 12i-integrated-6-r3', boot.build === '12i-integrated-6-r3', boot);
 
   const still = await p.evaluate(() => {
     const lat = 47.8135, lng = -116.8968;

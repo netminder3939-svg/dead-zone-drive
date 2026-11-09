@@ -1,0 +1,263 @@
+diff --git a/public/bal14.js b/public/bal14.js
+index 748c944..f346b6b 100644
+--- a/public/bal14.js
++++ b/public/bal14.js
+@@ -39,5 +39,5 @@
+   bankOf=function(f){try{const s=scale14();HE.capBase=BASE14.cap*s;HE.convPerH=BASE14.conv*s;HE.resPerH=BASE14.res*s;}catch(e){}return _bank14.apply(this,arguments);};
+   window.bankOf=bankOf;
+   // Visible label for this combined build. The service worker cache is ddd-v26-12h-integrated, not Claude's ddd-v26-12h.
+-  try{document.documentElement.dataset.build='12i-integrated-6-r2';const who=document.querySelector('#hud .who');if(who&&!document.getElementById('build14')){const el=document.createElement('span');el.id='build14';el.textContent='12i-integrated-6-r2';el.title='Build 12i-integrated-6';el.style.cssText='display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#2a241c;color:#e7d7c1;font:600 10px system-ui;letter-spacing:.02em;vertical-align:middle';who.appendChild(el);}}catch(e){}
++  try{document.documentElement.dataset.build='12i-integrated-6-r3';const who=document.querySelector('#hud .who');if(who&&!document.getElementById('build14')){const el=document.createElement('span');el.id='build14';el.textContent='12i-integrated-6-r3';el.title='Build 12i-integrated-6';el.style.cssText='display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#2a241c;color:#e7d7c1;font:600 10px system-ui;letter-spacing:.02em;vertical-align:middle';who.appendChild(el);}}catch(e){}
+ })();
+diff --git a/public/combat2.js b/public/combat2.js
+index 87629cc..a7e77fe 100644
+--- a/public/combat2.js
++++ b/public/combat2.js
+@@ -99,12 +99,12 @@
+   window.scale2=scale2;
+   function enemySquad2(u,i,all){const k=kindOf2(u,all),nm=String(u.name||'Enemy').replace(/ \(power \d+\)/,'');
+     const m=/\(power (\d+)\)/.exec(u.name||'');
+-    if(k==='band'&&m)return{key:'e'+i,name:nm,type:'raider',n:Math.max(1,Math.round(+m[1]/TROOP.powerPer*K2.band)),plain:true,kind:k};
++    if(k==='band'&&m)return{key:'e'+i,name:nm,type:'raider',n:Math.max(1,Math.round(+m[1]/(typeof basePower3==='function'?basePower3():TROOP.powerPer)*K2.band)),plain:true,kind:k};
+     const S=scale2(),K=Math.sqrt(K2[k]||1);return{key:'e'+i,name:nm,type:'raider',n:1,kind:k,custom:{atk:Math.max(1,num(u.atk))*S.atk*K,hp:Math.max(1,num(u.max)||num(u.hp))*S.hp*K}};} // K scales ATK x HP, so each gets its square root
+   function army2Fight(A0,B0){
+     const tr=A0.filter(u=>u.troop>0),he=A0.filter(u=>!(u.troop>0));
+     const myType=typeof myType26==='function'?myType26():'raider',gear={...(typeof myGear26==='function'?myGear26():{}),tp:typeof myTp26==='function'?myTp26():1};
+-    const att={name:P.name,squads:tr.map((u,i)=>({key:'t'+i,uid:P.uid,name:'Your troops',type:myType,n:Math.round(u.troop),gear})),heroes:he.map(u=>{const S=scale2(),hk=Math.sqrt(K2[kindOf2(B0[0]||{},B0)]||1);return{name:u.name,atk:num(u.atk)*S.atk*hk,hp:(num(u.max)||num(u.hp))*S.hp*hk,me:!!u.me,src:u};})}; // heroes keep the same footing vs each enemy kind as in the old engine
++    const att={name:P.name,squads:tr.map((u,i)=>({key:'t'+i,uid:P.uid,name:'Your troops',type:myType,n:Math.round(u.troop),gear:u.c3&&typeof avg3==='function'?{...gear,tp:avg3(u.c3)}:gear,c3:u.c3})),heroes:he.map(u=>{const S=scale2(),hk=Math.sqrt(K2[kindOf2(B0[0]||{},B0)]||1);return{name:u.name,atk:num(u.atk)*S.atk*hk,hp:(num(u.max)||num(u.hp))*S.hp*hk,me:!!u.me,src:u};})}; // heroes keep the same footing vs each enemy kind as in the old engine
+     const def={name:(B0[0]&&B0[0].name)||'Enemy',squads:B0.map((u,i)=>enemySquad2(u,i,B0)),perksOn:false};
+     const r=battle2(att,def);
+     const f=fFrom2(r,'att',he,B0);f.army2.att=att;f.army2.def=def;return f;}
+diff --git a/public/index.html b/public/index.html
+index feb2271..8a40bc6 100644
+--- a/public/index.html
++++ b/public/index.html
+@@ -88,6 +88,8 @@
+ <script src="terr15.js"></script>
+ <script src="combat2b.js"></script>
+ <script src="xp2.js"></script>
++<script src="tiers3.js"></script>
++<script src="tiers3ui.js"></script>
+ <script src="card1.js"></script>
+ <script src="reports1.js"></script>
+ </body></html>
+diff --git a/public/sw.js b/public/sw.js
+index 8db8e1e..cc781ef 100644
+--- a/public/sw.js
++++ b/public/sw.js
+@@ -1,6 +1,6 @@
+ // Dead Zone Drive service worker: network-first for the app (so updates show right away),
+ // falling back to cache when offline. Map tiles and Firebase are never cached here.
+-const C='ddd-v26-12i-integrated-6-r2';
++const C='ddd-v26-12i-integrated-6-r3';
+ self.addEventListener('install',e=>self.skipWaiting());
+ self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+ self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==location.origin)return;
+diff --git a/public/tiers3.js b/public/tiers3.js
+new file mode 100644
+index 0000000..7e3dc9b
+--- /dev/null
++++ b/public/tiers3.js
+@@ -0,0 +1,105 @@
++// tiers3 (R3) Every troop has a tier. Your army is counted per tier (for example 3,000 T1 + 800 T2) in every place troops
++//  live: home, wounded, each outpost/guard post, each march, the portal, returning troops, training and healing.
++//  How: the older code keeps its plain troop counts (they stay the truth for how many troops you have). This file keeps a
++//  tier breakdown next to each count and follows the troops when a count moves: what leaves one place is held for a
++//  moment and handed to the place that grows, so a march carries the exact troops that left home, and troops that died
++//  are simply gone. Marches, guards and the portal send your strongest tiers first. New troops come from training at the
++//  tier you picked. Totals are never changed here, only the breakdown, so a mistake can never lose troops.
++//  Fights use each place's own average tier power. Horde troop counts no longer shrink when your tier goes up.
++(function(){
++  const T3={expireMs:15*60e3,bagMax:40};
++  window.T3=T3;
++  const maxTier3=()=>{try{return Math.min(5,Math.max(1,troopTier()));}catch(e){return 1;}};
++  window.maxTier3=maxTier3;
++  const tpOf=t=>(TR2.tierPower[(+t||1)-1]||1);
++  const sum=c=>{let s=0;for(const k in c||{})s+=c[k]||0;return s;};
++  const clean=c=>{for(const k of Object.keys(c))if(!(c[k]>0))delete c[k];return c;};
++  const addC=(a,b)=>{for(const k in b||{})a[k]=(a[k]||0)+b[k];return clean(a);};
++  // take n out of comp c (changes c, returns what was taken)
++  function takeStrong(c,n){const out={};for(const t of Object.keys(c).map(Number).sort((x,y)=>y-x)){if(n<=0)break;const k=Math.min(c[t],n);if(k>0){out[t]=k;c[t]-=k;n-=k;}}clean(c);return out;}
++  function takeProp(c,n){const s=sum(c);if(s<=0||n<=0)return{};if(n>=s){const all={...c};for(const k in c)delete c[k];return all;}
++    const ks=Object.keys(c),raw=ks.map(k=>c[k]*n/s),fl=raw.map(Math.floor);let left=n-fl.reduce((a,b)=>a+b,0);
++    const ord=raw.map((v,i)=>[v-fl[i],i]).sort((a,b)=>b[0]-a[0]);for(const [,i] of ord){if(left<=0)break;if(fl[i]<c[ks[i]]){fl[i]++;left--;}}
++    const out={};ks.forEach((k,i)=>{if(fl[i]>0){out[k]=fl[i];c[k]-=fl[i];}});clean(c);return out;}
++  window.takeStrong3=takeStrong;window.takeProp3=takeProp;
++  function C(){const t=TP();t.c3=t.c3||{};const c=t.c3;c.a=c.a||{};c.s=c.s||{};c.p=c.p||{};c.bag=c.bag||[];return c;}
++  // every place troops can be, with how many there are now
++  function places(){const t=TP(),c=C(),out=[];
++    out.push({key:'home',tot:t.home||0,get:()=>c.home,set:v=>{c.home=v;},src:true});
++    out.push({key:'w',tot:(typeof T2==='function'?T2().wounded:t.wounded)||0,get:()=>c.w,set:v=>{c.w=v;}});
++    for(const id of Object.keys(t.away||{}))out.push({key:'a:'+id,tot:t.away[id]||0,get:()=>c.a[id],set:v=>{c.a[id]=v;}});
++    for(const h of Object.keys(t.stationed||{})){const o=t.stationed[h];out.push({key:'s:'+h,tot:(o&&o.n)||0,get:()=>c.s[h],set:v=>{c.s[h]=v;},src:true});}
++    for(const p of (t.portal15||[]))if(p&&p.id)out.push({key:'p:'+p.id,tot:p.n||0,get:()=>c.p[p.id],set:v=>{c.p[p.id]=v;}});
++    (t.returning||[]).forEach(o=>{if(o)out.push({key:o,tot:o.n||0,get:()=>o.c3,set:v=>{o.c3=v;}});});
++    (t.healing||[]).forEach(o=>{if(o)out.push({key:o,tot:o.n||0,get:()=>o.c3,set:v=>{o.c3=v;}});});
++    (t.queue||[]).forEach(o=>{if(o)out.push({key:o,tot:o.n||0,get:()=>o.c3,set:v=>{o.c3=v;},train:true,q:o});});
++    return out;}
++  let seen=new Map(),lastT=null;
++  G._t3send=0;
++  function drop(key){const c=C();if(typeof key==='string'){if(key.startsWith('a:'))delete c.a[key.slice(2)];else if(key.startsWith('s:'))delete c.s[key.slice(2)];else if(key.startsWith('p:'))delete c.p[key.slice(2)];}}
++  function reconcile3(){try{if(!P||!P.troops)return;const t=TP(),c=C(),now=Date.now();
++      if(lastT!==t){seen=new Map();lastT=t;} // a save adopted from another device: start following from here
++      const L=places(),here=new Set(L.map(x=>x.key));
++      // 1) places that are gone: their troops are in transit (or died)
++      for(const [k,v] of seen){if(!here.has(k)){if(v&&sum(v)>0)c.bag.push({c:{...v},t:now});drop(k);seen.delete(k);}}
++      // 2) places that shrank
++      for(const x of L){const cur=x.get();if(!cur)continue;const s=sum(cur);if(s>x.tot){const out=(G._t3send>0&&x.src)?takeStrong(cur,s-x.tot):takeProp(cur,s-x.tot);if(sum(out)>0)c.bag.push({c:out,t:now});x.set(clean(cur));}}
++      // 3) new training: new troops at the tier picked when training started
++      for(const x of L){if(!x.train||x.get())continue;const tr=+x.q.tier3||maxTier3();x.set({[tr]:x.tot});}
++      // 4) places that grew take the newest troops in transit; anything unexplained is new at your top tier
++      for(const x of L){const cur=x.get()||{};let need=x.tot-sum(cur);if(need<=0){if(!x.get())x.set(cur);continue;}
++        for(let i=c.bag.length-1;i>=0&&need>0;i--){const b=c.bag[i];const bs=sum(b.c);if(bs<=0)continue;const got=bs<=need?(()=>{const a={...b.c};b.c={};return a;})():takeProp(b.c,need);addC(cur,got);need-=sum(got);}
++        if(need>0)addC(cur,{[maxTier3()]:need});x.set(clean(cur));}
++      c.bag=c.bag.filter(b=>sum(b.c)>0&&now-b.t<T3.expireMs).slice(-T3.bagMax);
++      seen=new Map(L.map(x=>[x.key,{...(x.get()||{})}]));}
++    catch(e){console.warn('tiers3',e);}}
++  window.reconcile3=reconcile3;
++  // runs on a short timer, after every send and before any fight reads a place's tiers (save() is a constant in game.js,
++  // so it can't be wrapped; what moved between two passes is matched up on the next one)
++  setInterval(reconcile3,2000);setTimeout(reconcile3,1500);
++  try{const _tt0=troopTick;troopTick=function(){reconcile3();const r=_tt0.apply(this,arguments);reconcile3();return r;};window.troopTick=troopTick;}catch(e){}
++  // ---------- strongest first when troops are sent somewhere
++  const sending=fn=>function(){G._t3send++;let r;try{r=fn.apply(this,arguments);}catch(e){G._t3send--;throw e;}
++    if(r&&typeof r.then==='function')return r.finally(()=>{reconcile3();G._t3send--;});reconcile3();G._t3send--;return r;};
++  try{sendMarch=sending(sendMarch);window.sendMarch=sendMarch;}catch(e){}
++  try{stationTroops=sending(stationTroops);window.stationTroops=stationTroops;}catch(e){}
++  try{if(window.portal15)window.portal15=sending(window.portal15);}catch(e){}
++  try{if(typeof guardLine==='function'){guardLine=sending(guardLine);window.guardLine=guardLine;}}catch(e){}
++  // ---------- tier power of a place (fights use it)
++  function avg3(c){const s=sum(c);if(s<=0)return tpOf(maxTier3());let w=0;for(const k in c)w+=c[k]*tpOf(k);return w/s;}
++  function compOf3(key){reconcile3();const c=C();let v={};if(key==='home')v=c.home;else if(key==='w')v=c.w;
++    else if(key.startsWith('a:'))v=c.a[key.slice(2)];else if(key.startsWith('s:'))v=c.s[key.slice(2)];else if(key.startsWith('p:'))v=c.p[key.slice(2)];return{...(v||{})};} // a copy: callers can't change the record
++  function allComp3(){reconcile3();const t=TP(),c=C(),all={};addC(all,c.home);addC(all,c.w);for(const k in c.a)addC(all,c.a[k]);for(const k in c.s)addC(all,c.s[k]);for(const k in c.p)addC(all,c.p[k]);
++    (t.returning||[]).forEach(o=>addC(all,o.c3));(t.healing||[]).forEach(o=>addC(all,o.c3));return all;}
++  window.compOf3=compOf3;window.allComp3=allComp3;window.avg3=avg3;
++  window.tp3Of=key=>avg3(compOf3(key));
++  // your troops' average tier power across the whole army (what allies see; old code that has no place uses it)
++  myTp26=function(){try{const a=allComp3();return sum(a)>0?avg3(a):tpOf(maxTier3());}catch(e){return 1;}};window.myTp26=myTp26;
++  window.tp3Gear=function(gear,key){try{if(key==='home')return{...gear,tp:tp3Of('home')};if(String(key).startsWith('me:'))return{...gear,tp:tp3Of('s:'+String(key).slice(3))};}catch(e){}return gear;};
++  // troop power: base power x average tier (was x the Barracks tier for every troop)
++  try{Object.defineProperty(TROOP,'powerPer',{configurable:true,get(){return _tr2_basePower*myTp26();}});}catch(e){console.warn('tiers3 powerPer',e);}
++  window.basePower3=()=>_tr2_basePower;
++  // troops sent on a march: the exact tiers (march) or the ones that would go (preview, strongest first)
++  const _tu=troopUnit;troopUnit=function(n){const u=_tu.apply(this,arguments);try{let comp=null;
++      if(G._marchId&&C().a[G._marchId])comp={...C().a[G._marchId]};
++      else{const from=typeof marchFrom==='function'?marchFrom():null,sh=typeof shHex15==='function'?shHex15():null;const src=(!from||from===sh)?compOf3('home'):compOf3('s:'+from);comp=takeStrong({...src},n);if(sum(comp)<n)addC(comp,{[maxTier3()]:n-sum(comp)});}
++      u.c3=comp;const ts=Object.keys(comp).map(Number).sort((a,b)=>b-a);u.name=`🪖 ${n.toLocaleString()} troops (${ts.map(t=>`${(comp[t]||0).toLocaleString()} T${t}`).join(' + ')})`;}catch(e){}return u;};
++  window.troopUnit=troopUnit;
++  window.mixText3=c=>Object.keys(c||{}).map(Number).sort((a,b)=>b-a).map(t=>`${Math.round(c[t]).toLocaleString()} T${t}`).join(' + ')||'none';
++  // army size for Horde scaling (bal14) is troops x myTp26(), which is now the real average, so it equals troops x their own tier
++  // ---------- training at a chosen tier
++  G._t3train=null;
++  const trainTier3=()=>Math.min(maxTier3(),Math.max(1,+G._t3train||maxTier3()));window.trainTier3=trainTier3;
++  trainCost=function(n,tier){const m=Math.pow(TR2.tierCostMult,(tier||trainTier3())-1),o={};for(const [k,v] of Object.entries(TR2.costPer100))o[k]=Math.ceil(n/100*v*m);return o;};window.trainCost=trainCost;
++  const _tt=trainTroops;trainTroops=function(n){const t=TP(),q0=t.queue.length,tier=trainTier3();const r=_tt.apply(this,arguments);
++    try{if(t.queue.length>q0){const q=t.queue[t.queue.length-1];q.tier3=tier;q.c3={[tier]:q.n};save();}}catch(e){}return r;};window.trainTroops=trainTroops;
++  // ---------- upgrade troops one tier (pay the difference in training cost, takes training time)
++  function upCost3(n,from){const a=trainCost(n,from+1),b=trainCost(n,from),o={};for(const k in a)o[k]=Math.max(0,(a[k]||0)-(b[k]||0));return o;}
++  window.upCost3=upCost3;
++  window.upgradeTroops3=function(from,n){from=+from;n=Math.floor(+n);const to=from+1;if(to>maxTier3())return toast(`🔒 T${to} needs Barracks Lv${2*to-1}`);
++    const home=compOf3('home');n=Math.min(n,home[from]||0);if(n<=0)return toast(`No T${from} troops at home`);
++    const cost=upCost3(n,from);if(!canPay(cost))return toast('Not enough supplies to upgrade');pay(cost);
++    const t=TP(),c=C();t.home-=n;c.home[from]-=n;clean(c.home);seen.set('home',{...c.home});
++    const start=Math.max(Date.now(),...t.queue.map(q=>q.end));const q={n,end:start+trainMs(n),tier3:to,up3:from,c3:{[to]:n}};t.queue.push(q);seen.set(q,{...q.c3});
++    save();toast(`⬆️ Upgrading ${n.toLocaleString()} T${from} → T${to}`);try{UI.render();}catch(e){}};
++})();
+diff --git a/public/tiers3ui.js b/public/tiers3ui.js
+new file mode 100644
+index 0000000..e2b4035
+--- /dev/null
++++ b/public/tiers3ui.js
+@@ -0,0 +1,67 @@
++// tiers3ui (R3) Troop tiers on screen: Barracks › your army by tier, train at a tier, upgrade troops, a T1–T5 stats table,
++//  and "Next level unlocks" on the Barracks, the Stronghold and towers. March sizes show which tiers go.
++(function(){
++  const q=s=>document.querySelector(s);
++  const n0=v=>Math.round(+v||0).toLocaleString();
++  const tp=t=>TR2.tierPower[t-1]||1;
++  const RES3=o=>typeof tcost==='function'?tcost(o):Object.entries(o).map(([k,v])=>v+(RES[k]||k)).join(' ');
++  const unlockLvl=t=>2*t-1; // Barracks level that unlocks tier t (tier = level / 2, rounded up)
++  function perTroop3(t){const type=(typeof myType26==='function'?myType26():'raider'),T=C26.types[type]||C26.types.raider,c=C26.cls[type]||{};
++    return{atk:T.atk*tp(t)*(1+(c.atk||0)),hp:T.hp*tp(t)*(1+(c.hp||0)),type};}
++  window.perTroop3=perTroop3;
++  function armyRows3(){reconcile3();const t=TP(),c=t.c3||{},rows=[];const S=o=>{let s=0;for(const k in o||{})s+=o[k];return s;};
++    const add=(label,comp)=>{if(S(comp)>0)rows.push([label,comp]);};
++    add('🏠 Home',c.home);const st={};for(const h in c.s||{})for(const k in c.s[h])st[k]=(st[k]||0)+c.s[h][k];add('🛡️ Guards and outposts',st);
++    const aw={};for(const id in c.a||{})for(const k in c.a[id])aw[k]=(aw[k]||0)+c.a[id][k];(t.returning||[]).forEach(o=>{for(const k in o.c3||{})aw[k]=(aw[k]||0)+o.c3[k];});for(const id in c.p||{})for(const k in c.p[id])aw[k]=(aw[k]||0)+c.p[id][k];add('🚩 Marching, returning, portal',aw);
++    const wd={...(c.w||{})};(t.healing||[]).forEach(o=>{for(const k in o.c3||{})wd[k]=(wd[k]||0)+o.c3[k];});add('🩹 Wounded and healing',wd);
++    return rows;}
++  HOOK.render(function(){try{if(this.tab!=='base'||this.sub.base!=='barracks')return;const b=q('#sheetBody');if(!b||b.querySelector('.t3'))return;const mx=maxTier3(),B=barracks(),home=compOf3('home');
++    // intro: troops keep their tier now
++    b.querySelectorAll('p.tiny').forEach(p=>{if(/every 2 Barracks levels|Train troops from scrap/.test(p.textContent))p.innerHTML=`Troops have tiers. Each tier hits harder and has more health. Barracks Lv3 unlocks <b>T2</b>, Lv5 <b>T3</b>, Lv7 <b>T4</b>, Lv9 <b>T5</b>. Troops keep the tier they were trained at; upgrade them below. Marches and guards send your strongest troops first (max <b>${n0(marchTroopCap())}</b> per march).`;});
++    const lv=b.querySelector('h2 .lv');if(lv)lv.textContent=`Lv${B.level} · up to T${mx}`;
++    // queue rows say what they are
++    const rows=b.querySelectorAll('.row.tq .grow');TP().queue.forEach((x,i)=>{const el=rows[i];if(!el)return;const first=el.firstChild;if(first&&first.nodeType===3)first.textContent=x.up3!=null?`⬆️ ${n0(x.n)} T${x.up3} → T${x.tier3}`:`⏳ ${n0(x.n)} T${x.tier3||mx} troops`;});
++    // train at a tier: a picker beside the Train button
++    const tb=q('#btnTrain');if(tb&&mx>1){const sel=`<select id="t3sel" aria-label="Train tier">${Array.from({length:mx},(_,i)=>i+1).reverse().map(t=>`<option value="${t}" ${t===trainTier3()?'selected':''}>T${t}</option>`).join('')}</select>`;
++      tb.insertAdjacentHTML('beforebegin',sel);q('#t3sel').onchange=e=>{G._t3train=+e.target.value;UI.render();};
++      const sm=tb.parentElement.querySelector('.grow small');if(sm&&!sm.dataset.t3){sm.dataset.t3=1;sm.insertAdjacentText('afterbegin',`T${trainTier3()} · `);}}
++    // next Barracks level
++    const up=q('#btnBarUp');if(up){const sm=up.parentElement.querySelector('.grow small');if(sm&&!sm.dataset.t3){sm.dataset.t3=1;const nl=B.level+1,nt=Math.ceil(nl/2);
++      sm.insertAdjacentHTML('beforeend',`<br>Next level unlocks: ${nt>mx?`<b>T${nt} troops</b> · `:''}march size +${n0(TR2.marchCapPerBarracks)} · training ${Math.round(100*(1+0.25*(nl-1))/(1+0.25*(nl-2))-100)}% faster`);}}
++    let h=`<div class="t3"><h2>🎖️ Your army by tier</h2>`;
++    const ar=armyRows3();h+=ar.map(([l,c])=>`<div class="row"><div class="grow"><b>${l}</b><small>${mixText3(c)}</small></div></div>`).join('')||'<p class="tiny">No troops yet.</p>';
++    // upgrades
++    const ups=[];for(let t=1;t<mx;t++){const have=home[t]||0;if(have>0)ups.push(t);}
++    if(ups.length){h+=`<h3>⬆️ Upgrade troops at home</h3>`;
++      h+=ups.map(t=>{const have=home[t],n=Math.min(have,1000),c=upCost3(n,t);return`<div class="row"><div class="grow"><b>T${t} → T${t+1}</b> · ${n0(have)} at home<small>Pay the difference in training cost · takes training time · they leave home while upgrading</small>
++        <div class="t3up"><input type="number" min="1" max="${have}" value="${n}" id="t3n${t}" inputmode="numeric"><span id="t3c${t}">${RES3(c)} · ${fmtDur(trainMs(n))}</span></div></div><button onclick="upgradeTroops3(${t},+document.getElementById('t3n${t}').value)">Upgrade</button></div>`;}).join('');}
++    else if(mx>1)h+=`<p class="tiny">Upgrade: all troops at home are already T${mx}, the best your Barracks allows.</p>`;
++    // stats table
++    const pt=[1,2,3,4,5].map(t=>({t,...perTroop3(t),cost:trainCost(100,t),open:t<=mx}));
++    h+=`<h3>📊 Troop tiers (${((CLASSES.list[pt[0].type]||{}).name)||pt[0].type} troops)</h3><div class="t3tbl"><table><thead><tr><th>Tier</th><th>ATK</th><th>HP</th><th>Train 100</th><th>Unlock</th></tr></thead><tbody>${pt.map(x=>`<tr class="${x.open?'':'lock'}"><td><b>T${x.t}</b> ×${tp(x.t)}</td><td>${x.atk.toFixed(2)}</td><td>${x.hp.toFixed(2)}</td><td>${RES3(x.cost)}</td><td>${x.open?'✓':'Barracks Lv'+unlockLvl(x.t)}</td></tr>`).join('')}</tbody></table></div>
++      <p class="tiny">Per troop. Same march speed, upkeep and training time for every tier. Your class bonus is included; gear and perks add on top in a fight.</p></div>`;
++    b.insertAdjacentHTML('beforeend',h);
++    for(const t of ups){const i=document.getElementById('t3n'+t);if(i)i.oninput=()=>{const n=Math.max(1,Math.min(+i.max,Math.floor(+i.value||0)));document.getElementById('t3c'+t).textContent=`${RES3(upCost3(n,t))} · ${fmtDur(trainMs(n))}`;};}
++  }catch(e){console.warn('tiers3ui',e);}});
++  // Stronghold: what the next level unlocks
++  HOOK.render(function(){try{if(this.tab!=='base'||this.sub.base!=='fort')return;const b=q('#sheetBody');if(!b||b.querySelector('.t3sh'))return;const h3=[...b.querySelectorAll('h3')].find(x=>/^Next: Lv/.test(x.textContent));if(!h3)return;
++    const S=P.stronghold||{level:1},L=S.level;const cap0=troopCap(),op0=outpostCap();S.level=L+1;let cap1=cap0,op1=op0;try{cap1=troopCap();op1=outpostCap();}finally{S.level=L;}
++    const bmax=Math.min(TROOP.barracks.maxLevel,L+2),bt=Math.ceil(bmax/2),now=Math.ceil(Math.min(TROOP.barracks.maxLevel,L+1)/2);
++    const li=[`troop cap ${n0(cap0)} → <b>${n0(cap1)}</b>`,`Barracks can reach Lv${bmax}${bt>now?` (unlocks <b>T${bt}</b>)`:''}`];if(op1>op0)li.push(`outposts ${op0} → <b>${op1}</b>`);li.push('+2 🛡️ Defense · +10 ❤️ Health');
++    const row=h3.nextElementSibling;(row||h3).insertAdjacentHTML('afterend',`<div class="t3sh"><b>Next level unlocks</b><ul>${li.map(x=>`<li>${x}</li>`).join('')}</ul></div>`);}catch(e){console.warn('tiers3ui sh',e);}});
++  // Towers: what the next level gives
++  try{const _it=UI.infoTile;UI.infoTile=function(id){const r=_it.apply(this,arguments);try{const t=W().towers&&W().towers[id];const mb=q('#modalBody');if(!t||!mb||mb.querySelector('.t3tw'))return r;
++      const L=t.level||t.lvl||1,cur={kind:'tower',lvl:L},nx={kind:'tower',lvl:L+1};const f=l=>Math.round(C26.bld.tower.fire*(1+C26.lvlFire*(l-1)));
++      const html=`<div class="t3tw t3sh"><b>Next level (Lv${L+1}) gives</b><ul><li>wall HP ${n0(innate26(cur))} → <b>${n0(innate26(nx))}</b></li><li>fire ${n0(f(L))} → <b>${n0(f(L+1))}</b> a round</li><li>walls block ${Math.round(100*Math.min(C26.maxWalls,C26.bld.tower.walls+C26.lvlWalls*(L-1)))}% → <b>${Math.round(100*Math.min(C26.maxWalls,C26.bld.tower.walls+C26.lvlWalls*L))}%</b></li></ul></div>`;
++      const a=mb.querySelector('.ibtns');a?a.insertAdjacentHTML('beforebegin',html):mb.insertAdjacentHTML('beforeend',html);}catch(e){}return r;};}catch(e){}
++  // March size picker: say which tiers go
++  setInterval(()=>{try{const mb=q('#modalBody');if(!mb||q('#modal').classList.contains('hidden'))return;const rng=mb.querySelector('input[type=range]');if(!rng)return;const n=Math.round(+rng.value||G.troopSend||0);
++      let el=mb.querySelector('.t3mix');if(!el){el=document.createElement('div');el.className='t3mix tiny';rng.insertAdjacentElement('afterend',el);}
++      if(el.dataset.n==String(n))return;el.dataset.n=String(n);const from=typeof marchFrom==='function'?marchFrom():null,sh=typeof shHex15==='function'?shHex15():null;const src=(!from||from===sh)?compOf3('home'):compOf3('s:'+from);
++      el.textContent=n>0?`Sends: ${mixText3(takeStrong3({...src},n))} (strongest first)`:'';}catch(e){}},400);
++  const st=document.createElement('style');
++  st.textContent=`.t3tbl{overflow-x:auto}.t3tbl table{width:100%;border-collapse:collapse;font-size:12px}.t3tbl th,.t3tbl td{padding:5px 4px;border-bottom:1px solid #2a2219;text-align:left;white-space:nowrap}.t3tbl tr.lock{opacity:.45}
++  .t3up{display:flex;gap:6px;align-items:center;margin-top:4px;flex-wrap:wrap}.t3up input{width:90px;padding:6px;border-radius:8px;border:1px solid #444;background:#151515;color:#eee}.t3up span{font-size:12px;opacity:.85}
++  #t3sel{margin-right:6px;padding:6px;border-radius:8px;background:#151515;color:#eee;border:1px solid #444}.t3sh{margin:6px 0 8px;font-size:13px}.t3sh ul{margin:4px 0 0 18px;padding:0}.t3mix{margin:2px 0 6px;opacity:.85}`;
++  document.head.appendChild(st);
++})();
+diff --git a/public/v26a.js b/public/v26a.js
+index c2e3f4b..bd9d997 100644
+--- a/public/v26a.js
++++ b/public/v26a.js
+@@ -74,8 +74,8 @@ window.fight26=fight26;
+ function bld26(defs){let k=null,lvl=1,pct=1;for(const d of defs){const rank={sh:3,tower:2,op:1}[d.kind]||0;if(!rank)continue;const o=structOf(d);if(!k||rank>({sh:3,tower:2,op:1}[k]||0)){k=d.kind;lvl=d.kind==='sh'?strongholdLevel():d.kind==='tower'?((o&&o.level)||1):1;}if(o&&o.hpPct!=null)pct=Math.min(pct,o.hpPct);}
+   if(!k&&defs.some(d=>d.pipe))k='pipe';return k?{kind:k,lvl,pct}:null;}
+ const _ds26=defSides25;defSides25=function(defs){const s=_ds26.apply(this,arguments);s.bld=bld26(defs||[]);G._ds26=s;return s;};
+-fight25=function(bPow,bPct,guards,aPow){const s=G._ds26||{};const players=(guards||[]).filter(g=>g.pow>0).map(g=>{const w=who26(g.uid);return{key:g.key,uid:g.uid,n:g.n||Math.round(g.pow/TROOP.powerPer),type:w.type,gear:w.gear,name:g.key==='home'?'Home garrison':w.name};});
+-  const bld=s.bld||(bPow>0?{kind:'tower',lvl:1,pct:bPct}:null);const r=fight26({bld,players},{n:Math.round((aPow||0)/TROOP.powerPer),type:C26.horde,name:G._gname26||'Horde'});
++fight25=function(bPow,bPct,guards,aPow){const s=G._ds26||{};const players=(guards||[]).filter(g=>g.pow>0).map(g=>{const w=who26(g.uid);return{key:g.key,uid:g.uid,n:g.n||Math.round(g.pow/TROOP.powerPer),type:w.type,gear:(isMe(g.uid)&&typeof tp3Gear==='function')?tp3Gear(w.gear,g.key):w.gear,name:g.key==='home'?'Home garrison':w.name};});
++  const bld=s.bld||(bPow>0?{kind:'tower',lvl:1,pct:bPct}:null);const r=fight26({bld,players},{n:Math.round((aPow||0)/(typeof basePower3==='function'?basePower3():TROOP.powerPer)),type:C26.horde,name:G._gname26||'Horde'} /* R3: Horde troops counted at base power, not your tier */);
+   G._r26=r;const fr=Object.fromEntries(r.players.map(p=>[p.key,p]));
+   return{win:r.win,end:r.win?'held':'broke',rounds:[],bFell:!r.win&&!!bld,bPct:bPct==null?1:bPct,aLeft:r.att.n?r.att.left/r.att.n:0,aPow,bPow,r26:r,
+     guards:(guards||[]).map(g=>{const p=fr[g.key];return{key:g.key,uid:g.uid,frac:p&&p.n?p.left/p.n:1,out:p&&p.left<=0?'dead':(!r.win&&p?'retreated':null),pow:g.pow};})};};
+@@ -120,7 +120,7 @@ function reconcile26(){if(!P.world||!P.world.fx)return;const gi=fxIndex(),cl=cut
+       const rec=TP().rec26=TP().rec26||{},held=String(f.tiles[h]||0);if(rec[h]===held)continue; // already fought for this exact capture
+       let sp=0;for(const s of f.squads||[])sp=Math.max(sp,squadPower(f,s,now)||0);if(!sp)sp=Math.round(2000*TROOP.powerPer);
+       const gname=(fdef(fid)||{}).name||'Horde',stn=stationed()[g.hex].n;
+-      const r=fight26({bld:{kind:'pipe',lvl:1},players:[{key:'me:'+g.hex,uid:P.uid,n:stn,type:myType26(),gear:{...myGear26(),tp:myTp26()},name:'Your pipeline guard'}]},{n:Math.round(sp/TROOP.powerPer),name:gname});
++      const r=fight26({bld:{kind:'pipe',lvl:1},players:[{key:'me:'+g.hex,uid:P.uid,n:stn,type:myType26(),gear:{...myGear26(),tp:typeof tp3Of==='function'?tp3Of('s:'+g.hex):myTp26()},name:'Your pipeline guard'}]},{n:Math.round(sp/TROOP.powerPer),name:gname});
+       const me=r.players[0];const row={t:now,hex:h,gang:gname,sp,win:r.win,r26:r,pipe:p.name,me:[{who:'Your pipeline guard',n:me.n,lost:me.lost}]};
+       rec[h]=held;if(r.win){delete f.tiles[h];fxDirty();stationed()[g.hex].n=me.left;if(cl[h])delete cl[h];row.title=`Pipeline guard drove ${gname} off ${p.name}`;}
+       else{cl[h]={t:now,fid,why:'fight'};sendHome25(g.hex,me.left,'retreated');row.title=`Pipeline line lost · ${p.name}`;}

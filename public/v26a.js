@@ -74,8 +74,8 @@ window.fight26=fight26;
 function bld26(defs){let k=null,lvl=1,pct=1;for(const d of defs){const rank={sh:3,tower:2,op:1}[d.kind]||0;if(!rank)continue;const o=structOf(d);if(!k||rank>({sh:3,tower:2,op:1}[k]||0)){k=d.kind;lvl=d.kind==='sh'?strongholdLevel():d.kind==='tower'?((o&&o.level)||1):1;}if(o&&o.hpPct!=null)pct=Math.min(pct,o.hpPct);}
   if(!k&&defs.some(d=>d.pipe))k='pipe';return k?{kind:k,lvl,pct}:null;}
 const _ds26=defSides25;defSides25=function(defs){const s=_ds26.apply(this,arguments);s.bld=bld26(defs||[]);G._ds26=s;return s;};
-fight25=function(bPow,bPct,guards,aPow){const s=G._ds26||{};const players=(guards||[]).filter(g=>g.pow>0).map(g=>{const w=who26(g.uid);return{key:g.key,uid:g.uid,n:g.n||Math.round(g.pow/TROOP.powerPer),type:w.type,gear:w.gear,name:g.key==='home'?'Home garrison':w.name};});
-  const bld=s.bld||(bPow>0?{kind:'tower',lvl:1,pct:bPct}:null);const r=fight26({bld,players},{n:Math.round((aPow||0)/TROOP.powerPer),type:C26.horde,name:G._gname26||'Horde'});
+fight25=function(bPow,bPct,guards,aPow){const s=G._ds26||{};const players=(guards||[]).filter(g=>g.pow>0).map(g=>{const w=who26(g.uid);return{key:g.key,uid:g.uid,n:g.n||Math.round(g.pow/TROOP.powerPer),type:w.type,gear:(isMe(g.uid)&&typeof tp3Gear==='function')?tp3Gear(w.gear,g.key):w.gear,name:g.key==='home'?'Home garrison':w.name};});
+  const bld=s.bld||(bPow>0?{kind:'tower',lvl:1,pct:bPct}:null);const r=fight26({bld,players},{n:Math.round((aPow||0)/(typeof basePower3==='function'?basePower3():TROOP.powerPer)),type:C26.horde,name:G._gname26||'Horde'} /* R3: Horde troops counted at base power, not your tier */);
   G._r26=r;const fr=Object.fromEntries(r.players.map(p=>[p.key,p]));
   return{win:r.win,end:r.win?'held':'broke',rounds:[],bFell:!r.win&&!!bld,bPct:bPct==null?1:bPct,aLeft:r.att.n?r.att.left/r.att.n:0,aPow,bPow,r26:r,
     guards:(guards||[]).map(g=>{const p=fr[g.key];return{key:g.key,uid:g.uid,frac:p&&p.n?p.left/p.n:1,out:p&&p.left<=0?'dead':(!r.win&&p?'retreated':null),pow:g.pow};})};};
@@ -120,7 +120,7 @@ function reconcile26(){if(!P.world||!P.world.fx)return;const gi=fxIndex(),cl=cut
       const rec=TP().rec26=TP().rec26||{},held=String(f.tiles[h]||0);if(rec[h]===held)continue; // already fought for this exact capture
       let sp=0;for(const s of f.squads||[])sp=Math.max(sp,squadPower(f,s,now)||0);if(!sp)sp=Math.round(2000*TROOP.powerPer);
       const gname=(fdef(fid)||{}).name||'Horde',stn=stationed()[g.hex].n;
-      const r=fight26({bld:{kind:'pipe',lvl:1},players:[{key:'me:'+g.hex,uid:P.uid,n:stn,type:myType26(),gear:{...myGear26(),tp:myTp26()},name:'Your pipeline guard'}]},{n:Math.round(sp/TROOP.powerPer),name:gname});
+      const r=fight26({bld:{kind:'pipe',lvl:1},players:[{key:'me:'+g.hex,uid:P.uid,n:stn,type:myType26(),gear:{...myGear26(),tp:typeof tp3Of==='function'?tp3Of('s:'+g.hex):myTp26()},name:'Your pipeline guard'}]},{n:Math.round(sp/TROOP.powerPer),name:gname});
       const me=r.players[0];const row={t:now,hex:h,gang:gname,sp,win:r.win,r26:r,pipe:p.name,me:[{who:'Your pipeline guard',n:me.n,lost:me.lost}]};
       rec[h]=held;if(r.win){delete f.tiles[h];fxDirty();stationed()[g.hex].n=me.left;if(cl[h])delete cl[h];row.title=`Pipeline guard drove ${gname} off ${p.name}`;}
       else{cl[h]={t:now,fid,why:'fight'};sendHome25(g.hex,me.left,'retreated');row.title=`Pipeline line lost · ${p.name}`;}

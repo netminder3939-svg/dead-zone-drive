@@ -99,12 +99,12 @@
   window.scale2=scale2;
   function enemySquad2(u,i,all){const k=kindOf2(u,all),nm=String(u.name||'Enemy').replace(/ \(power \d+\)/,'');
     const m=/\(power (\d+)\)/.exec(u.name||'');
-    if(k==='band'&&m)return{key:'e'+i,name:nm,type:'raider',n:Math.max(1,Math.round(+m[1]/TROOP.powerPer*K2.band)),plain:true,kind:k};
+    if(k==='band'&&m)return{key:'e'+i,name:nm,type:'raider',n:Math.max(1,Math.round(+m[1]/(typeof basePower3==='function'?basePower3():TROOP.powerPer)*K2.band)),plain:true,kind:k};
     const S=scale2(),K=Math.sqrt(K2[k]||1);return{key:'e'+i,name:nm,type:'raider',n:1,kind:k,custom:{atk:Math.max(1,num(u.atk))*S.atk*K,hp:Math.max(1,num(u.max)||num(u.hp))*S.hp*K}};} // K scales ATK x HP, so each gets its square root
   function army2Fight(A0,B0){
     const tr=A0.filter(u=>u.troop>0),he=A0.filter(u=>!(u.troop>0));
     const myType=typeof myType26==='function'?myType26():'raider',gear={...(typeof myGear26==='function'?myGear26():{}),tp:typeof myTp26==='function'?myTp26():1};
-    const att={name:P.name,squads:tr.map((u,i)=>({key:'t'+i,uid:P.uid,name:'Your troops',type:myType,n:Math.round(u.troop),gear})),heroes:he.map(u=>{const S=scale2(),hk=Math.sqrt(K2[kindOf2(B0[0]||{},B0)]||1);return{name:u.name,atk:num(u.atk)*S.atk*hk,hp:(num(u.max)||num(u.hp))*S.hp*hk,me:!!u.me,src:u};})}; // heroes keep the same footing vs each enemy kind as in the old engine
+    const att={name:P.name,squads:tr.map((u,i)=>({key:'t'+i,uid:P.uid,name:'Your troops',type:myType,n:Math.round(u.troop),gear:u.c3&&typeof avg3==='function'?{...gear,tp:avg3(u.c3)}:gear,c3:u.c3})),heroes:he.map(u=>{const S=scale2(),hk=Math.sqrt(K2[kindOf2(B0[0]||{},B0)]||1);return{name:u.name,atk:num(u.atk)*S.atk*hk,hp:(num(u.max)||num(u.hp))*S.hp*hk,me:!!u.me,src:u};})}; // heroes keep the same footing vs each enemy kind as in the old engine
     const def={name:(B0[0]&&B0[0].name)||'Enemy',squads:B0.map((u,i)=>enemySquad2(u,i,B0)),perksOn:false};
     const r=battle2(att,def);
     const f=fFrom2(r,'att',he,B0);f.army2.att=att;f.army2.def=def;return f;}
