@@ -586,3 +586,15 @@ body.night .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) grayscale(.55)
 
 .pipevan26.tap{box-shadow:0 0 0 2px #ffc94a88,0 2px 8px #000}
 .pipevan26.tap:active{transform:translate(-50%,-110%) scale(.96)}
+/* 12i QA: on phones the "Log out" text button pushed off-screen and squeezed the resource strip into one tall column
+   over the status chips. Phones get a compact icon; the full label stays on wider screens. */
+@media (max-width:600px){#a12out{font-size:0!important;min-width:34px;width:34px;height:34px;padding:0!important;display:flex;align-items:center;justify-content:center;flex:0 0 34px}
+  #a12out::after{content:'⏻';font-size:17px;line-height:1}}
+/* 12i QA: on phones the top bar can't fit name + resources + buttons in one row, so the resources were squeezed into a
+   31px-wide column that covered the status chips. Phones: resources get their own swipeable row under the name. */
+@media (max-width:600px){#hud{flex-wrap:wrap;row-gap:6px;align-items:center}
+  #res{order:5;flex:1 1 100%!important;max-width:100%;flex-wrap:wrap!important;justify-content:flex-start!important;row-gap:4px}
+  #res>*{flex:0 0 auto}}
+/* (#mode, #status and the base rail are placed under the real bottom of the top bar by terr15.js layout15) */
+/* 12i QA: long toasts were one line and ran off both sides of a phone screen. */
+#toast div{white-space:normal;max-width:min(560px,calc(100vw - 24px));text-align:center;line-height:1.3;box-sizing:border-box}
