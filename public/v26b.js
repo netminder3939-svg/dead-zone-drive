@@ -20,7 +20,7 @@ setInterval(()=>{try{const top=(P.fr25||[])[0];if(top&&!top._n26&&Date.now()-top
 const _rp26=UI.replay;UI.replay=function(o){_rp26.apply(this,arguments);try{const b=$('#modalBody');b.dataset.rtag='keep26';b.dataset.qtag='keep26';const rc=$('#rclose');rc&&rc.remove();}catch(e){}};
 const _inf26=UI.info;UI.info=function(o){_inf26.apply(this,arguments);try{clearInterval(UI._fc8);const c=$('#fcount');c&&c.remove();$('#modalBody').dataset.ftag='keep26';}catch(e){}};
 // ---------- march results -> Reports + tap-toast (no surprise popup) ----------
-showMarchReport=function(o){try{const row={t:Date.now(),sub:o.sub||'March done',rows:o.rows||[]};P.mr26=[row,...(P.mr26||[])].slice(0,30);save();notify26('march',row);}catch(e){console.warn('mr26',e);}};
+showMarchReport=function(o){try{const row={t:Date.now(),sub:o.sub||'March done',rows:o.rows||[]};P.mr26=[row,...(P.mr26||[])].slice(0,60);save();notify26('march',row);}catch(e){console.warn('mr26',e);}};
 // ---------- Reports home ----------
 function fightTitle26(r){if(r.title)return r.title;if(r.none)return`☠️ ${r.gang||'Horde'} took ${hexName(r.hex)}`;return`${r.win?'🛡️ Held':'💀 Lost'} · ${hexName(r.hex||'')}`;}
 function fightSub26(r){if(r.none)return'nobody guarding';const me=(r.me||[]).reduce((a,m)=>a+(m.lost||0),0);return`${r.gang||'Horde'}${r.r26?' · '+n26(r.r26.att.n)+' troops':''} · you lost ${n26(me)}${r.ally?' · you reinforced':''}`;}
@@ -76,7 +76,7 @@ const _td26=toggleDrive;toggleDrive=async function(){const wasOn=G.drive.on;cons
   try{if(G.drive.on){G.drive.s26={t0:Date.now(),km0:P.stats.meters,res0:{...P.res},tiles0:held0,src:{},own:new Set(),ownPaid:0,bugs:[]};}
     else if(s){const now=Date.now(),tot={},oth={};for(const k in RES){const d=(P.res[k]||0)-(s.res0[k]||0);let at=0;for(const src of Object.values(s.src))at+=src[k]||0;if(at>0)tot[k]=at;if(d-at>0)oth[k]=d-at;}
       const rec={t:now,t0:s.t0,km:((P.stats.meters-s.km0)/1000).toFixed(1),newHex:Math.max(G.drive.claimed||0,Object.keys(P.tiles).length-s.tiles0),own:s.own.size,ownPaid:s.ownPaid,src:s.src,total:tot,other:oth,bugs:s.bugs};
-      P.dr26=[rec,...(P.dr26||[])].slice(0,20);save();G.drive.s26=null;notify26('drive',rec);}}catch(e){console.warn('dr26',e);}return r;};
+      P.dr26=[rec,...(P.dr26||[])].slice(0,60);save();G.drive.s26=null;notify26('drive',rec);}}catch(e){console.warn('dr26',e);}return r;};
 // HUD: "Picked up" only counts real drive sources (badge rewards no longer show as drive loot)
 const _dh26=driveHud;driveHud=function(){_dh26.apply(this,arguments);try{const el=$('#drivehud'),s=G.drive&&G.drive.s26;if(!el||!s)return;const g=el.querySelector('.dgot');const tot={};for(const src of Object.values(s.src))for(const k in src)tot[k]=(tot[k]||0)+src[k];
   const h=Object.keys(tot).length?`<div class="dgot">Picked up: ${resTxt26(tot)}${s.bugs.length?` · 🐛 ${s.bugs.length}`:''}</div>`:'';if(g)g.outerHTML=h;else if(h){const st=el.querySelector('.dstats');st&&st.insertAdjacentHTML('afterend',h);}}catch(e){}};

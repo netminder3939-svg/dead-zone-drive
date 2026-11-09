@@ -67,7 +67,7 @@ function apply25(defs,s,r,gname,sp){const hx=G._f25hex||hexOfDefs(defs),now=Date
     const fx=FX();fx.gl25=(fx.gl25||[]).concat([note]).slice(-40);
     try{postGl25(note);}catch(e){}}
   if(r.win){for(const k in loot)loot[k]=Math.round(loot[k]);P.rep25=(P.rep25||0)+F25.repHold;}
-  P.fr25=[rep,...(P.fr25||[])].slice(0,20);
+  P.fr25=[rep,...(P.fr25||[])].slice(0,60);
   report(`🛡️ ${r.win?'Held':'Lost'} ${hexName(hx)} vs ${gname} (power ${sp}) in ${r.rounds.length} round${r.rounds.length>1?'s':''}${r.bFell?' · building fell':''}. Tap Reports › Fight reports.`,r.win);save();}
 // the horde step decides "held" with dp>=sp and "wrecked" with sp>=dp*destroyRatio. During a step, defPower returns a number
 // that makes both checks follow the fight25 result (win / lose / building fell). Same inputs -> same answer on every phone.
@@ -91,7 +91,7 @@ function applyGl25(){const t=TP();if(t.gl25Seen==null){t.gl25Seen=0;}const notes
   for(const e of notes){t.gl25Seen=Math.max(t.gl25Seen,e.t);const s=stationed()[e.hex];if(!s||s.n<=0)continue;const n0=s.n,left=Math.round(n0*e.frac),lost=n0-left;s.n=left;
     if(lost){const w=woundSplit(lost,e.won);addWounded(w.wounded);}
     let lootTxt='';if(e.won){const L={};for(const [k,v] of Object.entries(BAL.ai.winLoot||{}))L[k]=Math.max(1,Math.round(v*F25.lootShare*Math.max(.2,e.share||0)));addRes(L);P.rep25=(P.rep25||0)+F25.repWin;lootTxt=' · loot '+Object.entries(L).map(([k,v])=>'+'+v+RES[k]).join(' ')+` · +${F25.repWin} rep`;}
-    P.fr25=[{t:e.t,hex:e.hex,gang:e.gang,sp:e.sp,win:e.won,bPow:e.bPow,rounds:e.rounds||[],ally:true,me:[{who:'Your reinforcements',n:n0,lost,out:e.out}]},...(P.fr25||[])].slice(0,20);
+    P.fr25=[{t:e.t,hex:e.hex,gang:e.gang,sp:e.sp,win:e.won,bPow:e.bPow,rounds:e.rounds||[],ally:true,me:[{who:'Your reinforcements',n:n0,lost,out:e.out}]},...(P.fr25||[])].slice(0,60);
     report(`🛡️ Your ${n0.toLocaleString()} reinforcements at ${hexName(e.hex)} ${e.won?'helped hold':'were beaten'} vs ${e.gang}: ${lost.toLocaleString()} lost${lootTxt}`,e.won);
     if(left<=0||e.out)sendHome25(e.hex,left,e.out||'beaten');}
   save();try{pushMember();}catch(e){}}
@@ -134,7 +134,7 @@ function settleEscorts(){const t=TP(),E=t.esc25||{};let ch=false;const now=Date.
     if(m&&(m.state==='arrived'||m.state==='done')&&!e.done){const fr=m.tl25!=null?m.tl25:(m.win===false?0:1),left=Math.round(e.n*fr),lost=e.n-left;e.done=1;ch=true;
       if(lost){const w=woundSplit(lost,m.win!==false);addWounded(w.wounded);}
       let lootTxt='';if(m.win!==false&&m.loot){const L={};const tot=(m.troops||0)+Object.values(m.escorts||{}).reduce((a,x)=>a+(x.troops||0),0)||1;for(const [k,v] of Object.entries(m.loot))L[k]=Math.round(v*F25.lootShare*e.n/tot);if(Object.values(L).some(v=>v>0)){addRes(L);lootTxt=' · loot '+Object.entries(L).filter(([,v])=>v>0).map(([k,v])=>'+'+v+RES[k]).join(' ');}P.rep25=(P.rep25||0)+F25.repWin;lootTxt+=` · +${F25.repWin} rep`;}
-      P.fr25=[{t:now,hex:m.to,gang:poss(m.name)+' march',win:m.win!==false,march:true,rounds:[],me:[{who:'Your troops in '+poss(m.name)+' march',n:e.n,lost}]},...(P.fr25||[])].slice(0,20);
+      P.fr25=[{t:now,hex:m.to,gang:poss(m.name)+' march',win:m.win!==false,march:true,rounds:[],me:[{who:'Your troops in '+poss(m.name)+' march',n:e.n,lost}]},...(P.fr25||[])].slice(0,60);
       report(`🛡️ You reinforced ${poss(m.name)} march to ${hexName(m.to)}: ${m.win===false?'lost':'won'} · ${lost.toLocaleString()} of your ${e.n.toLocaleString()} lost${lootTxt}`,m.win!==false);
       const back=Math.max(60e3,(m.startT+2*m.dur)-now);if(left>0)t.returning.push({n:left,at:now+back,from:m.to,st:now,why:'march home'});e.left=left;}
     if((!m&&now>e.end+10*60e3)||(e.done&&now>e.end)){if(!e.done&&e.n>0){t.home+=e.n;report(`🪖 ${e.n.toLocaleString()} troops back from ${hexName(e.to)}`,true);}delete E[id];ch=true;}}
@@ -177,7 +177,25 @@ mcardsDraw=function(){const q=s=>document.querySelector(s);let box=q('#mcards');
   h+=reg.map(card).join('')+(reg.length<SLOTS.reg?empty(`⚔️ ${SLOTS.reg-reg.length} regular slot${SLOTS.reg-reg.length>1?'s':''} free · attack / claim`):'');
   h+=`<div class="mhead sub">SUPPORT</div>`+sup.map(card).join('')+(supUsed<SLOTS.sup?empty(`🛡️ ${SLOTS.sup-supUsed} support slot${SLOTS.sup-supUsed>1?'s':''} free · reinforce / guard / escort`):'');
   box.innerHTML=h;box.classList.add('v21');box.classList.toggle('drive',!!(G.drive&&G.drive.on));box.classList.toggle('quiet',innerWidth<1100&&!reg.length&&!sup.length);
-  box.querySelectorAll('.mcard[data-to]').forEach(el=>el.onclick=()=>{const h2=el.dataset.to;if(h2){try{map.setView(hexCenter(...idQR(h2)),Math.max(map.getZoom(),15));}catch(e){}}});};
+  box.querySelectorAll('.mcard[data-to]').forEach(el=>el.onclick=()=>{const h2=el.dataset.to;if(h2){try{map.setView(hexCenter(...idQR(h2)),Math.max(map.getZoom(),15));}catch(e){}}});
+  try{mcToggle26(box);}catch(e){}};
+function mcWant26(box){try{const v=localStorage.getItem('wl_mcOpen');if(v==='0')return false;if(v==='1')return true;}catch(e){}
+  return !(innerWidth<1100&&!box.querySelector('.mcard:not(.empty)'));}
+function mcPlace26(box,btn,open){const tabs=document.getElementById('tabs'),nav=tabs?tabs.getBoundingClientRect():{top:innerHeight-64},phone=innerWidth<1100;let left,top;
+  if(!phone){left=open?318:76;top=108;}
+  else if(open){const r=box.getBoundingClientRect();left=Math.min(innerWidth-48,Math.max(8,(r.width?r.right:52)-22));top=r.height?r.top:Math.max(56,nav.top-52);if(top+44>nav.top-8)top=nav.top-52;if(top<56)top=56;}
+  else{left=8;top=Math.max(56,nav.top-52);}
+  btn.style.left=left+'px';btn.style.top=top+'px';btn.style.bottom='auto';}
+function mcToggle26(box){if(!box)return;let btn=document.getElementById('mcToggle');
+  if(!btn){btn=document.createElement('button');btn.id='mcToggle';btn.type='button';btn.setAttribute('aria-controls','mcards');
+    btn.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();const b=document.getElementById('mcards');if(!b)return;
+      try{localStorage.setItem('wl_mcOpen',b.classList.contains('mc-shut')?'1':'0');}catch(e){}mcToggle26(b);});
+    document.body.appendChild(btn);}
+  const open=mcWant26(box),drive=!!(G.drive&&G.drive.on);
+  box.classList.toggle('mc-shut',!open);box.classList.toggle('mc-open',!!open&&!drive);box.setAttribute('aria-hidden',open?'false':'true');
+  btn.setAttribute('aria-expanded',open?'true':'false');btn.setAttribute('aria-label',open?'Hide marches':'Show marches');btn.textContent=open?'‹':'›';
+  mcPlace26(box,btn,open&&!drive);}
+window.mcToggle26=mcToggle26;
 // ---------- building card (mockup v5 02): own combined defense breakdown only, no predictions ----------
 bldCard=function(hex){const b=bldAt(hex);if(!b)return'';const o=b.o,tp=TPOW(),lv=b.k==='sh'?strongholdLevel():b.k==='tower'?(o.level||1):0,
   r=b.own?(b.k==='sh'?shRadius():b.k==='tower'?towerRadius(o):BAL.outpost.radius):(o.r||1),

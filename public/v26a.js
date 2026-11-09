@@ -84,7 +84,7 @@ window.fight25=fight25;try{F25.rounds=0;}catch(e){}
 const _sr26=squadReplay;squadReplay=function(defs,dp,sp,gname){G._gname26=gname;return _sr26.apply(this,arguments);};
 // the v25 report writer (apply25) stores P.fr25 rows; attach the full breakdown to the newest one + route it to Reports
 const _rep26=report;let _lastFr26=null;
-setInterval(()=>{try{const top=(P.fr25||[])[0];if(top&&top!==_lastFr26){_lastFr26=top;if(!top.r26&&G._r26&&Date.now()-top.t<15e3){top.r26=G._r26;G._r26=null;save();}}}catch(e){}},700);
+/* R1: the breakdown is now stored when the fight is applied (reports1.js wraps apply25); the 700 ms timer that guessed it is gone */
 // ---------- pipeline guard fix ----------
 // 1) every hex on a guarded route counts as ours for the horde step, so the step MUST run the guard fight there
 function guardedRoute26(id){try{for(const [gh,pg] of Object.entries(pipeGuards25()))if(pg.route.includes(id)&&stationedAt(gh)>0)return true;}catch(e){}
@@ -103,13 +103,13 @@ pipeCut=function(p){const gi=fxIndex(),cl=(FX().cut26)||{};const guarded=!!(p.gu
 window.pipeCut=pipeCut;
 // 3) reports for captures with no defenders: the hex owner always gets one (their own phone)
 function capReport26(h,fid,t){const prev=G.terr[h],pu=(prev&&prev.prevUid)||'';const gname=(fdef(fid)||{}).name||'Horde';const row={t:Math.round(t)||Date.now(),hex:h,gang:gname,win:false,none:true,me:[],why:'Nobody was guarding this hex, so the horde walked in. No fight was run.'};
-  if(!pu||isMe(pu)){P.fr25=[row,...(P.fr25||[])].slice(0,30);save();try{notify26('cap',row);}catch(e){}}
+  if(!pu||isMe(pu)){P.fr25=[row,...(P.fr25||[])].slice(0,60);save();try{notify26('cap',row);}catch(e){}}
   else{try{if(NET.mode==='firebase')NET.fs.addDoc(NET.fs.collection(NET.db,...NET.base,'activity'),{kind:'cap26',text:JSON.stringify({for:pu,hex:h,gang:String(gname).slice(0,24)}),uid:NET.uid||P.uid,name:(P.name||'').slice(0,24),t:NET.fs.serverTimestamp()});}catch(e){}}}
 window.capReport26=capReport26;
 function listenCap26(){if(G._cap26L||NET.mode!=='firebase'||!NET.fs||!NET.db||!NET.base)return;G._cap26L=1;
   NET.actFeed(60,s=>{const seen=TP().cap26Seen||0;let mx=seen,ch=false;
     s.forEach(d=>{const x=d.data();if(x.kind!=='cap26')return;let p={};try{p=JSON.parse(x.text||'{}');}catch(e){return;}const t=x.t&&x.t.toMillis?x.t.toMillis():0;if(!t||t<=seen||!isMe(p.for))return;mx=Math.max(mx,t);
-      const row={t,hex:p.hex,gang:p.gang,win:false,none:true,me:[],why:'Nobody was guarding this hex, so the horde walked in. No fight was run.'};P.fr25=[row,...(P.fr25||[])].slice(0,30);ch=true;try{notify26('cap',row);}catch(e){}});
+      const row={t,hex:p.hex,gang:p.gang,win:false,none:true,me:[],why:'Nobody was guarding this hex, so the horde walked in. No fight was run.'};P.fr25=[row,...(P.fr25||[])].slice(0,60);ch=true;try{notify26('cap',row);}catch(e){}});
     if(ch){TP().cap26Seen=mx;save();}},e=>console.warn('cap26',e));}
 setInterval(()=>{try{listenCap26();}catch(e){}},3000);
 // 4) reconcile: a route hex the horde holds while my guards sit on the line (no fight on record) -> the guards fight for it now.
@@ -125,7 +125,7 @@ function reconcile26(){if(!P.world||!P.world.fx)return;const gi=fxIndex(),cl=cut
       rec[h]=held;if(r.win){delete f.tiles[h];fxDirty();stationed()[g.hex].n=me.left;if(cl[h])delete cl[h];row.title=`Pipeline guard drove ${gname} off ${p.name}`;}
       else{cl[h]={t:now,fid,why:'fight'};sendHome25(g.hex,me.left,'retreated');row.title=`Pipeline line lost · ${p.name}`;}
       if(me.lost){try{const w=woundSplit(me.lost,r.win);addWounded(w.wounded);}catch(e){}}
-      P.fr25=[row,...(P.fr25||[])].slice(0,30);ch=true;try{notify26('fight',row);}catch(e){}
+      P.fr25=[row,...(P.fr25||[])].slice(0,60);ch=true;try{notify26('fight',row);}catch(e){}
       break;}}
   if(ch){save();try{pushMember();}catch(e){}try{drawWorld();}catch(e){}}}
 window.reconcile26=reconcile26;

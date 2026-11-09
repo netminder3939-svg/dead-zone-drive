@@ -1,0 +1,500 @@
+diff --git a/public/bal14.js b/public/bal14.js
+index 6f72ecf..ae55052 100644
+--- a/public/bal14.js
++++ b/public/bal14.js
+@@ -39,5 +39,5 @@
+   bankOf=function(f){try{const s=scale14();HE.capBase=BASE14.cap*s;HE.convPerH=BASE14.conv*s;HE.resPerH=BASE14.res*s;}catch(e){}return _bank14.apply(this,arguments);};
+   window.bankOf=bankOf;
+   // Visible label for this combined build. The service worker cache is ddd-v26-12h-integrated, not Claude's ddd-v26-12h.
+-  try{document.documentElement.dataset.build='12i-integrated-6';const who=document.querySelector('#hud .who');if(who&&!document.getElementById('build14')){const el=document.createElement('span');el.id='build14';el.textContent='12i-integrated-6';el.title='Build 12i-integrated-6';el.style.cssText='display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#2a241c;color:#e7d7c1;font:600 10px system-ui;letter-spacing:.02em;vertical-align:middle';who.appendChild(el);}}catch(e){}
++  try{document.documentElement.dataset.build='12i-integrated-6-r1';const who=document.querySelector('#hud .who');if(who&&!document.getElementById('build14')){const el=document.createElement('span');el.id='build14';el.textContent='12i-integrated-6-r1';el.title='Build 12i-integrated-6';el.style.cssText='display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#2a241c;color:#e7d7c1;font:600 10px system-ui;letter-spacing:.02em;vertical-align:middle';who.appendChild(el);}}catch(e){}
+ })();
+diff --git a/public/card1.js b/public/card1.js
+new file mode 100644
+index 0000000..1c75188
+--- /dev/null
++++ b/public/card1.js
+@@ -0,0 +1,58 @@
++// card1 (R1) One card manager. Loaded last, so it wraps every older layer.
++//  Why: "close card" ran through five layers of older code. If any one of them threw, the card stayed open, so X
++//  sometimes needed several taps. Fight cards also skipped the Back/Esc stack, and an old fight's playback timer could
++//  keep writing its result onto the next fight card. And cards the game opens on its own (march results, raid alerts)
++//  could pop up the moment you closed another one, which looked like the X had not worked.
++//  1) Closing always hides the card first, then runs the older cleanup steps, each failure caught and logged.
++//  2) Every fight card registers with Back/Esc, and a newer card stops the older card's playback.
++//  3) A fight card or raid alert the game opens on its own (a march arriving, a raid) while you are looking at another
++//     card, or within 2 s of closing one, waits in a short queue. A bar says how many are waiting; tapping it opens the next. Nothing is dropped.
++(function(){
++  const q=s=>document.querySelector(s);
++  const CARD1={lastClose:0,lastTap:0,queue:[],token:0};
++  window.CARD1=CARD1;
++  document.addEventListener('pointerdown',()=>{CARD1.lastTap=Date.now();},true);
++  document.addEventListener('keydown',()=>{CARD1.lastTap=Date.now();},true);
++  const isOpen=()=>{const m=q('#modal');return !!m&&!m.classList.contains('hidden');};
++  // ---------- 1) close: hide first, then the older cleanup
++  const _close=UI.closeModal;
++  UI.closeModal=function(){
++    try{const m=q('#modal');if(m)m.classList.add('hidden');}catch(e){}
++    try{this.raidOpen=null;}catch(e){}
++    CARD1.token++;CARD1.lastClose=Date.now();
++    try{Layers.drop('modal');}catch(e){}
++    try{_close.apply(this,arguments);}catch(e){console.warn('card1: cleanup step failed after close',e);}
++    try{const m=q('#modal');if(m)m.classList.add('hidden');}catch(e){} // an older step must not leave it open
++    setTimeout(bar,0);};
++  // ---------- 2) fight cards: Back/Esc closes them, and a newer card ends the older playback
++  const _rp=UI.replay;
++  UI.replay=function(o){
++    // a march arriving is always the game's own popup; other fight cards only when no tap opened them
++    const own=!!G._marchId||auto();
++    if(own&&(isOpen()||Date.now()-CARD1.lastClose<2000))return wait('replay',o,o&&o.title);
++    CARD1.token++;
++    _rp.apply(this,arguments); // fight.js stops the playback when its own card is closed or replaced
++    try{Layers.push('modal',()=>UI.closeModal());}catch(e){}};
++  // ---------- 3) cards the game opens on its own wait their turn
++  function auto(){return Date.now()-CARD1.lastTap>1500;}
++  function wait(kind,arg,label){CARD1.queue.push({kind,arg,label:String(label||'').replace(/<[^>]*>/g,'').slice(0,60),t:Date.now()});CARD1.queue=CARD1.queue.slice(-12);bar();}
++  // UI.info is NOT queued: tile cards, building cards and menus open from code paths that are not always right after a tap.
++  const _info=UI.info;
++  UI.info=function(o){CARD1.token++;return _info.apply(this,arguments);};
++  const _aa=UI.attackAlert;
++  UI.attackAlert=function(rep){
++    if(auto()&&(isOpen()||Date.now()-CARD1.lastClose<2000))return wait('alert',rep,'Raid report');
++    return _aa.apply(this,arguments);};
++  function openNext(){const x=CARD1.queue.shift();bar();if(!x)return;CARD1.lastTap=Date.now();
++    try{if(x.kind==='replay')UI.replay(x.arg);else if(x.kind==='info')UI.info(x.arg);else UI.attackAlert(x.arg);}catch(e){console.warn('card1 open',e);}}
++  window.cardNext1=openNext;
++  function bar(){let b=document.getElementById('cardq1');const n=CARD1.queue.length;
++    if(!n||isOpen()){if(b)b.remove();return;}
++    if(!b){b=document.createElement('button');b.id='cardq1';b.type='button';b.onclick=e=>{e.stopPropagation();openNext();};document.body.appendChild(b);}
++    const first=CARD1.queue[0];b.textContent=`📬 ${n} waiting: ${first.label||'new result'} · tap to view`;}
++  setInterval(bar,1500);
++  const _md=UI.modal;UI.modal=function(){const r=_md.apply(this,arguments);try{bar();}catch(e){}return r;};
++  const st=document.createElement('style');
++  st.textContent='body:has(#modal:not(.hidden)) #cardq1{display:none}#cardq1{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 76px);z-index:640;max-width:calc(100vw - 32px);padding:10px 14px;border-radius:22px;border:1px solid #c9a24a;background:#2a1f10;color:#ffe6a8;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 4px 14px #0008}';
++  document.head.appendChild(st);
++})();
+diff --git a/public/fight.js b/public/fight.js
+index 693b6a0..8899508 100644
+--- a/public/fight.js
++++ b/public/fight.js
+@@ -57,11 +57,12 @@ UI.replay=function(o){// o:{title,sub,f,result,good,buttons:[[label,fn,cls]]}. S
+     const d=document.createElement('div');d.className='dmg'+(e.heal?' heal':'');d.textContent=(e.heal?'+':'-')+e.dmg;el.appendChild(d);setTimeout(()=>d.remove(),900);
+     const l=$('#rlog');if(l)l.innerHTML=`R${e.r}: ${nm(e.a)} ${e.heal?'heals '+nm(e.t)+' +'+e.dmg:'→ '+nm(e.t)+' '+e.dmg}<br>`+l.innerHTML;
+     $('#rround').textContent='R'+e.r;$('#rmeter').innerHTML=meterHTML(f,i);};
+-  const finish=()=>{if(done)return;done=true;clearInterval(iv);for(;i<f.events.length;i++)setHP(f.events[i]);if(!$('#rres'))return;
++  const myLog=$('#rlog'),gone=()=>!myLog||!myLog.isConnected||$('#modal').classList.contains('hidden'); // R1: this card's own elements, never a newer card's
++  const finish=()=>{if(done)return;done=true;clearInterval(iv);if(gone())return;for(;i<f.events.length;i++)setHP(f.events[i]);if(!$('#rres'))return;
+     $('#rctl')?.remove();$('#rmeter').innerHTML=meterHTML(f,f.events.length);$('#rround').textContent=f.events.length?'END':'VS';
+     $('#rres').innerHTML=`<div class="result ${o.good?'good':'bad'}">${o.result}</div>`+(o.buttons||[]).map((b,k)=>`<button class="${b[2]||''}" style="width:100%;margin-top:6px" id="rb${k}">${b[0]}</button>`).join('');
+     (o.buttons||[]).forEach((b,k)=>$('#rb'+k).onclick=b[1]);UI.hud();};
+-  $('#rauto').onclick=()=>{if(iv)return;$('#rauto').disabled=true;$('#rauto').textContent='⚔️ Fighting…';iv=setInterval(()=>{if(!$('#rlog'))return clearInterval(iv);if(i>=f.events.length)return finish();i++;show(f.events[i-1]);},delay);};
++  $('#rauto').onclick=()=>{if(iv)return;$('#rauto').disabled=true;$('#rauto').textContent='⚔️ Fighting…';iv=setInterval(()=>{if(gone())return clearInterval(iv);if(i>=f.events.length)return finish();i++;show(f.events[i-1]);},delay);};
+   $('#rskip').onclick=finish;if(o.autostart)$('#rauto').click();};
+ 
+ // ---------- info cards (tap = info, never a fight) ----------
+diff --git a/public/index.html b/public/index.html
+index 7f39703..23e45f4 100644
+--- a/public/index.html
++++ b/public/index.html
+@@ -86,4 +86,6 @@
+ <script src="base15.js"></script>
+ <script src="front15.js"></script>
+ <script src="terr15.js"></script>
++<script src="card1.js"></script>
++<script src="reports1.js"></script>
+ </body></html>
+diff --git a/public/net.js b/public/net.js
+index a439cd4..c523335 100644
+--- a/public/net.js
++++ b/public/net.js
+@@ -249,6 +249,8 @@ class FirebaseNet {
+ 
+ function makeNet(){
+   const c=window.FIREBASE_CONFIG||{};
+-  const forceLocal=new URLSearchParams(location.search).has('local');
++  // R1: ?local (offline practice game kept on this device) only on TEST and local test copies, never on the live site
++  const h=location.hostname,testHost=h.indexOf('--')>=0||h==='localhost'||h==='127.0.0.1';
++  const forceLocal=testHost&&new URLSearchParams(location.search).has('local');
+   return (c.apiKey&&!forceLocal)?new FirebaseNet(c,localStorage.getItem('wl_team')||window.DEFAULT_TEAM):new LocalNet();
+ }
+diff --git a/public/rank15.js b/public/rank15.js
+index a4f5240..ac7f569 100644
+--- a/public/rank15.js
++++ b/public/rank15.js
+@@ -26,8 +26,13 @@
+   // ---------- state ----------
+   function hqState(d){const x=d||{};G.hq15={exists:!!d,hq:x.hq||null,roles:x.roles||{},titles:x.titles||{},leader:x.leader||null};
+     try{if(typeof onHq15==='function')onHq15();}catch(e){}try{if(UI.tab==='alliance')UI.render();}catch(e){}try{drawHq15();}catch(e){}}
++  // R1: ranks, titles and bank requests are keyed by the signed-in account (the id the security rules check and the id
++  //  member docs use). An imported character can carry an older id in P.uid, which made the rules refuse leadership.
++  function me15(){try{if(NET.mode==='firebase'&&NET.uid)return NET.uid;}catch(e){}return P.uid;}
++  window.me15=me15;
++  function err15(e){const m=String((e&&e.message)||e||'');return /insufficient permissions|permission-denied/i.test(m)?'The server refused this change. Only the leader or an officer can do that.':m;}
+   function rankOf15(uid){const r=G.hq15&&G.hq15.roles||{};return r[uid]||'member';}
+-  function myRank15(){return P.uid?rankOf15(P.uid):'member';}
++  function myRank15(){return me15()?rankOf15(me15()):'member';}
+   function isOfficer15(uid){const r=uid?rankOf15(uid):myRank15();return r==='leader'||r==='officer';}
+   function ranksOn15(){return !!(G.hq15&&G.hq15.exists);}
+   function titleOf15(uid){return (G.hq15&&G.hq15.titles||{})[uid]||'';}
+@@ -48,49 +53,49 @@
+       await NET.fs.runTransaction(NET.db,async tx=>{const d=await tx.get(ref);const cur=d.exists()?d.data():null;const nx=mut(cur?JSON.parse(JSON.stringify(cur)):null);if(!nx)throw new Error('No change');tx.set(ref,nx);});}
+     else{const cur=lget(LK());const nx=mut(cur?JSON.parse(JSON.stringify(cur)):null);if(!nx)throw new Error('No change');lset(LK(),nx);hqState(nx);}}
+   window.hqTx15=hqTx15;
+-  async function claimLeader15(){if(!P.uid)return;try{await hqTx15(cur=>{if(cur)throw new Error('This alliance already has a leader');return{leader:P.uid,roles:{[P.uid]:'leader'},titles:{},hq:null,v:1};});
+-      allianceLog(`👑 ${P.name} is now the alliance leader`);toast('👑 You are the alliance leader');}catch(e){toast('🚫 '+(e.message||e));}}
++  async function claimLeader15(){if(!me15())return;try{await hqTx15(cur=>{if(cur)throw new Error('This alliance already has a leader');return{leader:me15(),roles:{[me15()]:'leader'},titles:{},hq:null,v:1};});
++      allianceLog(`👑 ${P.name} is now the alliance leader`);toast('👑 You are the alliance leader');}catch(e){toast('🚫 '+err15(e));}}
+   async function setRank15(uid,rank){if(myRank15()!=='leader')return toast('🚫 Only the leader can change ranks');
+     try{await hqTx15(cur=>{if(!cur)throw new Error('No alliance HQ doc');const r={...cur.roles};
+-        let ld=cur.leader||P.uid;if(rank==='leader'){r[uid]='leader';r[P.uid]='officer';ld=uid;}else if(rank==='officer')r[uid]='officer';else delete r[uid];
++        let ld=cur.leader||me15();if(rank==='leader'){r[uid]='leader';r[me15()]='officer';ld=uid;}else if(rank==='officer')r[uid]='officer';else delete r[uid];
+         if(r[ld]!=='leader')throw new Error('The alliance needs a leader');return{...cur,roles:r,leader:ld};});
+       const nm=((G.al&&G.al.members||{})[uid]||{}).name||'A teammate';allianceLog(rank==='leader'?`👑 ${P.name} handed leadership to ${nm}`:`${rank==='officer'?'⭐':'🔻'} ${nm} is now ${RANKS15[rank]?RANKS15[rank].n:'a member'}`);UI.closeModal();}
+-    catch(e){toast('🚫 '+(e.message||e));}}
++    catch(e){toast('🚫 '+err15(e));}}
+   async function setTitle15(uid,txt){if(!isOfficer15())return toast('🚫 Only the leader or officers can set titles');const t=clean15(txt);
+     try{await hqTx15(cur=>{if(!cur)throw new Error('No alliance HQ doc');const ti={...(cur.titles||{})};if(t)ti[uid]=t;else delete ti[uid];return{...cur,titles:ti};});toast(t?`🏷️ Title set: ${t}`:'🏷️ Title cleared');UI.closeModal();}
+-    catch(e){toast('🚫 '+(e.message||e));}}
++    catch(e){toast('🚫 '+err15(e));}}
+   async function takeOver15(){const lu=leaderUid15(),m=((G.al&&G.al.members)||{})[lu]||{};
+     if(myRank15()!=='officer')return toast('🚫 Only an officer can take over');
+     if(Date.now()-(m.lastActive||0)<TAKEOVER_DAYS15*864e5)return toast(`🚫 The leader was active in the last ${TAKEOVER_DAYS15} days`);
+-    try{await hqTx15(cur=>{const r={...cur.roles};if(lu)r[lu]='officer';r[P.uid]='leader';return{...cur,roles:r,leader:P.uid,takeover:lu||''};});allianceLog(`👑 ${P.name} took over as leader (the old leader was inactive ${TAKEOVER_DAYS15}+ days)`);}
+-    catch(e){toast('🚫 '+(e.message||e));}}
++    try{await hqTx15(cur=>{const r={...cur.roles};if(lu)r[lu]='officer';r[me15()]='leader';return{...cur,roles:r,leader:me15(),takeover:lu||''};});allianceLog(`👑 ${P.name} took over as leader (the old leader was inactive ${TAKEOVER_DAYS15}+ days)`);}
++    catch(e){toast('🚫 '+err15(e));}}
+   Object.assign(window,{claimLeader15,setRank15,setTitle15,takeOver15});
+ 
+   // ---------- bank requests ----------
+   const RESK=['scrap','food','water','fuel','parts'];
+   async function requestWithdraw15(res,amt,why){amt=Math.floor(Math.abs(+amt||0));if(!amt||!RESK.includes(res))return toast('Pick a resource and amount');
+     const bank=(G.al&&G.al.bank)||{};if((bank[res]||0)<amt)return toast(`The bank only has ${bank[res]||0} ${RES[res]}`);
+-    const d={uid:P.uid,name:P.name,res,amt,why:clean15(why||'').slice(0,60),status:'pending'};
++    const d={uid:me15(),name:P.name,res,amt,why:clean15(why||'').slice(0,60),status:'pending'};
+     try{if(fire()){await NET.fs.addDoc(NET.col('bankReq'),{...d,t:NET.fs.serverTimestamp()});}
+       else{const o=lget(RK())||{};const id='r'+Date.now();o[id]={id,...d,t:Date.now()};lset(RK(),o);G.bankReq15=o;onReqs15();}
+       allianceLog(`🙋 ${P.name} asked the bank for ${amt} ${RES[res]}`);toast('🙋 Request sent. A leader or officer has to approve it.');}
+-    catch(e){toast('🚫 '+(e.message||e));}try{UI.render();}catch(e){}}
++    catch(e){toast('🚫 '+err15(e));}try{UI.render();}catch(e){}}
+   async function decideReq15(id,ok){if(!isOfficer15())return toast('🚫 Only the leader or officers can approve');const r=G.bankReq15[id];if(!r||r.status!=='pending')return;
+-    const up={status:ok?'approved':'denied',by:P.uid,byName:P.name};
++    const up={status:ok?'approved':'denied',by:me15(),byName:P.name};
+     try{if(fire())await NET.fs.updateDoc(NET.fs.doc(NET.col('bankReq'),id),{...up,decT:NET.fs.serverTimestamp()});
+       else{const o=lget(RK())||{};o[id]={...o[id],...up,decT:Date.now()};lset(RK(),o);G.bankReq15=o;onReqs15();}
+       allianceLog(`${ok?'✅':'❌'} ${P.name} ${ok?'approved':'denied'} ${poss(r.name)} request for ${r.amt} ${RES[r.res]}`);}
+-    catch(e){toast('🚫 '+(e.message||e));}try{UI.render();}catch(e){}}
+-  async function cancelReq15(id){const r=G.bankReq15[id];if(!r||r.uid!==P.uid||r.status!=='pending')return;
++    catch(e){toast('🚫 '+err15(e));}try{UI.render();}catch(e){}}
++  async function cancelReq15(id){const r=G.bankReq15[id];if(!r||r.uid!==me15()||r.status!=='pending')return;
+     try{if(fire())await NET.fs.updateDoc(NET.fs.doc(NET.col('bankReq'),id),{status:'cancelled'});
+-      else{const o=lget(RK())||{};o[id]={...o[id],status:'cancelled'};lset(RK(),o);G.bankReq15=o;onReqs15();}}catch(e){toast('🚫 '+(e.message||e));}try{UI.render();}catch(e){}}
++      else{const o=lget(RK())||{};o[id]={...o[id],status:'cancelled'};lset(RK(),o);G.bankReq15=o;onReqs15();}}catch(e){toast('🚫 '+err15(e));}try{UI.render();}catch(e){}}
+   // Collect an approved request: one transaction moves it out of the bank and marks it paid; only then is it added to me.
+   const busy15={};
+-  async function collect15(id){const r=G.bankReq15[id];if(!r||r.uid!==P.uid||r.status!=='approved'||busy15[id])return;busy15[id]=1;let bal=null;
++  async function collect15(id){const r=G.bankReq15[id];if(!r||r.uid!==me15()||r.status!=='approved'||busy15[id])return;busy15[id]=1;let bal=null;
+     const held=window.SYNC13&&SYNC13.hold===false;if(window.SYNC13)SYNC13.hold=true;
+-    try{if(fire()){        const fs=NET.fs,aRef=fs.doc(NET.db,...NET.base,'meta','alliance'),rRef=fs.doc(NET.col('bankReq'),id),lRef=fs.doc(NET.col('bankLog')),sRefOwn=fs.doc(NET.col('saves'),NET.uid||P.uid);
++    try{if(fire()){        const fs=NET.fs,aRef=fs.doc(NET.db,...NET.base,'meta','alliance'),rRef=fs.doc(NET.col('bankReq'),id),lRef=fs.doc(NET.col('bankLog')),sRefOwn=fs.doc(NET.col('saves'),NET.uid||me15());
+         const acked=await fs.runTransaction(NET.db,async tx=>{const a=await tx.get(aRef),q=await tx.get(rRef),sv=await tx.get(sRefOwn);const x=q.exists()?q.data():null;
+-          if(!x||x.status!=='approved'||x.uid!==P.uid)throw new Error('Request is not approved any more');
++          if(!x||x.status!=='approved'||x.uid!==me15())throw new Error('Request is not approved any more');
+           if(NET.uid&&P.uid!==NET.uid)throw new Error('not your save');
+           const cur=sv.exists()?sv.data():null;
+           const guard=typeof saveGuard13==='function'&&cur?saveGuard13(cur):null;
+@@ -104,7 +109,7 @@
+           const curRev=cur?(cur.rev|0):0,rev=curRev+1;
+           const lease={dev:(window.SYNC13&&SYNC13.dev)||'bank',label:'phone',t:Date.now()};
+           tx.set(aRef,{bank,payReq:id},{merge:true});tx.update(rRef,{status:'paid',paidT:fs.serverTimestamp()});
+-          tx.set(lRef,{uid:P.uid,member:P.name,res:x.res,amt:-x.amt,bal,kind:'withdraw',t:fs.serverTimestamp()});
++          tx.set(lRef,{uid:me15(),member:P.name,res:x.res,amt:-x.amt,bal,kind:'withdraw',t:fs.serverTimestamp()});
+           tx.set(sRefOwn,{data:JSON.stringify(prof),rev,baseRev:curRev,savedAt:Date.now(),name:String(P.name||'').slice(0,24),lvl:P.lvl|0,v:3,fe:P.fullEpoch||0,me:P.mapEpoch||0,lease});
+           return{profile:prof,rev,lease};});
+         if(acked&&typeof applySave13==='function')applySave13(acked.profile,acked.rev,acked.lease);
+@@ -112,14 +117,14 @@
+         toast(`🏦 Collected ${r.amt} ${RES[r.res]} from the bank${bal!=null?' · bank now '+bal:''}`);try{UI.hud();UI.render();}catch(e){}}
+       else{const o=lget(RK())||{};const x=o[id];if(!x||x.status!=='approved')throw new Error('Request is not approved any more');
+         const have=(NET.bankBal?NET.bankBal(x.res):((G.al&&G.al.bank||{})[x.res]||0));if(have<x.amt)throw new Error('The bank is short');
+-        if(NET.bankTx)bal=await NET.bankTx(P.uid,P.name,x.res,-x.amt,true);o[id]={...x,status:'paid',paidT:Date.now()};lset(RK(),o);G.bankReq15=o;
++        if(NET.bankTx)bal=await NET.bankTx(me15(),P.name,x.res,-x.amt,true);o[id]={...x,status:'paid',paidT:Date.now()};lset(RK(),o);G.bankReq15=o;
+         P.res[r.res]=(P.res[r.res]||0)+r.amt;P.contrib.withdrawn=(P.contrib.withdrawn||0)+r.amt;save();pushMember();
+         toast(`🏦 Collected ${r.amt} ${RES[r.res]} from the bank${bal!=null?' · bank now '+bal:''}`);try{UI.hud();UI.render();}catch(e){}}}
+     catch(e){if(e&&e.message==='save-changed'&&e.remote&&typeof staleSave13==='function'){try{staleSave13(e.remote);}catch(err){}toast('🏦 Nothing was paid. A newer save was loaded. Collect again to take the payout.');}
+       else if(e&&e.message==='other-playing')toast('🏦 Nothing was paid. Your other device is playing. Collect there.');
+       else toast('🚫 '+(e.message||e));}finally{delete busy15[id];if(held&&window.SYNC13&&!SYNC13.conflictOpen)SYNC13.hold=false;}}
+   Object.assign(window,{requestWithdraw15,decideReq15,cancelReq15,collect15});
+-  function onReqs15(){try{for(const r of Object.values(G.bankReq15))if(r.uid===P.uid&&r.status==='approved')collect15(r.id);}catch(e){}
++  function onReqs15(){try{for(const r of Object.values(G.bankReq15))if(r.uid===me15()&&r.status==='approved')collect15(r.id);}catch(e){}
+     try{const n=Object.values(G.bankReq15).filter(r=>r.status==='pending').length;if(isOfficer15()&&n&&typeof newsAdd==='function')newsAdd('alliance','bank',`🙋 ${n} bank request${n>1?'s':''} waiting for approval`,'bankreq15');}catch(e){}
+     try{if(UI.tab==='alliance')UI.render();}catch(e){}}
+ 
+@@ -132,7 +137,7 @@
+   // ---------- UI: bank part ----------
+   function bankUi15(){try{if(UI.tab!=='alliance')return;const b=$('#sheetBody');const box=b&&b.querySelector('.p-bank');if(!box||box.querySelector('.bk15'))return;
+     const reqs=Object.values(G.bankReq15||{}).sort((a,c)=>(c.t&&c.t.toMillis?c.t.toMillis():c.t||0)-(a.t&&a.t.toMillis?a.t.toMillis():a.t||0));
+-    const mine=reqs.filter(r=>r.uid===P.uid&&['pending','approved','denied'].includes(r.status)).slice(0,5),pend=reqs.filter(r=>r.status==='pending');
++    const mine=reqs.filter(r=>r.uid===me15()&&['pending','approved','denied'].includes(r.status)).slice(0,5),pend=reqs.filter(r=>r.status==='pending');
+     let h=`<div class="bk15">`;
+     if(!ranksOn15())h+=`<p class="tiny">🔓 The bank is open to everyone until someone claims leadership in 🏛️ HQ. After that, members ask and the leader or officers approve.</p>`;
+     else if(!isOfficer15()){h+=`<p class="tiny">🔒 Withdrawals need approval from the leader or an officer. Pick an amount and tap Request.</p><input id="bkwhy15" maxlength="60" placeholder="What's it for? (optional)">`;}
+diff --git a/public/reports1.js b/public/reports1.js
+new file mode 100644
+index 0000000..7159549
+--- /dev/null
++++ b/public/reports1.js
+@@ -0,0 +1,109 @@
++// reports1 (R1) Every fight writes a full report the moment it is decided, and Reports gets tabs plus delete.
++//  Defense fights (the army formula): the full breakdown is stored with the report when the fight is applied. It used to
++//  be attached by a timer that only caught the last fight run on this phone in the last 15 s.
++//  Fights you start (marches, forts, monsters): a report is written from the fight itself (your hero and troops, the
++//  enemy, troops lost) even while the result waits in the card queue or the game catches up after being closed.
++//  Lists keep the newest 60 of each kind; reports older than 14 days clear themselves. Delete one, select several,
++//  or clear a whole tab (tap twice).
++//  Loaded after card1.js so a fight is recorded before its card is queued.
++(function(){
++  const CAP1=60,DAYS1=14;
++  const n1=v=>Math.round(+v||0).toLocaleString();
++  const esc1=s=>typeof esc24==='function'?esc24(s):String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
++  const strip1=s=>String(s||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
++  // ---------- defense fights: keep the army-formula breakdown with the report
++  function c26(x){if(!x)return null;try{return JSON.parse(JSON.stringify({D:x.D,A:x.A,E:x.E,walls:x.walls,fire:x.fire,tWe:x.tWe,tThey:x.tThey,mix:x.mix,nTypes:x.nTypes,why:x.why,perks:x.perks,
++      bld:x.bld?{kind:x.bld.kind,lvl:x.bld.lvl}:null,players:(x.players||[]).map(p=>({key:p.key,uid:p.uid,name:p.name,type:p.type,n:p.n,lost:p.lost,left:p.left,dmg:p.dmg,hp:p.hp})),
++      att:x.att?{name:x.att.name,n:x.att.n,lost:x.att.lost,left:x.att.left}:null}));}catch(e){return null;}}
++  try{const _ap=apply25;apply25=function(defs,s,r){const before=(P.fr25||[])[0];const out=_ap.apply(this,arguments);
++      try{const top=(P.fr25||[])[0];if(top&&top!==before&&!top.r26&&r&&r.r26){top.r26=c26(r.r26);save();}}catch(e){console.warn('reports1 r26',e);}return out;};
++    window.apply25=apply25;}catch(e){console.warn('reports1: apply25 missing',e);}
++  // ---------- fights you start: record from the fight itself
++  const CTX1={kind:null};
++  try{const _fm=fightMutant;fightMutant=function(){CTX1.kind='monster';try{return _fm.apply(this,arguments);}finally{CTX1.kind=null;}};window.fightMutant=fightMutant;}catch(e){}
++  try{const _ff=fightFort;fightFort=function(id){CTX1.kind='fort';CTX1.hex=id;try{return _ff.apply(this,arguments);}finally{CTX1.kind=null;CTX1.hex=null;}};window.fightFort=fightFort;}catch(e){}
++  function hordeNames1(){try{return BAL.factions.list.map(d=>String(d.name||'').split(' · ')[0]).filter(Boolean);}catch(e){return [];}}
++  function duelRecord(o){const f=o&&o.f;if(!f||!f.startA)return null;
++    const mid=G._marchId,m=mid&&G.marches?G.marches[mid]:null;
++    const kind=CTX1.kind||(m?'march':'fight');
++    const hero0=f.startA.find(u=>u.me)||f.startA.find(u=>!u.troop)||null /* a march's first unit is its owner's hero */,hero1=hero0?f.A.find(u=>u.uid===hero0.uid):null;
++    const band0=f.startA.find(u=>u.troop),band1=band0?f.A.find(u=>u.uid===band0.uid):null;
++    let troops=null;if(band0){const n=+band0.troop||0,frac=band1?Math.max(0,band1.hp)/Math.max(1,band1.max||band0.max||1):0,left=Math.round(n*frac);
++      troops={sent:n,lost:n-left,left,tier:typeof troopTier==='function'?troopTier():1,cls:(typeof myType26==='function'?myType26():'')};}
++    const foes=f.startB.map(u=>{const e=f.B.find(x=>x.uid===u.uid)||u;return{name:strip1(u.name),hp0:u.hp,hp1:Math.max(0,e.hp),max:u.max||u.hp,atk:u.atk,def:u.def||0};});
++    const hn=hordeNames1(),horde=foes.some(x=>/raider|horde|squad/i.test(x.name)||hn.some(h=>x.name.includes(h)));
++    const hex=(m&&m.to)||CTX1.hex||null;
++    const lostHp=foes.reduce((a,x)=>a+(x.hp0-x.hp1),0),maxHp=foes.reduce((a,x)=>a+x.hp0,0)||1;
++    let why='';
++    if(o.good){why=troops&&troops.sent?`Your side dealt ${n1(lostHp)} damage and finished them in ${roundsOf(f)} rounds. You lost ${n1(troops.lost)} of ${n1(troops.sent)} troops.`:`You beat them in ${roundsOf(f)} rounds with ${n1(hero1?hero1.hp:0)} HP left.`;}
++    else{why=`They had more staying power: you took off ${Math.round(100*lostHp/maxHp)}% of their health before your side fell.`+(troops&&troops.sent?` You lost ${n1(troops.lost)} of ${n1(troops.sent)} troops.`:'');}
++    return{id:'d'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),t:Date.now(),src:'duel',kind,cat:'attack',horde,win:!!o.good,hex,
++      title:strip1(o.title).slice(0,70),result:strip1(o.result||o.sub).slice(0,400),why,
++      us:{name:P.name,hero:hero0?{hp0:hero0.hp,hp1:Math.max(0,hero1?hero1.hp:0),max:hero0.max||hero0.hp,atk:hero0.atk,def:hero0.def||0}:null,troops},
++      them:{units:foes.slice(0,8),hpLost:lostHp,hpMax:maxHp},rounds:roundsOf(f)};}
++  function roundsOf(f){return Math.max(0,...(f.events||[]).map(e=>e.r||0));}
++  const _rp1=UI.replay;
++  UI.replay=function(o){try{if(o&&o.f&&!o._rec1){o._rec1=1;const r=duelRecord(o);if(r){P.rp1=[r,...(P.rp1||[])].slice(0,CAP1);save();}}}catch(e){console.warn('reports1 duel',e);}
++    return _rp1.apply(this,arguments);};
++  // ---------- one list for Reports: category per row
++  function catOf(x){if(x.k==='d')return['drive'];if(x.k==='m')return['march'];
++    if(x.k==='a'){const c=[x.r.kind==='monster'?'attack':'attack'];if(x.r.horde)c.push('horde');return c;}
++    const r=x.r,c=[];if(r.ally)c.push('alliance');else c.push('defense');c.push('horde');return c;}
++  const _items=reportItems26;
++  reportItems26=function(){const L=_items.apply(this,arguments);
++    (P.rp1||[]).forEach(r=>L.push({k:'a',t:r.t,ico:r.kind==='monster'?'🐀':r.win?'⚔️':'💀',title:(r.win?'Won':'Lost')+' · '+(r.title||'Fight'),
++      sub:(r.us&&r.us.troops&&r.us.troops.sent)?`you lost ${n1(r.us.troops.lost)} of ${n1(r.us.troops.sent)} troops`:(r.us&&r.us.hero?`hero ${n1(r.us.hero.hp1)}/${n1(r.us.hero.max)} HP`:''),r}));
++    L.forEach(x=>{x.cats=catOf(x);});return L.sort((a,b)=>b.t-a.t);};
++  window.reportItems26=reportItems26;
++  // ---------- delete, select, clear
++  const LISTS1={f:'fr25',d:'dr26',m:'mr26',a:'rp1'};
++  function del1(items){const by={};items.forEach(x=>{(by[x.k]=by[x.k]||new Set()).add(x.r);});
++    for(const [k,set] of Object.entries(by)){const key=LISTS1[k];if(!key)continue;P[key]=(P[key]||[]).filter(r=>!set.has(r));}save();}
++  window.reportDel1=del1;
++  UI._sel1=null;UI._rf1=UI._rf1||'all';
++  const TABS1=[['all','All'],['attack','⚔️ Attacks'],['defense','🛡️ Defense'],['horde','☠️ Horde'],['alliance','🤝 Alliance'],['drive','🚗 Drives'],['march','🚩 Marches']];
++  function shown1(L,f){return L.map((x,i)=>[x,i]).filter(([x])=>f==='all'||(x.cats||[]).includes(f));}
++  reportsHTML26=function(){const f=UI._rf1||'all',L=reportItems26(),seen=P.rp26Seen||0;UI._ri26=L;const sel=UI._sel1;
++    const cnt=k=>shown1(L,k).length;
++    const tabs=TABS1.map(([k,n])=>`<button class="${f===k?'on':''}" onclick="UI._rf1='${k}';UI._sel1=null;UI.reports26()">${n} ${cnt(k)}</button>`).join('');
++    const S=shown1(L,f).slice(0,CAP1*4);
++    const rows=S.map(([x,i])=>`<div class="rp26 ${x.t>seen?'new':''} ${sel&&sel.has(i)?'sel1':''}" onclick="${sel?`reportPick1(${i})`:`UI.reportAt26(${i})`}">${sel?`<span class="ck1">${sel.has(i)?'☑️':'⬜'}</span>`:''}<span class="ri">${x.ico}</span><div class="grow"><b>${esc1(strip1(x.title))}</b><small>${esc1(x.sub||'')} · ${when(x.t)}</small></div>${sel?'':`<button class="rx1" title="Delete this report" onclick="event.stopPropagation();reportDelAt1(${i})">✕</button>`}</div>`).join('');
++    const ctl=S.length?(sel?`<div class="rpc1"><button onclick="reportPickAll1()">${sel.size===S.length?'Select none':'Select all'}</button><button class="bad1" ${sel.size?'':'disabled'} onclick="reportDelSel1()">🗑️ Delete ${sel.size}</button><button onclick="UI._sel1=null;UI.reports26()">Done</button></div>`
++      :`<div class="rpc1"><button onclick="UI._sel1=new Set();UI.reports26()">☑️ Select</button><button class="bad1" onclick="reportClear1()">🧹 Clear ${f==='all'?'all':'this tab'}</button></div>`):'';
++    return`<div class="rps26"><div class="seg rpf26 rpf1">${tabs}</div>${ctl}${rows||'<p class="tiny">Nothing here yet. Fights, drives and marches land here and stay for 14 days.</p>'}<p class="tiny">Logins, stories and badge toasts are in <a href="#" onclick="UI.actlog26();return false">📒 Activity log</a>.</p></div>`;};
++  window.reportsHTML26=reportsHTML26;
++  const refresh1=()=>{try{if(UI.tab==='base'&&UI.sub.base==='reports'&&$('#sheet')&&!$('#sheet').classList.contains('hidden')&&$('#modal').classList.contains('hidden'))UI.render();else UI.reports26();}catch(e){UI.reports26();}};
++  window.reportDelAt1=function(i){const x=(UI._ri26||[])[i];if(!x)return;del1([x]);toast('🗑️ Report deleted');refresh1();};
++  window.reportPick1=function(i){const s=UI._sel1;if(!s)return;s.has(i)?s.delete(i):s.add(i);refresh1();};
++  window.reportPickAll1=function(){const s=UI._sel1;if(!s)return;const S=shown1(UI._ri26||[],UI._rf1||'all');if(s.size===S.length)s.clear();else S.forEach(([,i])=>s.add(i));refresh1();};
++  window.reportDelSel1=function(){const s=UI._sel1;if(!s||!s.size)return;const L=UI._ri26||[];del1([...s].map(i=>L[i]).filter(Boolean));toast(`🗑️ ${s.size} report${s.size>1?'s':''} deleted`);UI._sel1=null;refresh1();};
++  window.reportClear1=function(){const f=UI._rf1||'all',S=shown1(UI._ri26||[],f);if(!S.length)return;
++    const k='_clr1_'+f;if(!(G[k]&&Date.now()-G[k]<6000)){G[k]=Date.now();toast(`Tap Clear again to delete ${S.length} report${S.length>1?'s':''}`);return;}delete G[k];
++    del1(S.map(([x])=>x));toast(`🧹 ${S.length} report${S.length>1?'s':''} cleared`);refresh1();};
++  // ---------- report popups: the new kind + a Delete button on every report
++  function bar1(p,lbl){const w=Math.max(0,Math.min(100,Math.round(100*p)));return`<div class="zbar"><i style="width:${w}%"></i></div><small>${lbl}</small>`;}
++  function duelHTML1(r){const u=r.us||{},T=u.troops,H=u.hero,them=r.them||{};
++    const head=`<div class="fh26 ${r.win?'w':'l'}"><h2>${r.win?'🏆 Won':'💀 Lost'} · ${esc1(r.title||'Fight')}</h2><small>${r.hex?esc1(hexName(r.hex))+' · ':''}${new Date(r.t).toLocaleString()} · ${r.rounds||0} rounds</small></div>`;
++    const ours=`<div class="sec26">YOUR SIDE</div>`+(T&&T.sent?`<div class="pl26"><span>🪖</span><div class="grow"><b>${n1(T.sent)} T${T.tier||1} troops</b><small>${T.cls?esc1(((CLASSES.list[T.cls]||{}).name)||T.cls)+' · ':''}lost ${n1(T.lost)} · ${n1(T.left)} left</small></div><b>−${n1(T.lost)}</b></div>`:'')
++      +(H?`<div class="pl26"><span>🧍</span><div class="grow"><b>${esc1(u.name||'Your hero')}</b><small>ATK ${n1(H.atk)} · DEF ${n1(H.def)} · HP ${n1(H.hp0)} → ${n1(H.hp1)} of ${n1(H.max)}</small></div><b>${n1(H.hp1)}❤</b></div>`:'');
++    const theirs=`<div class="sec26">ENEMY</div>`+(them.units||[]).map(x=>`<div class="pl26"><span>🪓</span><div class="grow"><b>${esc1(x.name)}</b><small>ATK ${n1(x.atk)} · DEF ${n1(x.def)} · HP ${n1(x.hp0)} → ${n1(x.hp1)}</small></div><b>${x.hp1>0?n1(x.hp1)+'❤':'down'}</b></div>`).join('')
++      +bar1(them.hpLost/(them.hpMax||1),`You took off ${Math.round(100*(them.hpLost||0)/(them.hpMax||1))}% of their health`);
++    return head+ours+theirs+`<div class="why26"><b>${r.win?'WHY WE WON':'WHY WE LOST'}</b><p>${esc1(r.why||'')}</p>${r.result&&r.result!==r.why?`<p class="tiny">${esc1(r.result)}</p>`:''}</div>`
++      +`<div class="btns26">${r.hex?`<button onclick="UI.closeModal();marchGo('${r.hex}')">🗺️ Map</button>`:''}<button onclick="UI.reports26()">📬 All reports</button><button onclick="UI.closeModal()">Close</button></div>`;}
++  window.duelHTML1=duelHTML1;
++  const _rep26=UI.report26;
++  UI.report26=function(k,r){if(k==='a'){this.modal(duelHTML1(r));$('#modal').classList.add('rpm26');}else _rep26.apply(this,arguments);
++    try{const b=$('#modalBody .btns26')||$('#modalBody');if(b&&!b.querySelector('.rdel1')){const d=document.createElement('button');d.className='rdel1';d.textContent='🗑️ Delete';
++      d.onclick=()=>{const x=(reportItems26()||[]).find(y=>y.r===r);if(x)del1([x]);toast('🗑️ Report deleted');UI.reports26();};b.appendChild(d);}}catch(e){}};
++  // ---------- 14 days, newest 60 per list
++  function prune1(){try{const cut=Date.now()-DAYS1*864e5;let ch=false;
++    for(const key of Object.values(LISTS1)){const a=P[key];if(!Array.isArray(a))continue;const b=a.filter(r=>r&&(r.t||0)>=cut).slice(0,CAP1);if(b.length!==a.length){P[key]=b;ch=true;}}
++    if(ch)save();}catch(e){console.warn('reports1 prune',e);}}
++  window.prune1=prune1;
++  setTimeout(prune1,4000);setInterval(prune1,3600e3);
++  const st=document.createElement('style');
++  st.textContent=`.rpf1{display:flex;flex-wrap:wrap;gap:4px}.rpf1 button{flex:1 1 auto;min-width:0;padding:6px 8px;font-size:12px;white-space:nowrap}
++  .rpc1{display:flex;gap:6px;margin:6px 0;flex-wrap:wrap}.rpc1 button{flex:1 1 auto;min-width:90px}.rpc1 .bad1,.rdel1{border-color:#7a2a22!important;color:#ffb3a8!important}
++  .rp26 .grow{flex:1 1 auto;min-width:0}.rp26 .rx1{flex:0 0 auto;width:34px;height:34px;padding:0;border-radius:17px;margin-left:6px;opacity:.75}.rp26.sel1{outline:2px solid #c9a24a}.ck1{margin-right:6px}`;
++  document.head.appendChild(st);
++})();
+diff --git a/public/style.css b/public/style.css
+index 7e5fc4e..a497029 100644
+--- a/public/style.css
++++ b/public/style.css
+@@ -586,6 +586,11 @@ body.night .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) grayscale(.55)
+ 
+ .pipevan26.tap{box-shadow:0 0 0 2px #ffc94a88,0 2px 8px #000}
+ .pipevan26.tap:active{transform:translate(-50%,-110%) scale(.96)}
++/* March list tuck: presentation only. The arrow stays on the page and does not cover the bottom nav. */
++#mcToggle{position:fixed;z-index:660;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border-radius:10px;border:1.5px solid #c9a24a;background:#1a140ce8;color:#f2d58a;font:800 22px/1 system-ui,sans-serif;box-shadow:0 2px 8px #000a;touch-action:manipulation;cursor:pointer}
++#mcards.v21.mc-shut{transform:translateX(calc(-100% - 28px));pointer-events:none!important}
++#mcards.v21.mc-open{display:flex!important}
++#shPick26{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 78px);z-index:860;max-width:calc(100vw - 24px);padding:10px 14px;border-radius:14px;border:1.5px solid #c9a24a;background:#241c10f2;color:#ffe9a8;font:700 14px/1.2 system-ui,sans-serif;touch-action:manipulation}
+ /* 12i QA: on phones the "Log out" text button pushed off-screen and squeezed the resource strip into one tall column
+    over the status chips. Phones get a compact icon; the full label stays on wider screens. */
+ @media (max-width:600px){#a12out{font-size:0!important;min-width:34px;width:34px;height:34px;padding:0!important;display:flex;align-items:center;justify-content:center;flex:0 0 34px}
+diff --git a/public/sw.js b/public/sw.js
+index ddd455f..7b5a0fc 100644
+--- a/public/sw.js
++++ b/public/sw.js
+@@ -1,6 +1,6 @@
+ // Dead Zone Drive service worker: network-first for the app (so updates show right away),
+ // falling back to cache when offline. Map tiles and Firebase are never cached here.
+-const C='ddd-v26-12i-integrated-6-r0';
++const C='ddd-v26-12i-integrated-6-r1';
+ self.addEventListener('install',e=>self.skipWaiting());
+ self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+ self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==location.origin)return;
+diff --git a/public/v25b.js b/public/v25b.js
+index 5fe2b83..fdbc3a4 100644
+--- a/public/v25b.js
++++ b/public/v25b.js
+@@ -67,7 +67,7 @@ function apply25(defs,s,r,gname,sp){const hx=G._f25hex||hexOfDefs(defs),now=Date
+     const fx=FX();fx.gl25=(fx.gl25||[]).concat([note]).slice(-40);
+     try{postGl25(note);}catch(e){}}
+   if(r.win){for(const k in loot)loot[k]=Math.round(loot[k]);P.rep25=(P.rep25||0)+F25.repHold;}
+-  P.fr25=[rep,...(P.fr25||[])].slice(0,20);
++  P.fr25=[rep,...(P.fr25||[])].slice(0,60);
+   report(`🛡️ ${r.win?'Held':'Lost'} ${hexName(hx)} vs ${gname} (power ${sp}) in ${r.rounds.length} round${r.rounds.length>1?'s':''}${r.bFell?' · building fell':''}. Tap Reports › Fight reports.`,r.win);save();}
+ // the horde step decides "held" with dp>=sp and "wrecked" with sp>=dp*destroyRatio. During a step, defPower returns a number
+ // that makes both checks follow the fight25 result (win / lose / building fell). Same inputs -> same answer on every phone.
+@@ -91,7 +91,7 @@ function applyGl25(){const t=TP();if(t.gl25Seen==null){t.gl25Seen=0;}const notes
+   for(const e of notes){t.gl25Seen=Math.max(t.gl25Seen,e.t);const s=stationed()[e.hex];if(!s||s.n<=0)continue;const n0=s.n,left=Math.round(n0*e.frac),lost=n0-left;s.n=left;
+     if(lost){const w=woundSplit(lost,e.won);addWounded(w.wounded);}
+     let lootTxt='';if(e.won){const L={};for(const [k,v] of Object.entries(BAL.ai.winLoot||{}))L[k]=Math.max(1,Math.round(v*F25.lootShare*Math.max(.2,e.share||0)));addRes(L);P.rep25=(P.rep25||0)+F25.repWin;lootTxt=' · loot '+Object.entries(L).map(([k,v])=>'+'+v+RES[k]).join(' ')+` · +${F25.repWin} rep`;}
+-    P.fr25=[{t:e.t,hex:e.hex,gang:e.gang,sp:e.sp,win:e.won,bPow:e.bPow,rounds:e.rounds||[],ally:true,me:[{who:'Your reinforcements',n:n0,lost,out:e.out}]},...(P.fr25||[])].slice(0,20);
++    P.fr25=[{t:e.t,hex:e.hex,gang:e.gang,sp:e.sp,win:e.won,bPow:e.bPow,rounds:e.rounds||[],ally:true,me:[{who:'Your reinforcements',n:n0,lost,out:e.out}]},...(P.fr25||[])].slice(0,60);
+     report(`🛡️ Your ${n0.toLocaleString()} reinforcements at ${hexName(e.hex)} ${e.won?'helped hold':'were beaten'} vs ${e.gang}: ${lost.toLocaleString()} lost${lootTxt}`,e.won);
+     if(left<=0||e.out)sendHome25(e.hex,left,e.out||'beaten');}
+   save();try{pushMember();}catch(e){}}
+@@ -134,7 +134,7 @@ function settleEscorts(){const t=TP(),E=t.esc25||{};let ch=false;const now=Date.
+     if(m&&(m.state==='arrived'||m.state==='done')&&!e.done){const fr=m.tl25!=null?m.tl25:(m.win===false?0:1),left=Math.round(e.n*fr),lost=e.n-left;e.done=1;ch=true;
+       if(lost){const w=woundSplit(lost,m.win!==false);addWounded(w.wounded);}
+       let lootTxt='';if(m.win!==false&&m.loot){const L={};const tot=(m.troops||0)+Object.values(m.escorts||{}).reduce((a,x)=>a+(x.troops||0),0)||1;for(const [k,v] of Object.entries(m.loot))L[k]=Math.round(v*F25.lootShare*e.n/tot);if(Object.values(L).some(v=>v>0)){addRes(L);lootTxt=' · loot '+Object.entries(L).filter(([,v])=>v>0).map(([k,v])=>'+'+v+RES[k]).join(' ');}P.rep25=(P.rep25||0)+F25.repWin;lootTxt+=` · +${F25.repWin} rep`;}
+-      P.fr25=[{t:now,hex:m.to,gang:poss(m.name)+' march',win:m.win!==false,march:true,rounds:[],me:[{who:'Your troops in '+poss(m.name)+' march',n:e.n,lost}]},...(P.fr25||[])].slice(0,20);
++      P.fr25=[{t:now,hex:m.to,gang:poss(m.name)+' march',win:m.win!==false,march:true,rounds:[],me:[{who:'Your troops in '+poss(m.name)+' march',n:e.n,lost}]},...(P.fr25||[])].slice(0,60);
+       report(`🛡️ You reinforced ${poss(m.name)} march to ${hexName(m.to)}: ${m.win===false?'lost':'won'} · ${lost.toLocaleString()} of your ${e.n.toLocaleString()} lost${lootTxt}`,m.win!==false);
+       const back=Math.max(60e3,(m.startT+2*m.dur)-now);if(left>0)t.returning.push({n:left,at:now+back,from:m.to,st:now,why:'march home'});e.left=left;}
+     if((!m&&now>e.end+10*60e3)||(e.done&&now>e.end)){if(!e.done&&e.n>0){t.home+=e.n;report(`🪖 ${e.n.toLocaleString()} troops back from ${hexName(e.to)}`,true);}delete E[id];ch=true;}}
+@@ -177,7 +177,25 @@ mcardsDraw=function(){const q=s=>document.querySelector(s);let box=q('#mcards');
+   h+=reg.map(card).join('')+(reg.length<SLOTS.reg?empty(`⚔️ ${SLOTS.reg-reg.length} regular slot${SLOTS.reg-reg.length>1?'s':''} free · attack / claim`):'');
+   h+=`<div class="mhead sub">SUPPORT</div>`+sup.map(card).join('')+(supUsed<SLOTS.sup?empty(`🛡️ ${SLOTS.sup-supUsed} support slot${SLOTS.sup-supUsed>1?'s':''} free · reinforce / guard / escort`):'');
+   box.innerHTML=h;box.classList.add('v21');box.classList.toggle('drive',!!(G.drive&&G.drive.on));box.classList.toggle('quiet',innerWidth<1100&&!reg.length&&!sup.length);
+-  box.querySelectorAll('.mcard[data-to]').forEach(el=>el.onclick=()=>{const h2=el.dataset.to;if(h2){try{map.setView(hexCenter(...idQR(h2)),Math.max(map.getZoom(),15));}catch(e){}}});};
++  box.querySelectorAll('.mcard[data-to]').forEach(el=>el.onclick=()=>{const h2=el.dataset.to;if(h2){try{map.setView(hexCenter(...idQR(h2)),Math.max(map.getZoom(),15));}catch(e){}}});
++  try{mcToggle26(box);}catch(e){}};
++function mcWant26(box){try{const v=localStorage.getItem('wl_mcOpen');if(v==='0')return false;if(v==='1')return true;}catch(e){}
++  return !(innerWidth<1100&&!box.querySelector('.mcard:not(.empty)'));}
++function mcPlace26(box,btn,open){const tabs=document.getElementById('tabs'),nav=tabs?tabs.getBoundingClientRect():{top:innerHeight-64},phone=innerWidth<1100;let left,top;
++  if(!phone){left=open?318:76;top=108;}
++  else if(open){const r=box.getBoundingClientRect();left=Math.min(innerWidth-48,Math.max(8,(r.width?r.right:52)-22));top=r.height?r.top:Math.max(56,nav.top-52);if(top+44>nav.top-8)top=nav.top-52;if(top<56)top=56;}
++  else{left=8;top=Math.max(56,nav.top-52);}
++  btn.style.left=left+'px';btn.style.top=top+'px';btn.style.bottom='auto';}
++function mcToggle26(box){if(!box)return;let btn=document.getElementById('mcToggle');
++  if(!btn){btn=document.createElement('button');btn.id='mcToggle';btn.type='button';btn.setAttribute('aria-controls','mcards');
++    btn.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();const b=document.getElementById('mcards');if(!b)return;
++      try{localStorage.setItem('wl_mcOpen',b.classList.contains('mc-shut')?'1':'0');}catch(e){}mcToggle26(b);});
++    document.body.appendChild(btn);}
++  const open=mcWant26(box),drive=!!(G.drive&&G.drive.on);
++  box.classList.toggle('mc-shut',!open);box.classList.toggle('mc-open',!!open&&!drive);box.setAttribute('aria-hidden',open?'false':'true');
++  btn.setAttribute('aria-expanded',open?'true':'false');btn.setAttribute('aria-label',open?'Hide marches':'Show marches');btn.textContent=open?'‹':'›';
++  mcPlace26(box,btn,open&&!drive);}
++window.mcToggle26=mcToggle26;
+ // ---------- building card (mockup v5 02): own combined defense breakdown only, no predictions ----------
+ bldCard=function(hex){const b=bldAt(hex);if(!b)return'';const o=b.o,tp=TPOW(),lv=b.k==='sh'?strongholdLevel():b.k==='tower'?(o.level||1):0,
+   r=b.own?(b.k==='sh'?shRadius():b.k==='tower'?towerRadius(o):BAL.outpost.radius):(o.r||1),
+diff --git a/public/v26a.js b/public/v26a.js
+index 864e519..c2e3f4b 100644
+--- a/public/v26a.js
++++ b/public/v26a.js
+@@ -84,7 +84,7 @@ window.fight25=fight25;try{F25.rounds=0;}catch(e){}
+ const _sr26=squadReplay;squadReplay=function(defs,dp,sp,gname){G._gname26=gname;return _sr26.apply(this,arguments);};
+ // the v25 report writer (apply25) stores P.fr25 rows; attach the full breakdown to the newest one + route it to Reports
+ const _rep26=report;let _lastFr26=null;
+-setInterval(()=>{try{const top=(P.fr25||[])[0];if(top&&top!==_lastFr26){_lastFr26=top;if(!top.r26&&G._r26&&Date.now()-top.t<15e3){top.r26=G._r26;G._r26=null;save();}}}catch(e){}},700);
++/* R1: the breakdown is now stored when the fight is applied (reports1.js wraps apply25); the 700 ms timer that guessed it is gone */
+ // ---------- pipeline guard fix ----------
+ // 1) every hex on a guarded route counts as ours for the horde step, so the step MUST run the guard fight there
+ function guardedRoute26(id){try{for(const [gh,pg] of Object.entries(pipeGuards25()))if(pg.route.includes(id)&&stationedAt(gh)>0)return true;}catch(e){}
+@@ -103,13 +103,13 @@ pipeCut=function(p){const gi=fxIndex(),cl=(FX().cut26)||{};const guarded=!!(p.gu
+ window.pipeCut=pipeCut;
+ // 3) reports for captures with no defenders: the hex owner always gets one (their own phone)
+ function capReport26(h,fid,t){const prev=G.terr[h],pu=(prev&&prev.prevUid)||'';const gname=(fdef(fid)||{}).name||'Horde';const row={t:Math.round(t)||Date.now(),hex:h,gang:gname,win:false,none:true,me:[],why:'Nobody was guarding this hex, so the horde walked in. No fight was run.'};
+-  if(!pu||isMe(pu)){P.fr25=[row,...(P.fr25||[])].slice(0,30);save();try{notify26('cap',row);}catch(e){}}
++  if(!pu||isMe(pu)){P.fr25=[row,...(P.fr25||[])].slice(0,60);save();try{notify26('cap',row);}catch(e){}}
+   else{try{if(NET.mode==='firebase')NET.fs.addDoc(NET.fs.collection(NET.db,...NET.base,'activity'),{kind:'cap26',text:JSON.stringify({for:pu,hex:h,gang:String(gname).slice(0,24)}),uid:NET.uid||P.uid,name:(P.name||'').slice(0,24),t:NET.fs.serverTimestamp()});}catch(e){}}}
+ window.capReport26=capReport26;
+ function listenCap26(){if(G._cap26L||NET.mode!=='firebase'||!NET.fs||!NET.db||!NET.base)return;G._cap26L=1;
+   NET.actFeed(60,s=>{const seen=TP().cap26Seen||0;let mx=seen,ch=false;
+     s.forEach(d=>{const x=d.data();if(x.kind!=='cap26')return;let p={};try{p=JSON.parse(x.text||'{}');}catch(e){return;}const t=x.t&&x.t.toMillis?x.t.toMillis():0;if(!t||t<=seen||!isMe(p.for))return;mx=Math.max(mx,t);
+-      const row={t,hex:p.hex,gang:p.gang,win:false,none:true,me:[],why:'Nobody was guarding this hex, so the horde walked in. No fight was run.'};P.fr25=[row,...(P.fr25||[])].slice(0,30);ch=true;try{notify26('cap',row);}catch(e){}});
++      const row={t,hex:p.hex,gang:p.gang,win:false,none:true,me:[],why:'Nobody was guarding this hex, so the horde walked in. No fight was run.'};P.fr25=[row,...(P.fr25||[])].slice(0,60);ch=true;try{notify26('cap',row);}catch(e){}});
+     if(ch){TP().cap26Seen=mx;save();}},e=>console.warn('cap26',e));}
+ setInterval(()=>{try{listenCap26();}catch(e){}},3000);
+ // 4) reconcile: a route hex the horde holds while my guards sit on the line (no fight on record) -> the guards fight for it now.
+@@ -125,7 +125,7 @@ function reconcile26(){if(!P.world||!P.world.fx)return;const gi=fxIndex(),cl=cut
+       rec[h]=held;if(r.win){delete f.tiles[h];fxDirty();stationed()[g.hex].n=me.left;if(cl[h])delete cl[h];row.title=`Pipeline guard drove ${gname} off ${p.name}`;}
+       else{cl[h]={t:now,fid,why:'fight'};sendHome25(g.hex,me.left,'retreated');row.title=`Pipeline line lost · ${p.name}`;}
+       if(me.lost){try{const w=woundSplit(me.lost,r.win);addWounded(w.wounded);}catch(e){}}
+-      P.fr25=[row,...(P.fr25||[])].slice(0,30);ch=true;try{notify26('fight',row);}catch(e){}
++      P.fr25=[row,...(P.fr25||[])].slice(0,60);ch=true;try{notify26('fight',row);}catch(e){}
+       break;}}
+   if(ch){save();try{pushMember();}catch(e){}try{drawWorld();}catch(e){}}}
+ window.reconcile26=reconcile26;
+diff --git a/public/v26b.js b/public/v26b.js
+index 0b9d011..43600dc 100644
+--- a/public/v26b.js
++++ b/public/v26b.js
+@@ -20,7 +20,7 @@ setInterval(()=>{try{const top=(P.fr25||[])[0];if(top&&!top._n26&&Date.now()-top
+ const _rp26=UI.replay;UI.replay=function(o){_rp26.apply(this,arguments);try{const b=$('#modalBody');b.dataset.rtag='keep26';b.dataset.qtag='keep26';const rc=$('#rclose');rc&&rc.remove();}catch(e){}};
+ const _inf26=UI.info;UI.info=function(o){_inf26.apply(this,arguments);try{clearInterval(UI._fc8);const c=$('#fcount');c&&c.remove();$('#modalBody').dataset.ftag='keep26';}catch(e){}};
+ // ---------- march results -> Reports + tap-toast (no surprise popup) ----------
+-showMarchReport=function(o){try{const row={t:Date.now(),sub:o.sub||'March done',rows:o.rows||[]};P.mr26=[row,...(P.mr26||[])].slice(0,30);save();notify26('march',row);}catch(e){console.warn('mr26',e);}};
++showMarchReport=function(o){try{const row={t:Date.now(),sub:o.sub||'March done',rows:o.rows||[]};P.mr26=[row,...(P.mr26||[])].slice(0,60);save();notify26('march',row);}catch(e){console.warn('mr26',e);}};
+ // ---------- Reports home ----------
+ function fightTitle26(r){if(r.title)return r.title;if(r.none)return`☠️ ${r.gang||'Horde'} took ${hexName(r.hex)}`;return`${r.win?'🛡️ Held':'💀 Lost'} · ${hexName(r.hex||'')}`;}
+ function fightSub26(r){if(r.none)return'nobody guarding';const me=(r.me||[]).reduce((a,m)=>a+(m.lost||0),0);return`${r.gang||'Horde'}${r.r26?' · '+n26(r.r26.att.n)+' troops':''} · you lost ${n26(me)}${r.ally?' · you reinforced':''}`;}
+@@ -76,7 +76,7 @@ const _td26=toggleDrive;toggleDrive=async function(){const wasOn=G.drive.on;cons
+   try{if(G.drive.on){G.drive.s26={t0:Date.now(),km0:P.stats.meters,res0:{...P.res},tiles0:held0,src:{},own:new Set(),ownPaid:0,bugs:[]};}
+     else if(s){const now=Date.now(),tot={},oth={};for(const k in RES){const d=(P.res[k]||0)-(s.res0[k]||0);let at=0;for(const src of Object.values(s.src))at+=src[k]||0;if(at>0)tot[k]=at;if(d-at>0)oth[k]=d-at;}
+       const rec={t:now,t0:s.t0,km:((P.stats.meters-s.km0)/1000).toFixed(1),newHex:Math.max(G.drive.claimed||0,Object.keys(P.tiles).length-s.tiles0),own:s.own.size,ownPaid:s.ownPaid,src:s.src,total:tot,other:oth,bugs:s.bugs};
+-      P.dr26=[rec,...(P.dr26||[])].slice(0,20);save();G.drive.s26=null;notify26('drive',rec);}}catch(e){console.warn('dr26',e);}return r;};
++      P.dr26=[rec,...(P.dr26||[])].slice(0,60);save();G.drive.s26=null;notify26('drive',rec);}}catch(e){console.warn('dr26',e);}return r;};
+ // HUD: "Picked up" only counts real drive sources (badge rewards no longer show as drive loot)
+ const _dh26=driveHud;driveHud=function(){_dh26.apply(this,arguments);try{const el=$('#drivehud'),s=G.drive&&G.drive.s26;if(!el||!s)return;const g=el.querySelector('.dgot');const tot={};for(const src of Object.values(s.src))for(const k in src)tot[k]=(tot[k]||0)+src[k];
+   const h=Object.keys(tot).length?`<div class="dgot">Picked up: ${resTxt26(tot)}${s.bugs.length?` · 🐛 ${s.bugs.length}`:''}</div>`:'';if(g)g.outerHTML=h;else if(h){const st=el.querySelector('.dstats');st&&st.insertAdjacentHTML('afterend',h);}}catch(e){}};

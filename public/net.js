@@ -249,6 +249,8 @@ class FirebaseNet {
 
 function makeNet(){
   const c=window.FIREBASE_CONFIG||{};
-  const forceLocal=new URLSearchParams(location.search).has('local');
+  // R1: ?local (offline practice game kept on this device) only on TEST and local test copies, never on the live site
+  const h=location.hostname,testHost=h.indexOf('--')>=0||h==='localhost'||h==='127.0.0.1';
+  const forceLocal=testHost&&new URLSearchParams(location.search).has('local');
   return (c.apiKey&&!forceLocal)?new FirebaseNet(c,localStorage.getItem('wl_team')||window.DEFAULT_TEAM):new LocalNet();
 }

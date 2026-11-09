@@ -57,11 +57,12 @@ UI.replay=function(o){// o:{title,sub,f,result,good,buttons:[[label,fn,cls]]}. S
     const d=document.createElement('div');d.className='dmg'+(e.heal?' heal':'');d.textContent=(e.heal?'+':'-')+e.dmg;el.appendChild(d);setTimeout(()=>d.remove(),900);
     const l=$('#rlog');if(l)l.innerHTML=`R${e.r}: ${nm(e.a)} ${e.heal?'heals '+nm(e.t)+' +'+e.dmg:'→ '+nm(e.t)+' '+e.dmg}<br>`+l.innerHTML;
     $('#rround').textContent='R'+e.r;$('#rmeter').innerHTML=meterHTML(f,i);};
-  const finish=()=>{if(done)return;done=true;clearInterval(iv);for(;i<f.events.length;i++)setHP(f.events[i]);if(!$('#rres'))return;
+  const myLog=$('#rlog'),gone=()=>!myLog||!myLog.isConnected||$('#modal').classList.contains('hidden'); // R1: this card's own elements, never a newer card's
+  const finish=()=>{if(done)return;done=true;clearInterval(iv);if(gone())return;for(;i<f.events.length;i++)setHP(f.events[i]);if(!$('#rres'))return;
     $('#rctl')?.remove();$('#rmeter').innerHTML=meterHTML(f,f.events.length);$('#rround').textContent=f.events.length?'END':'VS';
     $('#rres').innerHTML=`<div class="result ${o.good?'good':'bad'}">${o.result}</div>`+(o.buttons||[]).map((b,k)=>`<button class="${b[2]||''}" style="width:100%;margin-top:6px" id="rb${k}">${b[0]}</button>`).join('');
     (o.buttons||[]).forEach((b,k)=>$('#rb'+k).onclick=b[1]);UI.hud();};
-  $('#rauto').onclick=()=>{if(iv)return;$('#rauto').disabled=true;$('#rauto').textContent='⚔️ Fighting…';iv=setInterval(()=>{if(!$('#rlog'))return clearInterval(iv);if(i>=f.events.length)return finish();i++;show(f.events[i-1]);},delay);};
+  $('#rauto').onclick=()=>{if(iv)return;$('#rauto').disabled=true;$('#rauto').textContent='⚔️ Fighting…';iv=setInterval(()=>{if(gone())return clearInterval(iv);if(i>=f.events.length)return finish();i++;show(f.events[i-1]);},delay);};
   $('#rskip').onclick=finish;if(o.autostart)$('#rauto').click();};
 
 // ---------- info cards (tap = info, never a fight) ----------
