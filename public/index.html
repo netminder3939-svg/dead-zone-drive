@@ -8,15 +8,11 @@
 <header id="hud">
   <div class="who"><b id="pname">—</b> <span id="plvl">Lv1</span><div class="bar"><i id="hpbar"></i></div><div class="bar xp"><i id="xpbar"></i></div></div>
   <div id="res"></div>
-  <button id="btnInbox" class="chip" title="Inbox" onclick="UI.inbox()">🔔</button><button id="btnDev" class="chip" title="Dev tools">🧪</button>
+  <button id="btnInbox" class="chip" title="Inbox" onclick="UI.inbox()">🔔</button>
 </header>
 <div id="mode" class="chip small"></div><div id="status"></div><div id="notice" class="hidden"></div><div id="drivehud" class="hidden"></div>
 <div id="toast"></div>
 <div id="raidBanner" class="hidden"></div>
-<div id="devbar" class="hidden">
-  <button data-dev="walk">🚶 Walk</button><button data-dev="drive">🚗 Drive</button><button data-dev="tp">📍 Tap map = teleport</button>
-  <button data-dev="boss">👹 Test boss</button><button data-dev="rath">🏠 Rathdrum</button><button data-dev="daily">🌅 Run reset</button><button data-dev="ai">⚔️ AI attack</button><button data-dev="finish">⏩ Finish builds</button><button data-dev="gear">🎒 2 test gear</button><button data-dev="reset">♻️ Wipe</button>
-</div>
 <button id="btnCenter" class="fab" title="Recenter on me">◎</button><button id="btnNear" class="fab" title="Nearby" onclick="UI.nearest()">📍</button><button id="btnDrive" class="fab" title="Drive mode" onclick="toggleDrive()">🚗</button>
 <button id="btnClaim" class="fab claim" title="Build here">🏗️</button>
 <nav id="tabs">
@@ -33,7 +29,7 @@
   <p class="tiny">Location is only used while this page is open.</p></div></div>
 <script src="leaflet.js"></script><script src="firebase-config.js"></script><script src="preview.js"></script>
 <script src="data.js"></script><script src="hex.js"></script><script src="net.js"></script>
-<script src="balance.js"></script><script src="progress.js"></script><script src="world.js"></script><script src="game.js"></script><script src="ui.js"></script><script src="fight.js"></script><script src="qol.js"></script><script src="stage2.js"></script><script src="horde.js"></script><script src="ledger.js"></script><script src="march.js"></script>
+<script src="balance.js"></script><script src="progress.js"></script><script src="world.js"></script><script src="game.js"></script><script src="dev0.js"></script><script src="ui.js"></script><script src="fight.js"></script><script src="qol.js"></script><script src="stage2.js"></script><script src="horde.js"></script><script src="ledger.js"></script><script src="march.js"></script>
 <script src="gear2.js"></script><script src="theme.js"></script><script src="ally.js"></script><script src="stage4.js"></script><script src="nits.js"></script><script src="stage5.js"></script><script src="lmstatic.js"></script><script src="fix5.js"></script><script src="stage6.js"></script><script src="fix6.js"></script><script src="fix7.js"></script><script src="stage7.js"></script><script src="stage8.js"></script><script src="fix8.js"></script><script src="horde8.js"></script><script src="news8.js"></script><script src="kit8.js"></script><script src="fix9.js"></script>
 <script src="fix10.js"></script>
 <script src="wipe11.js"></script>
