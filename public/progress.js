@@ -30,7 +30,7 @@ function stats(){const L=P.lvl,SL=strongholdLevel();
 function hitDamage(me,foe){const C=BAL.combat;return Math.max(1,Math.round((me.atk*(1+(me.crit||0)/100)-(foe.def||0)*C.defFactor)*(1-Math.min(C.agiReduceCap,foe.agi||0)/100)));}
 function simulateRound(me,foe){return{dmg:hitDamage(me,foe),crit:false};}
 function xpNeed(L){return Math.round(BAL.progress.xpBase*Math.pow(L,BAL.progress.xpExp));}
-function addXP(n){P.xp+=n;while(P.xp>=xpNeed(P.lvl)){P.xp-=xpNeed(P.lvl);P.lvl++;P.sp=(P.sp||0)+1;P.hp=stats().hp;toast('⬆️ Level '+P.lvl+'! +1 skill point');UI.badge('player',true);allianceLog(`${P.name} reached level ${P.lvl}`);}}
+function addXP(n){P.xp+=n;while(P.xp>=xpNeed(P.lvl)){P.xp-=xpNeed(P.lvl);P.lvl++;P.sp=(P.sp||0)+1;P.hp=stats().hp;toast('⬆️ Level '+P.lvl+'! +1 skill point · hero +3% HP/ATK/DEF · march size +100');UI.badge('player',true);allianceLog(`${P.name} reached level ${P.lvl}`);}}
 function spendSkill(id){if(!(P.sp>0))return toast('No skill points: level up to earn more');P.skills=P.skills||{};
   if((P.skills[id]||0)>=SKILL_MAX)return toast('Maxed');P.skills[id]=(P.skills[id]||0)+1;P.sp--;save();toast('Skill learned');}
 function respecCost(){return BAL.progress.respecPerLevel*P.lvl;}

@@ -14,7 +14,8 @@
   // ---------- defense fights: keep the army-formula breakdown with the report
   function c26(x){if(!x)return null;try{return JSON.parse(JSON.stringify({D:x.D,A:x.A,E:x.E,walls:x.walls,fire:x.fire,tWe:x.tWe,tThey:x.tThey,mix:x.mix,nTypes:x.nTypes,why:x.why,perks:x.perks,
       bld:x.bld?{kind:x.bld.kind,lvl:x.bld.lvl}:null,players:(x.players||[]).map(p=>({key:p.key,uid:p.uid,name:p.name,type:p.type,n:p.n,lost:p.lost,left:p.left,dmg:p.dmg,hp:p.hp})),
-      att:x.att?{name:x.att.name,n:x.att.n,lost:x.att.lost,left:x.att.left}:null}));}catch(e){return null;}}
+      att:x.att?{name:x.att.name,n:x.att.n,lost:x.att.lost,left:x.att.left}:null,
+      rounds:x.b2&&typeof timeline2==='function'?timeline2(x.b2).map(t=>({k:t.k,dealt:t.dmgDef,taken:t.dmgAtt})):null}));}catch(e){return null;}}
   try{const _ap=apply25;apply25=function(defs,s,r){const before=(P.fr25||[])[0];const out=_ap.apply(this,arguments);
       try{const top=(P.fr25||[])[0];if(top&&top!==before&&!top.r26&&r&&r.r26){top.r26=c26(r.r26);save();}}catch(e){console.warn('reports1 r26',e);}return out;};
     window.apply25=apply25;}catch(e){console.warn('reports1: apply25 missing',e);}
@@ -37,7 +38,16 @@
     let why='';
     if(o.good){why=troops&&troops.sent?`Your side dealt ${n1(lostHp)} damage and finished them in ${roundsOf(f)} rounds. You lost ${n1(troops.lost)} of ${n1(troops.sent)} troops.`:`You beat them in ${roundsOf(f)} rounds with ${n1(hero1?hero1.hp:0)} HP left.`;}
     else{why=`They had more staying power: you took off ${Math.round(100*lostHp/maxHp)}% of their health before your side fell.`+(troops&&troops.sent?` You lost ${n1(troops.lost)} of ${n1(troops.sent)} troops.`:'');}
-    return{id:'d'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),t:Date.now(),src:'duel',kind,cat:'attack',horde,win:!!o.good,hex,
+    if(f.army2&&f.army2.r){const R=f.army2.r,us=f.army2.us==='att'?R.att:R.def,th=f.army2.us==='att'?R.def:R.att;
+      const sent=us.rows.reduce((a,x)=>a+x.n,0),lost=us.rows.reduce((a,x)=>a+x.lost,0);
+      troops=sent?{sent,lost,left:sent-lost,tier:typeof troopTier==='function'?troopTier():1,cls:(us.rows[0]||{}).type||''}:null;
+      const beaten=th.rows.reduce((a,x)=>a+(x.custom?0:x.lost),0);
+      why=o.good?`Your side hit for ${n1(f.army2.us==='att'?R.DA:R.DD)} a round and took ${n1(f.army2.us==='att'?R.DD:R.DA)}. They broke first.${beaten?` They lost ${n1(beaten)} troops.`:''}`
+        :`They hit for ${n1(f.army2.us==='att'?R.DD:R.DA)} a round and took ${n1(f.army2.us==='att'?R.DA:R.DD)}. Your side broke first, so the attack failed.`;
+      CTX1.rows2={us:us.rows.map(x=>({type:x.type,name:x.name,n:x.n,lost:x.lost})),them:th.rows.map(x=>({name:x.name,n:x.custom?null:x.n,lost:x.custom?null:x.lost})),
+        rounds:(f.army2.tl||[]).map(t=>({k:t.k,dealt:f.army2.us==='att'?t.dmgAtt:t.dmgDef,taken:f.army2.us==='att'?t.dmgDef:t.dmgAtt}))};}
+    else CTX1.rows2=null;
+    return{rows2:CTX1.rows2,xp:f.xp2||0,id:'d'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),t:Date.now(),src:'duel',kind,cat:'attack',horde,win:!!o.good,hex,
       title:strip1(o.title).slice(0,70),result:strip1(o.result||o.sub).slice(0,400),why,
       us:{name:P.name,hero:hero0?{hp0:hero0.hp,hp1:Math.max(0,hero1?hero1.hp:0),max:hero0.max||hero0.hp,atk:hero0.atk,def:hero0.def||0}:null,troops},
       them:{units:foes.slice(0,8),hpLost:lostHp,hpMax:maxHp},rounds:roundsOf(f)};}
@@ -52,7 +62,8 @@
   const _items=reportItems26;
   reportItems26=function(){const L=_items.apply(this,arguments);
     (P.rp1||[]).forEach(r=>L.push({k:'a',t:r.t,ico:r.kind==='monster'?'🐀':r.win?'⚔️':'💀',title:(r.win?'Won':'Lost')+' · '+(r.title||'Fight'),
-      sub:(r.us&&r.us.troops&&r.us.troops.sent)?`you lost ${n1(r.us.troops.lost)} of ${n1(r.us.troops.sent)} troops`:(r.us&&r.us.hero?`hero ${n1(r.us.hero.hp1)}/${n1(r.us.hero.max)} HP`:''),r}));
+      sub:((r.us&&r.us.troops&&r.us.troops.sent)?`you lost ${n1(r.us.troops.lost)} of ${n1(r.us.troops.sent)} troops`:(r.us&&r.us.hero?`hero ${n1(r.us.hero.hp1)}/${n1(r.us.hero.max)} HP`:''))+(r.xp?` · +${n1(r.xp)} XP`:''),r}));
+    L.forEach(x=>{if(x.k==='f'&&x.r&&x.r.xp1)x.sub=(x.sub||'')+` · +${n1(x.r.xp1)} XP`;});
     L.forEach(x=>{x.cats=catOf(x);});return L.sort((a,b)=>b.t-a.t);};
   window.reportItems26=reportItems26;
   // ---------- delete, select, clear
@@ -84,15 +95,23 @@
   function bar1(p,lbl){const w=Math.max(0,Math.min(100,Math.round(100*p)));return`<div class="zbar"><i style="width:${w}%"></i></div><small>${lbl}</small>`;}
   function duelHTML1(r){const u=r.us||{},T=u.troops,H=u.hero,them=r.them||{};
     const head=`<div class="fh26 ${r.win?'w':'l'}"><h2>${r.win?'🏆 Won':'💀 Lost'} · ${esc1(r.title||'Fight')}</h2><small>${r.hex?esc1(hexName(r.hex))+' · ':''}${new Date(r.t).toLocaleString()} · ${r.rounds||0} rounds</small></div>`;
-    const ours=`<div class="sec26">YOUR SIDE</div>`+(T&&T.sent?`<div class="pl26"><span>🪖</span><div class="grow"><b>${n1(T.sent)} T${T.tier||1} troops</b><small>${T.cls?esc1(((CLASSES.list[T.cls]||{}).name)||T.cls)+' · ':''}lost ${n1(T.lost)} · ${n1(T.left)} left</small></div><b>−${n1(T.lost)}</b></div>`:'')
+    const R2=r.rows2;
+    const ours=R2?`<div class="sec26">YOUR SIDE</div>`+R2.us.map(x=>`<div class="pl26"><span>${((C26.types[x.type]||{}).ico)||'🪖'}</span><div class="grow"><b>${n1(x.n)} ${esc1(((CLASSES.list[x.type]||{}).name)||x.type)} T${(T&&T.tier)||1}</b><small>lost ${n1(x.lost)} · ${n1(x.n-x.lost)} left</small></div><b>−${n1(x.lost)}</b></div>`).join('')
+      +(H?`<div class="pl26"><span>🧍</span><div class="grow"><b>${esc1(u.name||'Your hero')}</b><small>led from behind · ATK ${n1(H.atk)} · DEF ${n1(H.def)} · HP ${n1(H.hp0)} → ${n1(H.hp1)} of ${n1(H.max)}</small></div></div>`:''):null;
+    const theirs2=R2?`<div class="sec26">ENEMY</div>`+R2.them.map(x=>`<div class="pl26"><span>🪓</span><div class="grow"><b>${esc1(x.name)}</b><small>${x.n!=null?`${n1(x.n)} troops · lost ${n1(x.lost)}`:'beast / building'}</small></div>${x.n!=null?`<b>−${n1(x.lost)}</b>`:''}</div>`).join(''):null;
+    const ours_old=`<div class="sec26">YOUR SIDE</div>`+(T&&T.sent?`<div class="pl26"><span>🪖</span><div class="grow"><b>${n1(T.sent)} T${T.tier||1} troops</b><small>${T.cls?esc1(((CLASSES.list[T.cls]||{}).name)||T.cls)+' · ':''}lost ${n1(T.lost)} · ${n1(T.left)} left</small></div><b>−${n1(T.lost)}</b></div>`:'')
       +(H?`<div class="pl26"><span>🧍</span><div class="grow"><b>${esc1(u.name||'Your hero')}</b><small>ATK ${n1(H.atk)} · DEF ${n1(H.def)} · HP ${n1(H.hp0)} → ${n1(H.hp1)} of ${n1(H.max)}</small></div><b>${n1(H.hp1)}❤</b></div>`:'');
     const theirs=`<div class="sec26">ENEMY</div>`+(them.units||[]).map(x=>`<div class="pl26"><span>🪓</span><div class="grow"><b>${esc1(x.name)}</b><small>ATK ${n1(x.atk)} · DEF ${n1(x.def)} · HP ${n1(x.hp0)} → ${n1(x.hp1)}</small></div><b>${x.hp1>0?n1(x.hp1)+'❤':'down'}</b></div>`).join('')
       +bar1(them.hpLost/(them.hpMax||1),`You took off ${Math.round(100*(them.hpLost||0)/(them.hpMax||1))}% of their health`);
-    return head+ours+theirs+`<div class="why26"><b>${r.win?'WHY WE WON':'WHY WE LOST'}</b><p>${esc1(r.why||'')}</p>${r.result&&r.result!==r.why?`<p class="tiny">${esc1(r.result)}</p>`:''}</div>`
+    const xpLine=r.xp?`<div class="r24"><span>XP earned</span><b>+${n1(r.xp)}</b></div>`:'';
+    return head+(ours||ours_old)+(theirs2||theirs)+xpLine+details1(R2&&R2.rounds)+`<div class="why26"><b>${r.win?'WHY WE WON':'WHY WE LOST'}</b><p>${esc1(r.why||'')}</p>${r.result&&r.result!==r.why?`<p class="tiny">${esc1(r.result)}</p>`:''}</div>`
       +`<div class="btns26">${r.hex?`<button onclick="UI.closeModal();marchGo('${r.hex}')">🗺️ Map</button>`:''}<button onclick="UI.reports26()">📬 All reports</button><button onclick="UI.closeModal()">Close</button></div>`;}
   window.duelHTML1=duelHTML1;
+  function details1(rounds){if(!rounds||!rounds.length)return'';return`<details class="det1"><summary>Details: round by round</summary>${rounds.map(x=>`<div class="r24"><span>Round ${x.k}</span><b>dealt ${n1(x.dealt)} · took ${n1(x.taken)}</b></div>`).join('')}</details>`;}
+  window.details1=details1;
   const _rep26=UI.report26;
   UI.report26=function(k,r){if(k==='a'){this.modal(duelHTML1(r));$('#modal').classList.add('rpm26');}else _rep26.apply(this,arguments);
+    try{if(k==='f'){const b=$('#modalBody .btns26');const extra=(r.xp1?`<div class="r24"><span>XP earned</span><b>+${n1(r.xp1)}</b></div>`:'')+details1(r.r26&&r.r26.rounds);if(b&&extra)b.insertAdjacentHTML('beforebegin',extra);}}catch(e){}
     try{const b=$('#modalBody .btns26')||$('#modalBody');if(b&&!b.querySelector('.rdel1')){const d=document.createElement('button');d.className='rdel1';d.textContent='🗑️ Delete';
       d.onclick=()=>{const x=(reportItems26()||[]).find(y=>y.r===r);if(x)del1([x]);toast('🗑️ Report deleted');UI.reports26();};b.appendChild(d);}}catch(e){}};
   // ---------- 14 days, newest 60 per list
@@ -104,6 +123,6 @@
   const st=document.createElement('style');
   st.textContent=`.rpf1{display:flex;flex-wrap:wrap;gap:4px}.rpf1 button{flex:1 1 auto;min-width:0;padding:6px 8px;font-size:12px;white-space:nowrap}
   .rpc1{display:flex;gap:6px;margin:6px 0;flex-wrap:wrap}.rpc1 button{flex:1 1 auto;min-width:90px}.rpc1 .bad1,.rdel1{border-color:#7a2a22!important;color:#ffb3a8!important}
-  .rp26 .grow{flex:1 1 auto;min-width:0}.rp26 .rx1{flex:0 0 auto;width:34px;height:34px;padding:0;border-radius:17px;margin-left:6px;opacity:.75}.rp26.sel1{outline:2px solid #c9a24a}.ck1{margin-right:6px}`;
+  .rp26 .grow{flex:1 1 auto;min-width:0}.rp26 .rx1{flex:0 0 auto;width:34px;height:34px;padding:0;border-radius:17px;margin-left:6px;opacity:.75}.rp26.sel1{outline:2px solid #c9a24a}.ck1{margin-right:6px}.det1{margin:8px 0}.det1 summary{cursor:pointer;font-weight:700;font-size:13px}`;
   document.head.appendChild(st);
 })();

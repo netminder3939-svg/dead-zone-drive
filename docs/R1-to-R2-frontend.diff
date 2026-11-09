@@ -1,0 +1,398 @@
+diff --git a/public/bal14.js b/public/bal14.js
+index ae55052..748c944 100644
+--- a/public/bal14.js
++++ b/public/bal14.js
+@@ -39,5 +39,5 @@
+   bankOf=function(f){try{const s=scale14();HE.capBase=BASE14.cap*s;HE.convPerH=BASE14.conv*s;HE.resPerH=BASE14.res*s;}catch(e){}return _bank14.apply(this,arguments);};
+   window.bankOf=bankOf;
+   // Visible label for this combined build. The service worker cache is ddd-v26-12h-integrated, not Claude's ddd-v26-12h.
+-  try{document.documentElement.dataset.build='12i-integrated-6-r1';const who=document.querySelector('#hud .who');if(who&&!document.getElementById('build14')){const el=document.createElement('span');el.id='build14';el.textContent='12i-integrated-6-r1';el.title='Build 12i-integrated-6';el.style.cssText='display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#2a241c;color:#e7d7c1;font:600 10px system-ui;letter-spacing:.02em;vertical-align:middle';who.appendChild(el);}}catch(e){}
++  try{document.documentElement.dataset.build='12i-integrated-6-r2';const who=document.querySelector('#hud .who');if(who&&!document.getElementById('build14')){const el=document.createElement('span');el.id='build14';el.textContent='12i-integrated-6-r2';el.title='Build 12i-integrated-6';el.style.cssText='display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#2a241c;color:#e7d7c1;font:600 10px system-ui;letter-spacing:.02em;vertical-align:middle';who.appendChild(el);}}catch(e){}
+ })();
+diff --git a/public/combat2.js b/public/combat2.js
+new file mode 100644
+index 0000000..87629cc
+--- /dev/null
++++ b/public/combat2.js
+@@ -0,0 +1,186 @@
++// combat2 (R2) One army combat system for every troop fight: Horde attacks on your land, pipeline guards, and every
++//  march (Horde squads, raider holdouts, forts, mutants on a march). Solo hero vs monster fights keep the duel engine.
++//  The math is the 12h army formula (fight26) that Pope approved, generalized to two sides that can both have troop
++//  squads, a hero and a building. fight26 itself now runs on this engine and gives identical numbers (tested on
++//  10,000 random fights). The fight is shown as rounds: squads line up by class (Engineers in front), each round both
++//  sides deal their damage, the front squad takes it first and the hero stands behind his troops.
++//  Loaded right after fight.js so every later wrapper of runFight / UI.replay wraps this one.
++(function(){
++  const ORDER2=['engineer','strategist','raider','scout','caster']; // front line first
++  const num=v=>+v||0;
++  // ---------- one side's numbers (same formulas as fight26)
++  function sideStats2(side){
++    const T=C26.types,Pk=C26.perk,perksOn=side.perksOn!==false;
++    const sq=(side.squads||[]).filter(s=>s.n>0);const totN=sq.reduce((a,s)=>a+s.n,0)||0;
++    const byType={};sq.forEach(s=>byType[s.type]=(byType[s.type]||0)+s.n);
++    const gs=t=>Math.max(0,...sq.filter(s=>s.type===t).map(s=>(num(s.gear&&s.gear.atk))+(num(s.gear&&s.gear.def))+num(s.gear&&s.gear.hp)/4));
++    const on=t=>perksOn&&totN>0&&(byType[t]||0)>=C26.perkMin*totN;const pv=(t,base)=>on(t)?base+Math.min(.05,Math.floor(gs(t)/40)*.01):0;
++    const perks={shieldwall:pv('engineer',Pk.shieldwall),battleborne:pv('raider',Pk.battleborne),sighted:pv('scout',Pk.sighted),mend:pv('caster',Pk.mend),saboteur:pv('strategist',Pk.saboteur),mastermind:pv('strategist',Pk.mastermind)};
++    const nTypes=Object.keys(byType).filter(t=>byType[t]>0).length,mix=perksOn?(C26.mix[Math.min(5,nTypes)]||0):0;
++    const bl=side.bld||null;const inn=bl?innate26(bl):0;const b=bl?{...(C26.bld[bl.kind]||C26.bld.tower)}:null;let fire=0,walls=0;
++    if(b){const L=Math.max(1,bl.lvl||1),pct=bl.pct==null?1:bl.pct;fire=b.fire*(1+C26.lvlFire*(L-1))*pct;walls=Math.min(C26.maxWalls,b.walls+C26.lvlWalls*(L-1));}
++    if(perksOn)walls=Math.min(C26.maxWalls+.10,walls+perks.shieldwall);
++    return{sq,perks,nTypes,mix,inn,b,fire,walls,totN};}
++  function rows2(S,foeP){const T=C26.types;
++    return S.sq.map(s=>{const t=T[s.type]||T.raider;
++      if(s.custom){return{...s,atkPer:s.custom.atk*(1-foeP.sighted),hpPer:s.custom.hp*(1-foeP.saboteur)};}
++      if(s.plain){return{...s,atkPer:t.atk*(1-foeP.sighted),hpPer:t.hp*(1-foeP.saboteur)};}
++      const c=C26.cls[s.type]||{},g=s.gear||{};const tp=Math.min(3.2,Math.max(1,+g.tp||1));
++      const atkPer=t.atk*tp*(1+(c.atk||0))*(1+num(g.atk)/200)*(1+S.perks.battleborne)*(1-foeP.sighted),
++            hpPer=t.hp*tp*(1+(c.hp||0))*(1+(num(g.def)+num(g.hp)/4)/200)*(1+S.perks.mend)*(1+S.mix)*(1-foeP.saboteur);
++      return{...s,atkPer,hpPer};}).map(r=>({...r,dmg:r.n*r.atkPer,hp:r.n*r.hpPer}));}
++  // damage soaked: building first, then Engineers, then the rest evenly (fight26 rule); heroes last
++  function allocate2(rows,heroes,lossHP,inn){const out=rows.map(r=>({lost:0}));let left=Math.max(0,lossHP-Math.min(inn,lossHP));
++    for(const [r,i] of rows.map((r,i)=>[r,i]).filter(([r])=>r.type==='engineer')){if(left<=0)break;const k=Math.min(r.n,Math.ceil(left/r.hpPer-1e-9));out[i].lost=k;left-=k*r.hpPer;}
++    for(let guard=0;guard<10&&left>1e-6;guard++){const al=rows.map((r,i)=>[r,i]).filter(([r,i])=>out[i].lost<r.n);if(!al.length)break;const per=left/al.length;left=0;
++      for(const [r,i] of al.sort((x,y)=>(x[0].n-out[x[1]].lost)*x[0].hpPer-(y[0].n-out[y[1]].lost)*y[0].hpPer)){const cap=(r.n-out[i].lost)*r.hpPer;if(per>=cap){out[i].lost=r.n;left+=per-cap;}else out[i].lost+=Math.round(per/r.hpPer);}}
++    const hl=(heroes||[]).map(h=>{const d=Math.min(h.hp,Math.max(0,left));left-=d;return Math.round(d);});
++    return{lost:out.map(o=>o.lost),heroLost:hl};}
++  // ---------- the battle. att / def: {name, squads:[{key,uid,name,type,n,gear,plain}], heroes:[{name,atk,hp,me}], bld, perksOn}
++  function battle2(att,def){
++    const SA0=sideStats2(att),SD0=sideStats2(def);
++    const RA=rows2(SA0,SD0.perks),RD=rows2(SD0,SA0.perks);
++    const hA=(att.heroes||[]).map(h=>({...h,hp:Math.max(0,num(h.hp)),atk:Math.max(0,num(h.atk))})),hD=(def.heroes||[]).map(h=>({...h,hp:Math.max(0,num(h.hp)),atk:Math.max(0,num(h.atk))}));
++    const DD=(SD0.fire+RD.reduce((a,r)=>a+r.dmg,0)+hD.reduce((a,h)=>a+h.atk,0))*(1+SD0.perks.mastermind);
++    const HD=RD.reduce((a,r)=>a+r.hp,0)+SD0.inn+hD.reduce((a,h)=>a+h.hp,0);
++    const DA=(SA0.fire+RA.reduce((a,r)=>a+r.dmg,0)+hA.reduce((a,h)=>a+h.atk,0))*(1+SA0.perks.mastermind);
++    const HA=RA.reduce((a,r)=>a+r.hp,0)+SA0.inn+hA.reduce((a,h)=>a+h.hp,0);
++    const nA=RA.reduce((a,r)=>a+r.n,0)+hA.length;
++    const tWe=DD>0?HA/Math.max(.01,1-SA0.walls)/DD:Infinity;   // turns the defenders need to wipe the attackers
++    const tThey=DA>0?HD/Math.max(.01,1-SD0.walls)/DA:Infinity; // turns the attackers need to break the defenders
++    const win=nA<=0||tWe<=tThey; // defender wins ties
++    // losses
++    const dOut=RD.map(r=>({key:r.key,uid:r.uid,name:r.name,type:r.type,n:r.n,lost:0,dmg:Math.round(r.dmg),hp:Math.round(r.hp),hpPer:r.hpPer,kind:r.kind,custom:!!r.custom}));
++    const aOut=RA.map(r=>({key:r.key,uid:r.uid,name:r.name,type:r.type,n:r.n,lost:0,dmg:Math.round(r.dmg),hp:Math.round(r.hp),hpPer:r.hpPer,kind:r.kind,custom:!!r.custom}));
++    let dHero=hD.map(()=>0),aHero=hA.map(h=>h.hp);
++    if(win){const a=allocate2(RD,hD,DA*(isFinite(tWe)?tWe:0)*(1-SD0.walls),SD0.inn);a.lost.forEach((k,i)=>dOut[i].lost=k);dHero=a.heroLost;
++      aOut.forEach(o=>o.lost=o.n);} // attackers who lose are wiped
++    else{dOut.forEach(o=>o.lost=Math.ceil(o.n*(1-C26.retreat)));dHero=hD.map(h=>h.hp); // losing defenders retreat with 20%
++      const a=allocate2(RA,hA,DD*(isFinite(tThey)?tThey:0)*(1-SA0.walls),SA0.inn);a.lost.forEach((k,i)=>aOut[i].lost=k);aHero=a.heroLost;}
++    [...dOut,...aOut].forEach(o=>{o.lost=Math.min(o.n,Math.max(0,Math.round(o.lost)));o.left=o.n-o.lost;});
++    return{win,DD,HD,DA,HA,tWe,tThey,SA:SA0,SD:SD0,bldD:def.bld||null,def:{rows:dOut,heroes:hD.map((h,i)=>({name:h.name,me:!!h.me,atk:h.atk,hp:h.hp,lost:dHero[i]||0}))},
++      att:{rows:aOut,heroes:hA.map((h,i)=>({name:h.name,me:!!h.me,atk:h.atk,hp:h.hp,lost:aHero[i]||0}))}};}
++  window.battle2=battle2;window.rows2=rows2;window.sideStats2=sideStats2;
++  // ---------- fight26 rebuilt on battle2 (same inputs, same output)
++  const fight26_old=window.fight26;
++  function fight26v2(def,att){const T=C26.types,an=Math.max(0,att.n||0),aType=att.type||C26.horde;
++    const r=battle2({name:att.name||'Horde',squads:an>0?[{key:'att',name:att.name||'Horde',type:aType,n:an,plain:true}]:[],perksOn:false},
++                    {squads:(def.players||[]).filter(p=>p.n>0).map(p=>({...p})),bld:def.bld||null});
++    const at=T[aType]||T.raider,sab=r.SD.perks.saboteur;
++    const D=r.DD,H=r.HD,A=r.DA,E=r.HA,tWe=r.tWe,tThey=r.tThey,win=r.win,walls=r.SD.walls;
++    const aLost=win?an:Math.min(an,Math.round(D*tThey/Math.max(.01,at.hp*(1-sab))));
++    const b=def.bld;
++    const why=win?`We needed ${tWe.toFixed(1)} turns to wipe them. They needed ${isFinite(tThey)?tThey.toFixed(1):'∞'} to break us (walls ${Math.round(walls*100)}% + ${Math.round(H).toLocaleString()} HP, to the death). Faster side wins, a tie goes to the defender.`
++      :`They needed ${tThey.toFixed(1)} turns to break us. We needed ${isFinite(tWe)?tWe.toFixed(1):'∞'} to wipe them. Faster side wins, so the ${b?'building fell':'hex fell'}. 80% of the defenders fell and the rest retreated home.`;
++    return{win,D:Math.round(D),H:Math.round(H),A:Math.round(A),E:Math.round(E),tWe:+(isFinite(tWe)?tWe:999).toFixed(2),tThey:+(isFinite(tThey)?tThey:999).toFixed(2),walls:+walls.toFixed(2),fire:Math.round(r.SD.fire),
++      perks:r.SD.perks,mix:r.SD.mix,nTypes:r.SD.nTypes,players:r.def.rows.map(o=>({key:o.key,uid:o.uid,name:o.name,type:o.type,n:o.n,lost:o.lost,dmg:o.dmg,hp:o.hp,left:o.left})),
++      att:{n:an,type:aType,name:att.name||'Horde',lost:aLost,left:an-aLost},bld:def.bld||null,why,b2:r};}
++  window.fight26_old=fight26_old;window.fight26v2=fight26v2;
++  // fight26 is defined later (v26a.js); install the new one once it exists
++  window.installFight26v2=function(){if(typeof fight26==='function'&&fight26!==fight26v2){window.fight26_old=fight26;fight26=fight26v2;window.fight26=fight26v2;}};
++  // ---------- rounds timeline for the battle view (shows the exact outcome)
++  function timeline2(r,maxR){const T=Math.min(r.tWe,r.tThey);const R=Math.max(3,Math.min(maxR||8,Math.ceil(isFinite(T)?T:1)));/* at least 3 rounds to watch; the outcome is the same */const out=[];
++    const sideT=(s,frac)=>({rows:s.rows.map(o=>({n:o.n,left:o.n-Math.round(o.lost*frac)})),heroes:s.heroes.map(h=>({hp:h.hp,left:Math.round(h.hp-h.lost*frac)}))});
++    for(let k=1;k<=R;k++){const f=k/R;out.push({k,att:sideT(r.att,f),def:sideT(r.def,f),dmgAtt:Math.round(r.DA*(isFinite(T)?T:1)/R),dmgDef:Math.round(r.DD*(isFinite(T)?T:1)/R)});}
++    return out;}
++  window.timeline2=timeline2;
++  window.ORDER2=ORDER2;
++  // ---------- troop fights go to the army engine; a hero alone (vs a monster) keeps the duel engine
++  //  Enemy units from the old engine (Horde squads, raider holdouts, forts, mutants) become Horde troops: a unit's
++  //  strength is its health x attack, the same way a Horde squad of power p already counts as p / power-per-troop troops
++  //  when it attacks your land. K2 scales forts and mutants so marching difficulty matches the old engine (calibrated in
++  //  tests/r2-calibrate.js).
++  const K2={band:0.56,fort:0.40,mob:3.5};window.K2=K2; // calibrated: tests/r2-calibrate.js (median old/new threshold = 1.00)
++  const runFight_duel=runFight;window.runFight_duel=runFight_duel;
++  function kindOf2(u,all){if(u.fort||(all||[]).some(x=>x&&x.fort))return'fort';if(/\(power \d+\)/.test(u.name||''))return'band';return'mob';}
++  // old-engine stats -> army scale. A Horde squad of power p is p / power-per-troop Horde troops (1 ATK, 2 HP each), so one
++  // old-engine ATK point = 1/(base power-per-troop x atkPerPower) troop ATK, and one HP point = 2/(base x hpPerPower) troop HP.
++  function scale2(){const A=BAL.ai,b=(typeof _tr2_basePower!=='undefined'?_tr2_basePower:TROOP.powerPer)||0.02;return{atk:1/(b*A.atkPerPower),hp:(C26.types.raider.hp)/(b*A.hpPerPower)};}
++  window.scale2=scale2;
++  function enemySquad2(u,i,all){const k=kindOf2(u,all),nm=String(u.name||'Enemy').replace(/ \(power \d+\)/,'');
++    const m=/\(power (\d+)\)/.exec(u.name||'');
++    if(k==='band'&&m)return{key:'e'+i,name:nm,type:'raider',n:Math.max(1,Math.round(+m[1]/TROOP.powerPer*K2.band)),plain:true,kind:k};
++    const S=scale2(),K=Math.sqrt(K2[k]||1);return{key:'e'+i,name:nm,type:'raider',n:1,kind:k,custom:{atk:Math.max(1,num(u.atk))*S.atk*K,hp:Math.max(1,num(u.max)||num(u.hp))*S.hp*K}};} // K scales ATK x HP, so each gets its square root
++  function army2Fight(A0,B0){
++    const tr=A0.filter(u=>u.troop>0),he=A0.filter(u=>!(u.troop>0));
++    const myType=typeof myType26==='function'?myType26():'raider',gear={...(typeof myGear26==='function'?myGear26():{}),tp:typeof myTp26==='function'?myTp26():1};
++    const att={name:P.name,squads:tr.map((u,i)=>({key:'t'+i,uid:P.uid,name:'Your troops',type:myType,n:Math.round(u.troop),gear})),heroes:he.map(u=>{const S=scale2(),hk=Math.sqrt(K2[kindOf2(B0[0]||{},B0)]||1);return{name:u.name,atk:num(u.atk)*S.atk*hk,hp:(num(u.max)||num(u.hp))*S.hp*hk,me:!!u.me,src:u};})}; // heroes keep the same footing vs each enemy kind as in the old engine
++    const def={name:(B0[0]&&B0[0].name)||'Enemy',squads:B0.map((u,i)=>enemySquad2(u,i,B0)),perksOn:false};
++    const r=battle2(att,def);
++    const f=fFrom2(r,'att',he,B0);f.army2.att=att;f.army2.def=def;return f;}
++  // a fight record the older code understands (startA/A = our side, startB/B = theirs) from a battle2 result
++  function fFrom2(r,us,heroSrc,foeSrc){const S=us==='att'?r.att:r.def,O=us==='att'?r.def:r.att;
++    let uid=0;const U=o=>({...o,uid:'q2_'+(uid++)});const startA=[],endA=[],startB=[],endB=[];
++    S.rows.forEach(o=>{const u=U({name:`🪖 ${o.n.toLocaleString()} troops`,troop:o.n,type:o.type,hp:Math.round(o.n*o.hpPer),max:Math.round(o.n*o.hpPer),atk:o.dmg,def:0,agi:0,crit:0,img:'',squad2:true,owner:o.name,ownerUid:o.uid});
++      startA.push(u);endA.push({...u,hp:Math.round(o.left*o.hpPer)});});
++    S.heroes.forEach((h,i)=>{const src=(heroSrc||[])[i]||{},mx=num(src.max)||num(src.hp)||Math.round(h.hp)||1,fr=h.hp>0?(h.hp-h.lost)/h.hp:1;
++      const u=U({...src,name:h.name,me:h.me,hp:Math.round(mx),max:Math.round(mx),hero2:true,armyAtk:Math.round(h.atk),armyHp:Math.round(h.hp)});startA.push(u);endA.push({...u,hp:Math.round(mx*fr)});});
++    O.rows.forEach((o,i)=>{const src=(foeSrc||[])[i]||{};const u=U({...src,name:src.name||o.name,n2:o.n,type:o.type,hp:Math.round(o.n*o.hpPer),max:Math.round(o.n*o.hpPer),atk:o.dmg,squad2:true,custom2:o.custom});
++      startB.push(u);endB.push({...u,hp:Math.round(o.left*o.hpPer)});});
++    const tl=timeline2(r);const events=tl.map(x=>({r:x.k,a:(startA[0]||{}).uid,t:(startB[0]||{}).uid,dmg:us==='att'?x.dmgAtt:x.dmgDef,real:us==='att'?x.dmgAtt:x.dmgDef,hp:0}));
++    const rc={win:r.win,DA:Math.round(r.DA),DD:Math.round(r.DD),HA:Math.round(r.HA),HD:Math.round(r.HD),tWe:+(isFinite(r.tWe)?r.tWe:999).toFixed(2),tThey:+(isFinite(r.tThey)?r.tThey:999).toFixed(2),
++      wallsD:r.SD?+r.SD.walls.toFixed(2):0,fireD:r.SD?Math.round(r.SD.fire):0,innD:r.SD?Math.round(r.SD.inn):0,bldD:r.bldD||null,
++      att:{rows:r.att.rows.map(o=>({name:o.name,type:o.type,n:o.n,lost:o.lost,left:o.left,dmg:o.dmg,hp:o.hp,kind:o.kind,custom:o.custom})),heroes:r.att.heroes},
++      def:{rows:r.def.rows.map(o=>({name:o.name,type:o.type,n:o.n,lost:o.lost,left:o.left,dmg:o.dmg,hp:o.hp,kind:o.kind,custom:o.custom})),heroes:r.def.heroes}};
++    return{startA,startB,A:endA,B:endB,events,win:us==='att'?!r.win:r.win,army2:{r:rc,tl,us}};}
++  window.fFrom2=fFrom2;
++  window.army2Fight=army2Fight;
++  runFight=function(A0,B0){try{if((A0||[]).some(u=>u&&u.troop>0)&&(B0||[]).length)return army2Fight(A0,B0);}catch(e){console.warn('army2 fight, using the duel engine',e);}
++    return runFight_duel.apply(this,arguments);};
++  window.runFight=runFight;
++  // ---------- the battle view: your side left in your color, the enemy right in red, squads by class, hero behind his line
++  const esc2=x=>String(x==null?'':x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
++  const n2=v=>Math.round(+v||0).toLocaleString();
++  const clsName=t=>((typeof CLASSES!=='undefined'&&CLASSES.list[t])||{}).name||(t?t.charAt(0).toUpperCase()+t.slice(1):'Troops');
++  function myColor2(){try{return (G.al&&G.al.color)||P.color||'#4ad7ff';}catch(e){return '#4ad7ff';}}
++  function sideHTML2(rows,heroes,foe,label,tier){
++    const order=rows.map((o,i)=>[o,i]).sort((a,b)=>ORDER2.indexOf(a[0].type)-ORDER2.indexOf(b[0].type));
++    const sq=order.map(([o,i])=>{const ico=foe?(o.custom?'👹':'🪓'):((C26.types[o.type]||{}).ico||'🪖');
++      const nm=foe?esc2(o.name):`${esc2(clsName(o.type))}${tier?' T'+tier:''}${o.name&&o.name!=='Your troops'?` <small>${esc2(o.name)}</small>`:''}`;
++      return`<div class="sq2" data-i="${i}"><span class="ic2">${ico}</span><div class="grow"><b>${nm}</b><div class="bar2"><i style="width:100%"></i></div></div><b class="cnt2">${o.custom?'':n2(o.n)}</b></div>`;}).join('');
++    const hs=(heroes||[]).map((h,i)=>`<div class="hero2" data-h="${i}"><span class="ic2">${h.me?'🧍':'🛡️'}</span><div class="grow"><b>${esc2(h.name)}</b><small>leads from behind · +${n2(h.atk)} damage a round</small><div class="bar2 hp"><i style="width:100%"></i></div></div></div>`).join('');
++    return`<div class="side2 ${foe?'foe':'us'}"><div class="lab2">${label}</div>${sq||'<p class="tiny">No troops</p>'}${hs}</div>`;}
++  function render2(o){const f=o.f,A=f.army2,r=A.r,us=A.us==='att'?r.att:r.def,them=A.us==='att'?r.def:r.att,tl=A.tl;
++    const tier=typeof troopTier==='function'?troopTier():1;const bld=A.us==='def'&&r.bldD?`<div class="bld2">${({sh:'🏰 Stronghold',tower:'🗼 Watchtower',op:'⛺ Outpost',pipe:'⛓️ Pipeline'})[r.bldD.kind]||'🏚 Building'} Lv${r.bldD.lvl||1} · walls block ${Math.round(r.wallsD*100)}% · fire ${n2(r.fireD)}</div>`:'';
++    const skip=!!P.fightSkip2;
++    this.modal(`<h2>${o.title}</h2>${o.sub?`<p class="tiny">${o.sub}</p>`:''}<div class="b2" style="--us2:${esc2(myColor2())}">${sideHTML2(us.rows,us.heroes,false,'YOUR SIDE',tier)}<div class="mid2"><b id="rround">VS</b><small id="rdmg2"></small></div>${sideHTML2(them.rows,them.heroes,true,'ENEMY',0)}</div>${bld}
++      <div class="log" id="rlog"></div><div id="rres"></div>
++      <div class="ibtns" id="rctl"><button class="fight big" id="rauto">▶️ Watch the battle</button><button id="rskip">⏭️ Skip to result</button></div>
++      <label class="skip2"><input type="checkbox" id="rskip2" ${skip?'checked':''}> Always skip battle animations</label>`);
++    const box=$('#modalBody .b2'),mine=$('#rlog');let k=0,iv=null,done=false;
++    const set=(sideEl,rows,state,isFoe)=>{rows.forEach((o,i)=>{const el=sideEl.querySelector(`.sq2[data-i="${i}"]`);if(!el)return;const left=state.rows[i].left;el.querySelector('.bar2 i').style.width=(o.n?100*left/o.n:0)+'%';
++        if(!o.custom)el.querySelector('.cnt2').textContent=n2(left);el.classList.toggle('ko',left<=0);});
++      (state.heroes||[]).forEach((h,i)=>{const el=sideEl.querySelector(`.hero2[data-h="${i}"] .bar2 i`);if(el)el.style.width=(h.hp?100*h.left/h.hp:0)+'%';});};
++    const usEl=box.querySelector('.side2.us'),foeEl=box.querySelector('.side2.foe');
++    const stateOf=x=>({us:A.us==='att'?x.att:x.def,them:A.us==='att'?x.def:x.att,dealt:A.us==='att'?x.dmgAtt:x.dmgDef,taken:A.us==='att'?x.dmgDef:x.dmgAtt});
++    const gone=()=>!mine||!mine.isConnected||$('#modal').classList.contains('hidden');
++    const step=()=>{if(gone()){clearInterval(iv);return;}if(k>=tl.length)return finish();const x=tl[k++],st=stateOf(x);
++      set(usEl,us.rows,st.us);set(foeEl,them.rows,st.them,true);$('#rround').textContent='Round '+x.k+' of '+tl.length;
++      $('#rdmg2').textContent=`you deal ${n2(st.dealt)} · take ${n2(st.taken)}`;
++      mine.innerHTML=`<div>Round ${x.k}: you dealt ${n2(st.dealt)}, took ${n2(st.taken)}</div>`+mine.innerHTML;
++      [usEl,foeEl].forEach(e=>{e.classList.remove('hit2');void e.offsetWidth;e.classList.add('hit2');});};
++    const finish=()=>{if(done)return;done=true;clearInterval(iv);if(gone())return;while(k<tl.length)step();const fin=stateOf(tl[tl.length-1]||{att:{rows:[],heroes:[]},def:{rows:[],heroes:[]}});
++      set(usEl,us.rows,{rows:us.rows.map(o=>({left:o.left})),heroes:us.heroes.map(h=>({hp:h.hp,left:h.hp-h.lost}))});set(foeEl,them.rows,{rows:them.rows.map(o=>({left:o.left})),heroes:them.heroes.map(h=>({hp:h.hp,left:h.hp-h.lost}))},true);
++      $('#rround').textContent=f.win?'WON':'LOST';$('#rctl')?.remove();
++      const lost=us.rows.reduce((a,x)=>a+x.lost,0),sent=us.rows.reduce((a,x)=>a+x.n,0),kill=them.rows.reduce((a,x)=>a+(x.custom?0:x.lost),0);
++      $('#rres').innerHTML=`<div class="result ${o.good?'good':'bad'}">${o.result}</div><div class="sum2">${sent?`You lost <b>${n2(lost)}</b> of ${n2(sent)} troops`:''}${kill?` · they lost <b>${n2(kill)}</b>`:''}${f.xp2?` · <b>+${n2(f.xp2)} XP</b>`:''}</div>`+(o.buttons||[]).map((b,j)=>`<button class="${b[2]||''}" style="width:100%;margin-top:6px" id="rb${j}">${b[0]}</button>`).join('');
++      (o.buttons||[]).forEach((b,j)=>$('#rb'+j).onclick=b[1]);try{UI.hud();}catch(e){}};
++    $('#rauto').onclick=()=>{if(iv)return;$('#rauto').disabled=true;$('#rauto').textContent='⚔️ Fighting…';iv=setInterval(step,700);step();};
++    $('#rskip').onclick=finish;
++    $('#rskip2').onchange=e=>{P.fightSkip2=!!e.target.checked;save();if(P.fightSkip2)finish();};
++    if(skip)finish();else if(o.autostart)$('#rauto').click();}
++  window.render2=render2;
++  const _rp2=UI.replay;
++  UI.replay=function(o){if(o&&o.f&&o.f.army2&&o.f.army2.tl)return render2.call(this,o);return _rp2.apply(this,arguments);};
++  const st=document.createElement('style');
++  st.textContent=`.b2{display:flex;gap:6px;align-items:stretch;margin:8px 0}.side2{flex:1 1 0;min-width:0;border-radius:10px;padding:6px;border:1px solid #3a2f22;background:#15110c}
++  .side2.us{border-color:var(--us2,#4ad7ff)}.side2.foe{border-color:#b33a2c}.lab2{font-size:11px;font-weight:800;letter-spacing:.08em;margin-bottom:4px}.side2.us .lab2{color:var(--us2,#4ad7ff)}.side2.foe .lab2{color:#ff6b55}
++  .sq2,.hero2{display:flex;gap:6px;align-items:center;padding:4px 0;border-bottom:1px solid #2a2219}.sq2 .grow,.hero2 .grow{flex:1 1 auto;min-width:0}.sq2 b,.hero2 b{font-size:12px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
++  .sq2 small,.hero2 small{font-size:10px;opacity:.75;display:block}.ic2{font-size:18px;flex:0 0 auto}.cnt2{flex:0 0 auto;font-size:12px}.bar2{height:5px;border-radius:3px;background:#2b2118;overflow:hidden;margin-top:3px}
++  .bar2 i{display:block;height:100%;transition:width .5s}.side2.us .bar2 i{background:var(--us2,#4ad7ff)}.side2.foe .bar2 i{background:#d8432f}.bar2.hp i{background:#5fd068!important}
++  .hero2{margin-top:6px;border-top:1px dashed #4a3b2a;border-bottom:0;opacity:.95}.sq2.ko{opacity:.35}.mid2{flex:0 0 54px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
++  .mid2 b{font-size:11px}.mid2 small{font-size:9px;opacity:.75}.side2.hit2{animation:hit2 .35s}@keyframes hit2{0%{transform:translateX(0)}30%{transform:translateX(-2px)}60%{transform:translateX(2px)}100%{transform:none}}
++  .bld2{font-size:12px;opacity:.85;margin:-2px 0 6px}.skip2{display:flex;gap:6px;align-items:center;font-size:12px;opacity:.8;margin-top:8px}.sum2{font-size:13px;margin:6px 0}
++  @media (max-width:420px){.mid2{flex-basis:40px}.ic2{font-size:15px}.side2{padding:5px}}`;
++  document.head.appendChild(st);
++})();
+diff --git a/public/combat2b.js b/public/combat2b.js
+new file mode 100644
+index 0000000..5a7c9bf
+--- /dev/null
++++ b/public/combat2b.js
+@@ -0,0 +1,10 @@
++// combat2b (R2) Late hooks for the army combat system (combat2.js): loaded after every older file.
++(function(){
++  try{installFight26v2();}catch(e){console.warn('combat2b install',e);}
++  // troops that come home after an army fight = troops left, not counting the hero's health
++  try{const _af=armyFrac;armyFrac=function(f){try{if(f&&f.army2){let h=0,m=0;(f.startA||[]).forEach((u,i)=>{if(u.troop>0){m+=Math.max(1,u.max);h+=Math.max(0,(f.A[i]||{}).hp||0);}});return m?h/m:0;}}catch(e){}return _af.apply(this,arguments);};window.armyFrac=armyFrac;}catch(e){}
++  // Horde attacks on your land: the battle you watch is the army fight that decided it
++  try{const _sr=squadReplay;squadReplay=function(defs,dp,sp,gname){G._r26=null;const f=_sr.apply(this,arguments);
++      try{const r=G._r26;if(r&&r.b2){const f2=fFrom2(r.b2,'def',[],[]);f2.startB.forEach(u=>u.name=`${gname} squad`);f2.B.forEach(u=>u.name=`${gname} squad`);f2.army2.r.att.rows.forEach(x=>x.name=`${gname} squad`);return f2;}}catch(e){console.warn('combat2b defense view',e);}
++      return f;};window.squadReplay=squadReplay;}catch(e){}
++})();
+diff --git a/public/index.html b/public/index.html
+index 23e45f4..feb2271 100644
+--- a/public/index.html
++++ b/public/index.html
+@@ -29,7 +29,7 @@
+   <p class="tiny">Location is only used while this page is open.</p></div></div>
+ <script src="leaflet.js"></script><script src="firebase-config.js"></script><script src="preview.js"></script>
+ <script src="data.js"></script><script src="hex.js"></script><script src="net.js"></script>
+-<script src="balance.js"></script><script src="progress.js"></script><script src="world.js"></script><script src="game.js"></script><script src="dev0.js"></script><script src="ui.js"></script><script src="fight.js"></script><script src="qol.js"></script><script src="stage2.js"></script><script src="horde.js"></script><script src="ledger.js"></script><script src="march.js"></script>
++<script src="balance.js"></script><script src="progress.js"></script><script src="world.js"></script><script src="game.js"></script><script src="dev0.js"></script><script src="ui.js"></script><script src="fight.js"></script><script src="combat2.js"></script><script src="qol.js"></script><script src="stage2.js"></script><script src="horde.js"></script><script src="ledger.js"></script><script src="march.js"></script>
+ <script src="gear2.js"></script><script src="theme.js"></script><script src="ally.js"></script><script src="stage4.js"></script><script src="nits.js"></script><script src="stage5.js"></script><script src="lmstatic.js"></script><script src="fix5.js"></script><script src="stage6.js"></script><script src="fix6.js"></script><script src="fix7.js"></script><script src="stage7.js"></script><script src="stage8.js"></script><script src="fix8.js"></script><script src="horde8.js"></script><script src="news8.js"></script><script src="kit8.js"></script><script src="fix9.js"></script>
+ <script src="fix10.js"></script>
+ <script src="wipe11.js"></script>
+@@ -86,6 +86,8 @@
+ <script src="base15.js"></script>
+ <script src="front15.js"></script>
+ <script src="terr15.js"></script>
++<script src="combat2b.js"></script>
++<script src="xp2.js"></script>
+ <script src="card1.js"></script>
+ <script src="reports1.js"></script>
+ </body></html>
+diff --git a/public/progress.js b/public/progress.js
+index da3afb1..f466df9 100644
+--- a/public/progress.js
++++ b/public/progress.js
+@@ -30,7 +30,7 @@ function stats(){const L=P.lvl,SL=strongholdLevel();
+ function hitDamage(me,foe){const C=BAL.combat;return Math.max(1,Math.round((me.atk*(1+(me.crit||0)/100)-(foe.def||0)*C.defFactor)*(1-Math.min(C.agiReduceCap,foe.agi||0)/100)));}
+ function simulateRound(me,foe){return{dmg:hitDamage(me,foe),crit:false};}
+ function xpNeed(L){return Math.round(BAL.progress.xpBase*Math.pow(L,BAL.progress.xpExp));}
+-function addXP(n){P.xp+=n;while(P.xp>=xpNeed(P.lvl)){P.xp-=xpNeed(P.lvl);P.lvl++;P.sp=(P.sp||0)+1;P.hp=stats().hp;toast('⬆️ Level '+P.lvl+'! +1 skill point');UI.badge('player',true);allianceLog(`${P.name} reached level ${P.lvl}`);}}
++function addXP(n){P.xp+=n;while(P.xp>=xpNeed(P.lvl)){P.xp-=xpNeed(P.lvl);P.lvl++;P.sp=(P.sp||0)+1;P.hp=stats().hp;toast('⬆️ Level '+P.lvl+'! +1 skill point · hero +3% HP/ATK/DEF · march size +100');UI.badge('player',true);allianceLog(`${P.name} reached level ${P.lvl}`);}}
+ function spendSkill(id){if(!(P.sp>0))return toast('No skill points: level up to earn more');P.skills=P.skills||{};
+   if((P.skills[id]||0)>=SKILL_MAX)return toast('Maxed');P.skills[id]=(P.skills[id]||0)+1;P.sp--;save();toast('Skill learned');}
+ function respecCost(){return BAL.progress.respecPerLevel*P.lvl;}
+diff --git a/public/reports1.js b/public/reports1.js
+index 7159549..2250937 100644
+--- a/public/reports1.js
++++ b/public/reports1.js
+@@ -14,7 +14,8 @@
+   // ---------- defense fights: keep the army-formula breakdown with the report
+   function c26(x){if(!x)return null;try{return JSON.parse(JSON.stringify({D:x.D,A:x.A,E:x.E,walls:x.walls,fire:x.fire,tWe:x.tWe,tThey:x.tThey,mix:x.mix,nTypes:x.nTypes,why:x.why,perks:x.perks,
+       bld:x.bld?{kind:x.bld.kind,lvl:x.bld.lvl}:null,players:(x.players||[]).map(p=>({key:p.key,uid:p.uid,name:p.name,type:p.type,n:p.n,lost:p.lost,left:p.left,dmg:p.dmg,hp:p.hp})),
+-      att:x.att?{name:x.att.name,n:x.att.n,lost:x.att.lost,left:x.att.left}:null}));}catch(e){return null;}}
++      att:x.att?{name:x.att.name,n:x.att.n,lost:x.att.lost,left:x.att.left}:null,
++      rounds:x.b2&&typeof timeline2==='function'?timeline2(x.b2).map(t=>({k:t.k,dealt:t.dmgDef,taken:t.dmgAtt})):null}));}catch(e){return null;}}
+   try{const _ap=apply25;apply25=function(defs,s,r){const before=(P.fr25||[])[0];const out=_ap.apply(this,arguments);
+       try{const top=(P.fr25||[])[0];if(top&&top!==before&&!top.r26&&r&&r.r26){top.r26=c26(r.r26);save();}}catch(e){console.warn('reports1 r26',e);}return out;};
+     window.apply25=apply25;}catch(e){console.warn('reports1: apply25 missing',e);}
+@@ -37,7 +38,16 @@
+     let why='';
+     if(o.good){why=troops&&troops.sent?`Your side dealt ${n1(lostHp)} damage and finished them in ${roundsOf(f)} rounds. You lost ${n1(troops.lost)} of ${n1(troops.sent)} troops.`:`You beat them in ${roundsOf(f)} rounds with ${n1(hero1?hero1.hp:0)} HP left.`;}
+     else{why=`They had more staying power: you took off ${Math.round(100*lostHp/maxHp)}% of their health before your side fell.`+(troops&&troops.sent?` You lost ${n1(troops.lost)} of ${n1(troops.sent)} troops.`:'');}
+-    return{id:'d'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),t:Date.now(),src:'duel',kind,cat:'attack',horde,win:!!o.good,hex,
++    if(f.army2&&f.army2.r){const R=f.army2.r,us=f.army2.us==='att'?R.att:R.def,th=f.army2.us==='att'?R.def:R.att;
++      const sent=us.rows.reduce((a,x)=>a+x.n,0),lost=us.rows.reduce((a,x)=>a+x.lost,0);
++      troops=sent?{sent,lost,left:sent-lost,tier:typeof troopTier==='function'?troopTier():1,cls:(us.rows[0]||{}).type||''}:null;
++      const beaten=th.rows.reduce((a,x)=>a+(x.custom?0:x.lost),0);
++      why=o.good?`Your side hit for ${n1(f.army2.us==='att'?R.DA:R.DD)} a round and took ${n1(f.army2.us==='att'?R.DD:R.DA)}. They broke first.${beaten?` They lost ${n1(beaten)} troops.`:''}`
++        :`They hit for ${n1(f.army2.us==='att'?R.DD:R.DA)} a round and took ${n1(f.army2.us==='att'?R.DA:R.DD)}. Your side broke first, so the attack failed.`;
++      CTX1.rows2={us:us.rows.map(x=>({type:x.type,name:x.name,n:x.n,lost:x.lost})),them:th.rows.map(x=>({name:x.name,n:x.custom?null:x.n,lost:x.custom?null:x.lost})),
++        rounds:(f.army2.tl||[]).map(t=>({k:t.k,dealt:f.army2.us==='att'?t.dmgAtt:t.dmgDef,taken:f.army2.us==='att'?t.dmgDef:t.dmgAtt}))};}
++    else CTX1.rows2=null;
++    return{rows2:CTX1.rows2,xp:f.xp2||0,id:'d'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),t:Date.now(),src:'duel',kind,cat:'attack',horde,win:!!o.good,hex,
+       title:strip1(o.title).slice(0,70),result:strip1(o.result||o.sub).slice(0,400),why,
+       us:{name:P.name,hero:hero0?{hp0:hero0.hp,hp1:Math.max(0,hero1?hero1.hp:0),max:hero0.max||hero0.hp,atk:hero0.atk,def:hero0.def||0}:null,troops},
+       them:{units:foes.slice(0,8),hpLost:lostHp,hpMax:maxHp},rounds:roundsOf(f)};}
+@@ -52,7 +62,8 @@
+   const _items=reportItems26;
+   reportItems26=function(){const L=_items.apply(this,arguments);
+     (P.rp1||[]).forEach(r=>L.push({k:'a',t:r.t,ico:r.kind==='monster'?'🐀':r.win?'⚔️':'💀',title:(r.win?'Won':'Lost')+' · '+(r.title||'Fight'),
+-      sub:(r.us&&r.us.troops&&r.us.troops.sent)?`you lost ${n1(r.us.troops.lost)} of ${n1(r.us.troops.sent)} troops`:(r.us&&r.us.hero?`hero ${n1(r.us.hero.hp1)}/${n1(r.us.hero.max)} HP`:''),r}));
++      sub:((r.us&&r.us.troops&&r.us.troops.sent)?`you lost ${n1(r.us.troops.lost)} of ${n1(r.us.troops.sent)} troops`:(r.us&&r.us.hero?`hero ${n1(r.us.hero.hp1)}/${n1(r.us.hero.max)} HP`:''))+(r.xp?` · +${n1(r.xp)} XP`:''),r}));
++    L.forEach(x=>{if(x.k==='f'&&x.r&&x.r.xp1)x.sub=(x.sub||'')+` · +${n1(x.r.xp1)} XP`;});
+     L.forEach(x=>{x.cats=catOf(x);});return L.sort((a,b)=>b.t-a.t);};
+   window.reportItems26=reportItems26;
+   // ---------- delete, select, clear
+@@ -84,15 +95,23 @@
+   function bar1(p,lbl){const w=Math.max(0,Math.min(100,Math.round(100*p)));return`<div class="zbar"><i style="width:${w}%"></i></div><small>${lbl}</small>`;}
+   function duelHTML1(r){const u=r.us||{},T=u.troops,H=u.hero,them=r.them||{};
+     const head=`<div class="fh26 ${r.win?'w':'l'}"><h2>${r.win?'🏆 Won':'💀 Lost'} · ${esc1(r.title||'Fight')}</h2><small>${r.hex?esc1(hexName(r.hex))+' · ':''}${new Date(r.t).toLocaleString()} · ${r.rounds||0} rounds</small></div>`;
+-    const ours=`<div class="sec26">YOUR SIDE</div>`+(T&&T.sent?`<div class="pl26"><span>🪖</span><div class="grow"><b>${n1(T.sent)} T${T.tier||1} troops</b><small>${T.cls?esc1(((CLASSES.list[T.cls]||{}).name)||T.cls)+' · ':''}lost ${n1(T.lost)} · ${n1(T.left)} left</small></div><b>−${n1(T.lost)}</b></div>`:'')
++    const R2=r.rows2;
++    const ours=R2?`<div class="sec26">YOUR SIDE</div>`+R2.us.map(x=>`<div class="pl26"><span>${((C26.types[x.type]||{}).ico)||'🪖'}</span><div class="grow"><b>${n1(x.n)} ${esc1(((CLASSES.list[x.type]||{}).name)||x.type)} T${(T&&T.tier)||1}</b><small>lost ${n1(x.lost)} · ${n1(x.n-x.lost)} left</small></div><b>−${n1(x.lost)}</b></div>`).join('')
++      +(H?`<div class="pl26"><span>🧍</span><div class="grow"><b>${esc1(u.name||'Your hero')}</b><small>led from behind · ATK ${n1(H.atk)} · DEF ${n1(H.def)} · HP ${n1(H.hp0)} → ${n1(H.hp1)} of ${n1(H.max)}</small></div></div>`:''):null;
++    const theirs2=R2?`<div class="sec26">ENEMY</div>`+R2.them.map(x=>`<div class="pl26"><span>🪓</span><div class="grow"><b>${esc1(x.name)}</b><small>${x.n!=null?`${n1(x.n)} troops · lost ${n1(x.lost)}`:'beast / building'}</small></div>${x.n!=null?`<b>−${n1(x.lost)}</b>`:''}</div>`).join(''):null;
++    const ours_old=`<div class="sec26">YOUR SIDE</div>`+(T&&T.sent?`<div class="pl26"><span>🪖</span><div class="grow"><b>${n1(T.sent)} T${T.tier||1} troops</b><small>${T.cls?esc1(((CLASSES.list[T.cls]||{}).name)||T.cls)+' · ':''}lost ${n1(T.lost)} · ${n1(T.left)} left</small></div><b>−${n1(T.lost)}</b></div>`:'')
+       +(H?`<div class="pl26"><span>🧍</span><div class="grow"><b>${esc1(u.name||'Your hero')}</b><small>ATK ${n1(H.atk)} · DEF ${n1(H.def)} · HP ${n1(H.hp0)} → ${n1(H.hp1)} of ${n1(H.max)}</small></div><b>${n1(H.hp1)}❤</b></div>`:'');
+     const theirs=`<div class="sec26">ENEMY</div>`+(them.units||[]).map(x=>`<div class="pl26"><span>🪓</span><div class="grow"><b>${esc1(x.name)}</b><small>ATK ${n1(x.atk)} · DEF ${n1(x.def)} · HP ${n1(x.hp0)} → ${n1(x.hp1)}</small></div><b>${x.hp1>0?n1(x.hp1)+'❤':'down'}</b></div>`).join('')
+       +bar1(them.hpLost/(them.hpMax||1),`You took off ${Math.round(100*(them.hpLost||0)/(them.hpMax||1))}% of their health`);
+-    return head+ours+theirs+`<div class="why26"><b>${r.win?'WHY WE WON':'WHY WE LOST'}</b><p>${esc1(r.why||'')}</p>${r.result&&r.result!==r.why?`<p class="tiny">${esc1(r.result)}</p>`:''}</div>`
++    const xpLine=r.xp?`<div class="r24"><span>XP earned</span><b>+${n1(r.xp)}</b></div>`:'';
++    return head+(ours||ours_old)+(theirs2||theirs)+xpLine+details1(R2&&R2.rounds)+`<div class="why26"><b>${r.win?'WHY WE WON':'WHY WE LOST'}</b><p>${esc1(r.why||'')}</p>${r.result&&r.result!==r.why?`<p class="tiny">${esc1(r.result)}</p>`:''}</div>`
+       +`<div class="btns26">${r.hex?`<button onclick="UI.closeModal();marchGo('${r.hex}')">🗺️ Map</button>`:''}<button onclick="UI.reports26()">📬 All reports</button><button onclick="UI.closeModal()">Close</button></div>`;}
+   window.duelHTML1=duelHTML1;
++  function details1(rounds){if(!rounds||!rounds.length)return'';return`<details class="det1"><summary>Details: round by round</summary>${rounds.map(x=>`<div class="r24"><span>Round ${x.k}</span><b>dealt ${n1(x.dealt)} · took ${n1(x.taken)}</b></div>`).join('')}</details>`;}
++  window.details1=details1;
+   const _rep26=UI.report26;
+   UI.report26=function(k,r){if(k==='a'){this.modal(duelHTML1(r));$('#modal').classList.add('rpm26');}else _rep26.apply(this,arguments);
++    try{if(k==='f'){const b=$('#modalBody .btns26');const extra=(r.xp1?`<div class="r24"><span>XP earned</span><b>+${n1(r.xp1)}</b></div>`:'')+details1(r.r26&&r.r26.rounds);if(b&&extra)b.insertAdjacentHTML('beforebegin',extra);}}catch(e){}
+     try{const b=$('#modalBody .btns26')||$('#modalBody');if(b&&!b.querySelector('.rdel1')){const d=document.createElement('button');d.className='rdel1';d.textContent='🗑️ Delete';
+       d.onclick=()=>{const x=(reportItems26()||[]).find(y=>y.r===r);if(x)del1([x]);toast('🗑️ Report deleted');UI.reports26();};b.appendChild(d);}}catch(e){}};
+   // ---------- 14 days, newest 60 per list
+@@ -104,6 +123,6 @@
+   const st=document.createElement('style');
+   st.textContent=`.rpf1{display:flex;flex-wrap:wrap;gap:4px}.rpf1 button{flex:1 1 auto;min-width:0;padding:6px 8px;font-size:12px;white-space:nowrap}
+   .rpc1{display:flex;gap:6px;margin:6px 0;flex-wrap:wrap}.rpc1 button{flex:1 1 auto;min-width:90px}.rpc1 .bad1,.rdel1{border-color:#7a2a22!important;color:#ffb3a8!important}
+-  .rp26 .grow{flex:1 1 auto;min-width:0}.rp26 .rx1{flex:0 0 auto;width:34px;height:34px;padding:0;border-radius:17px;margin-left:6px;opacity:.75}.rp26.sel1{outline:2px solid #c9a24a}.ck1{margin-right:6px}`;
++  .rp26 .grow{flex:1 1 auto;min-width:0}.rp26 .rx1{flex:0 0 auto;width:34px;height:34px;padding:0;border-radius:17px;margin-left:6px;opacity:.75}.rp26.sel1{outline:2px solid #c9a24a}.ck1{margin-right:6px}.det1{margin:8px 0}.det1 summary{cursor:pointer;font-weight:700;font-size:13px}`;
+   document.head.appendChild(st);
+ })();
+diff --git a/public/sw.js b/public/sw.js
+index 7b5a0fc..8db8e1e 100644
+--- a/public/sw.js
++++ b/public/sw.js
+@@ -1,6 +1,6 @@
+ // Dead Zone Drive service worker: network-first for the app (so updates show right away),
+ // falling back to cache when offline. Map tiles and Firebase are never cached here.
+-const C='ddd-v26-12i-integrated-6-r1';
++const C='ddd-v26-12i-integrated-6-r2';
+ self.addEventListener('install',e=>self.skipWaiting());
+ self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+ self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==location.origin)return;
+diff --git a/public/xp2.js b/public/xp2.js
+new file mode 100644
+index 0000000..ff0257a
+--- /dev/null
++++ b/public/xp2.js
+@@ -0,0 +1,50 @@
++// xp2 (R2) XP for every fight, and what a level gives. Approved table (design doc, Nov 9):
++//  XP for a win = (base + 1 per 5 power of enemy troops beaten, i.e. 1 per 250 T1 troops) x multiplier. A loss gives 25% of that.
++//  Capture a hex (march vs raider holdout) base 25 x1 · Horde / fort fight you start base 40 x1 · defend a hex base 40 x1.5 ·
++//  defend a pipeline base 40 x1.5. Small monsters keep their own XP (15 + 5 x level). Shared defenses split the beaten
++//  troops by each player's share of the defenders; the hex owner gets +20 when their land holds.
++//  Each level: +3% hero HP/ATK/DEF and +100 march size.
++(function(){
++  const XP2={perTroops:5,loss:.25,owner:20,base:{capture:25,attack:40,defend:40,pipe:40},mult:{capture:1,attack:1,defend:1.5,pipe:1.5},heroPerLvl:.03,marchPerLvl:100};
++  window.XP2=XP2;
++  // beaten troops are counted as power (troops x power-per-troop): Horde squads field tens of thousands of troops, so 1 XP per 5
++  // troops would give a whole level per fight. 1 XP per 5 power = 1 XP per 250 T1 troops.
++  function xpOf2(kind,beaten,win){const b=XP2.base[kind]||40,m=XP2.mult[kind]||1,pw=Math.max(0,beaten)*((typeof _tr2_basePower!=='undefined'?_tr2_basePower:0.02)||0.02),full=(b+pw/XP2.perTroops)*m;return Math.max(1,Math.round(win?full:full*XP2.loss));}
++  window.xpOf2=xpOf2;
++  function give2(n,why){if(!(n>0))return 0;try{addXP(n);}catch(e){return 0;}try{save();}catch(e){}return n;}
++  // ---------- marches: fights during one march resolution
++  G._xp2=null;
++  const _af=window.army2Fight;
++  function beatenOf(f){const r=f.army2&&f.army2.r;if(!r)return 0;const them=f.army2.us==='att'?r.def:r.att;
++    return them.rows.reduce((a,o)=>a+(o.custom?(o.lost?Math.round(o.hp/(C26.types.raider.hp||2)):0):o.lost),0);}
++  const _rf=runFight;runFight=function(A0,B0){const f=_rf.apply(this,arguments);
++    try{if(G._xp2&&f&&f.army2&&f.army2.us==='att'){const names=(B0||[]).map(u=>u.name||'').join(' ');const mob=!(B0||[]).some(u=>u.fort)&&!/\(power \d+\)/.test(names);
++      if(!mob){const kind=/Raider holdout/i.test(names)?'capture':'attack',xp=xpOf2(kind,beatenOf(f),f.win);f.xp2=xp;G._xp2.push(xp);}}}catch(e){}return f;};
++  window.runFight=runFight;
++  const _rm=resolveMarch;resolveMarch=async function(id,m){const was=!!(P.marchDone||{})[id];G._xp2=[];let got=[];
++    try{const r=await _rm.apply(this,arguments);got=G._xp2||[];return r;}
++    finally{G._xp2=null;try{if(!was&&(P.marchDone||{})[id]&&got.length){const n=got.reduce((a,x)=>a+x,0);give2(n,'march');
++      const row=(P.rp1||[]).find(x=>x.kind==='march'&&Date.now()-x.t<120e3&&!x.xp);if(row){row.xp=n;save();}}}catch(e){}}};
++  window.resolveMarch=resolveMarch;
++  // ---------- defense of your hexes (your share of the defenders)
++  const mine=k=>k==='home'||String(k||'').startsWith('me:');
++  const _ap=apply25;apply25=function(defs,s,r){const before=(P.fr25||[])[0];const out=_ap.apply(this,arguments);
++    try{const x=r&&r.r26;const top=(P.fr25||[])[0];if(x&&top&&top!==before){const tot=x.players.reduce((a,p)=>a+p.n,0)||1,myN=x.players.filter(p=>mine(p.key)).reduce((a,p)=>a+p.n,0);
++      let xp=0;if(myN>0)xp=xpOf2('defend',(x.att.lost||0)*myN/tot,x.win);
++      const own=x.win&&P.tiles&&P.tiles[top.hex]?XP2.owner:0;xp+=own;top.xp1=give2(xp,'defend');save();}}catch(e){console.warn('xp2 defend',e);}return out;};
++  window.apply25=apply25;
++  // ---------- your troops helping on a teammate's hex (the note between phones carries result, power and your share)
++  const _gl=applyGl25;applyGl25=function(){const before=new Set(P.fr25||[]);const out=_gl.apply(this,arguments);
++    try{for(const row of P.fr25||[]){if(before.has(row)||!row.ally||row.xp1!=null)continue;const n=(row.me&&row.me[0]&&row.me[0].n)||0;if(!n)continue;
++      const enemyN=Math.round((row.sp||0)/TROOP.powerPer);row.xp1=give2(xpOf2('defend',row.win?Math.min(enemyN,n):0,row.win),'ally');}save();}catch(e){console.warn('xp2 ally',e);}return out;};
++  window.applyGl25=applyGl25;
++  // ---------- pipeline guards
++  try{const _rc=reconcile26;reconcile26=function(){const before=new Set(P.fr25||[]);const out=_rc.apply(this,arguments);
++    try{for(const row of P.fr25||[]){if(before.has(row)||!row.pipe||row.xp1!=null||!row.r26)continue;row.xp1=give2(xpOf2('pipe',row.r26.att.lost||0,row.win),'pipe');}save();}catch(e){console.warn('xp2 pipe',e);}return out;};
++    window.reconcile26=reconcile26;}catch(e){}
++  // ---------- what a level gives
++  const _st=stats;stats=function(){const s=_st.apply(this,arguments);try{const k=1+XP2.heroPerLvl*Math.max(0,(P.lvl||1)-1);if(s&&typeof s==='object'){s.hp=Math.round(s.hp*k);s.atk=Math.round(s.atk*k);s.def=Math.round(s.def*k);}}catch(e){}return s;};
++  window.stats=stats;
++  const _mc=marchTroopCap;marchTroopCap=function(){return _mc.apply(this,arguments)+XP2.marchPerLvl*Math.max(0,(P.lvl||1)-1);};
++  window.marchTroopCap=marchTroopCap;
++})();

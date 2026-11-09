@@ -27,7 +27,7 @@ require('./h.js')(process.argv[2],async(p,errs)=>{
  ok(m.length===2&&m.some(x=>x.kind==='monster')&&m.some(x=>x.kind==='march'),'monster fight and march fight both recorded',m.map(x=>x.kind));
  const mr=m.find(x=>x.kind==='march')||{};ok(mr.troops&&mr.troops.sent===1500&&mr.troops.lost+mr.troops.left===1500&&mr.horde&&mr.hex,'march report: troops sent/lost/left add up, marked Horde, has a place',mr);
  await p.mouse.click(5,5);await ev(()=>{const r=P.rp1.find(x=>x.kind==='march');UI.report26('a',r);});await p.waitForTimeout(300);
- const mh=await ev(()=>$('#modalBody').textContent);ok(/YOUR SIDE/.test(mh)&&/ENEMY/.test(mh)&&/1,500 T\d troops/.test(mh),'march report shows your side and the enemy',mh.slice(0,140));
+ const mh=await ev(()=>$('#modalBody').textContent);ok(/YOUR SIDE/.test(mh)&&/ENEMY/.test(mh)&&/1,500 [A-Za-z ]*T\d/.test(mh),'march report shows your side and the enemy',mh.slice(0,140));
  await shot('r1-march');await ev(()=>UI.closeModal());
  // 3) Reports page: tabs and counts
  await p.mouse.click(5,5);await ev(()=>{UI._rf1='all';UI.reports26();});await p.waitForTimeout(300);await shot('r1-list');
