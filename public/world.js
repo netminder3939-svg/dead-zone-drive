@@ -96,7 +96,8 @@ async function payReset(label){const g=grossIncome(),share={},mine={};let tot=0,
   // tower upkeep: if you can't pay, the tower goes offline (won't defend) until next reset
   Object.entries(W().towers).forEach(([id,t])=>{if(t.state==='down')return;if(canPay(BAL.tower.upkeep)){pay(BAL.tower.upkeep);t.online=true;}else{t.online=false;report(`🗼 Tower ${id} went offline: not enough upkeep`,false);}});
   if(stot>0){try{await NET.bankMulti(P.uid,P.name,share,'auto-share');}catch(e){}}
-  report(`🌅 Daily reset: +${tot-stot} resources to you, ${stot} auto-shared to the Alliance Vault`,true);save();
+  let off64=0;try{off64=typeof supplyCount15==='function'?supplyCount15().off:0;}catch(e){}
+  report(`🌅 Daily reset: +${tot-stot} resources to you, ${stot} auto-shared to the Alliance Vault${off64>0?` · ${off64} hex${off64===1?'':'es'} didn't pay (over 10 mi from a base)`:''}`,true);save();
   toast(`🌅 Daily income collected (${stot} auto-shared)`);}
 
 // ---------- structures ----------
@@ -181,18 +182,20 @@ function drawWorld(){const g=G.layers.hex;g.clearLayers();G.layers.terr.clearLay
   const c=map.getCenter(),h=hexAt(c.lat,c.lng),n=z>=16?8:z>=15?12:16,icons=z>=15,far=z<=14;
   // v19: zoomed out = no fog blob around the screen centre; just draw every owned / ally / raider hex wherever it is
   const list=far?[...new Set([...Object.keys(P.tiles||{}),...Object.keys(G.terr||{}),...Object.keys(P.world.raider||{})])].map(id=>{const [q,r]=idQR(id);return{id,q,r};}):hexRing(h.q,h.r,n);
+  const UN=typeof unpaidSet64==='function'?unpaidSet64():null;
   list.forEach(x=>{const id=x.id,mine=P.tiles[id],other=G.terr[id],raider=!mine&&(P.world.raider[id]||other?.ai),t=tileInfo(id);
     if(!far&&!isVis(id)){const d=hexDist(id,h.id),fo=BAL.fog.opacity*Math.max(0,Math.min(1,(n-d+.5)/BAL.fog.fadeRings));if(fo>.01)L.polygon(hexPoly(x.q,x.r),{renderer:tileRenderer,interactive:false,stroke:false,fillColor:'#2b2620',fillOpacity:fo}).addTo(g);return;} // v19.1: hazy fog that fades out toward the edge, so it never shows as one big hard-edged hexagon
     let st={color:'#4a3a26',weight:.8,opacity:.28,fill:false};
     const LY=G.lay||{};
     const AC=allianceColor();
     const MC=P.color||AC,OC=other?(((G.al&&G.al.members||{})[other.uid]||{}).color||other.color||AC):AC; // v19: each member's tiles in that member's own color
-    if(mine&&LY.mine!==false)st={color:MC,weight:3.2,opacity:1,fillColor:MC,fillOpacity:.45}; // v17 B1: mine = bold solid
+    const un=mine&&UN&&UN.has(id); // R6.4: your hexes more than 10 mi from your bases (they don't pay) read faded with an amber dashed border
+    if(mine&&LY.mine!==false)st=un?{color:'#ffb52e',weight:3.2,opacity:1,dashArray:'6 4',fillColor:MC,fillOpacity:.22}:{color:MC,weight:3.2,opacity:1,fillColor:MC,fillOpacity:.45}; // v17 B1: mine = bold solid
     else if(raider&&LY.enemy!==false)st={color:'#d63a2a',weight:1.6,opacity:.8,fillColor:'#d63a2a',fillOpacity:.18};
     else if(other&&!other.ai&&LY.allies!==false)st={color:OC,weight:1.4,opacity:.8,dashArray:'5 5',fillColor:OC,fillOpacity:.14}; // allies = dashed, light
     else if(t.res&&t.tier!=='common')st={color:BAL.tiles.tierColor[t.tier],weight:1.4,opacity:.7,fillColor:BAL.tiles.tierColor[t.tier],fillOpacity:t.tier==='epic'?.16:.08};
     L.polygon(hexPoly(x.q,x.r),{...st,renderer:tileRenderer,interactive:false}).addTo(g);
-    if(icons&&t.res)L.marker(hexCenter(x.q,x.r),{icon:L.divIcon({className:'lodm',html:`<div class="ico rt rt-${t.tier}${mine?' own':''}"><span>${RES[t.res]}</span><b class="lv">+${t.yield}</b></div>`,iconSize:[0,0]}),interactive:false}).addTo(g);});
+    if(icons&&t.res)L.marker(hexCenter(x.q,x.r),{icon:L.divIcon({className:'lodm',html:`<div class="ico rt rt-${t.tier}${mine?' own':''}${un?' unpaid64':''}">${un?'<span>📦</span>':`<span>${RES[t.res]}</span><b class="lv">+${t.yield}</b>`}</div>`,iconSize:[0,0]}),interactive:false}).addTo(g);});
   const s=P.world.sh,ring=k=>k*HEX_R*Math.sqrt(3)+HEX_R*.9,showRange=z>=15;
   if(s){const ll=hexCenter(...idQR(s.hex)),down=s.state==='down',L_=strongholdLevel();
     if(showRange&&!down&&!window.RING22){L.circle(ll,{radius:ring(shRadius()),color:'#1a1208',weight:9,opacity:.85,fill:false,interactive:false}).addTo(G.layers.terr);L.circle(ll,{radius:ring(shRadius()),color:'#d6a03a',weight:5,fillColor:'#d6a03a',fillOpacity:.06,interactive:false}).addTo(G.layers.terr);L.circle(ll,{radius:ring(shRadius()),color:'#4a3410',weight:5,dashArray:'2 5',lineCap:'butt',fill:false,interactive:false}).addTo(G.layers.terr);}

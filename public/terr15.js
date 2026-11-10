@@ -36,7 +36,7 @@
   // ---- the feed (called by FirebaseNet.onTerritory)
   const S15={net:null,cb:null,mode:null,cells:{},full:null,fullUnsub:null,merged:{},stamping:false};
   window.TERR15=S15;
-  function emit15(){const o={};if(S15.full)Object.assign(o,S15.full);for(const c of Object.values(S15.cells))Object.assign(o,c.docs||{});S15.merged=o;try{S15.cb&&S15.cb({...o});}catch(e){console.warn('terr15 cb',e);}}
+  function emit15(){const o={};if(S15.full)Object.assign(o,S15.full);for(const c of Object.values(S15.cells))Object.assign(o,c.docs||{});S15.merged=o;G.terrV15=(G.terrV15||0)+1;try{S15.cb&&S15.cb({...o});}catch(e){console.warn('terr15 cb',e);}}
   function listenCell15(cell){const n=S15.net,fs=n.fs;if(S15.cells[cell]){S15.cells[cell].used=Date.now();return;}
     const c=S15.cells[cell]={docs:{},used:Date.now(),unsub:null};
     c.unsub=fs.onSnapshot(fs.query(n.col('territory'),fs.where('rg','==',cell)),s=>{const o={};s.forEach(d=>o[d.id]=d.data());c.docs=o;emit15();},e=>console.warn('terr15 cell',cell,e));}
@@ -70,13 +70,12 @@
   function supplyCentres15(){const t=Date.now();if(_sup&&t-_supT<5000)return _sup;_supT=t;_sup=[];try{for(const b of (typeof myBases15==='function'?myBases15():[]))_sup.push(hexCenter(...idQR(b)));}catch(e){}return _sup;}
   function inSupply15(id){const C=supplyCentres15();if(!C.length)return true; // no base yet: nothing is cut off
     const [a,b]=hexCenter(...idQR(id));for(const c of C)if(distM(a,b,c[0],c[1])<=T15.supplyMi*MI)return true;return false;}
-  window.inSupply15=inSupply15;
+  window.inSupply15=inSupply15;window.supplyBust15=()=>{_sup=null;_supT=0;}; // R6.4: supply64 clears this when a base is added, finished, lost or moved
   function supplyCount15(){let n=0,off=0;for(const id of Object.keys(P.tiles||{})){n++;if(!inSupply15(id))off++;}return{n,off};}
   window.supplyCount15=supplyCount15;
-  HOOK.tile(function(id){try{if(!P.tiles[id]||inSupply15(id))return;const mb=$('#modalBody');if(!mb||mb.querySelector('.sup15'))return;
-    mb.insertAdjacentHTML('afterbegin',`<p class="sup15">📦 Out of supply: more than ${T15.supplyMi} mi from your bases, so it pays nothing each day. It stays yours. Build an outpost within ${T15.supplyMi} mi and it pays again.</p>`);}catch(e){}});
+  // R6.4: the hex-card note moved to supply64.js (it now sits outside ⓘ More, with the distance)
   HOOK.render(function(){try{if(this.tab!=='base')return;const b=$('#sheetBody');if(!b||b.querySelector('.sup15b'))return;const s=supplyCount15();if(!s.off)return;
-    const h=b.querySelector('h2');(h||b).insertAdjacentHTML(h?'afterend':'afterbegin',`<p class="sup15 sup15b">📦 ${s.off.toLocaleString()} of your ${s.n.toLocaleString()} hexes are more than ${T15.supplyMi} mi from your bases and don't pay. Build an outpost near them.</p>`);}catch(e){}});
+    const h=b.querySelector('h2');(h||b).insertAdjacentHTML(h?'afterend':'afterbegin',`<div class="sup15 sup15b"><span>📦 ${s.off.toLocaleString()} of your ${s.n.toLocaleString()} hexes are more than ${T15.supplyMi} mi from your bases and don't pay.</span><button onclick="window.showUnpaid64&&showUnpaid64()">📍 Show them</button></div>`);}catch(e){}});
 
   // ---- 3) miles: rewrite distances in the page text (km -> mi, m -> ft)
   const fmtNum=v=>v<10?(Math.round(v*10)/10).toString():Math.round(v).toLocaleString();
@@ -105,5 +104,5 @@
   window.layout15=layout15;
   const startLayout=()=>{const hud=document.getElementById('hud');if(!hud)return setTimeout(startLayout,300);try{new ResizeObserver(()=>layout15()).observe(hud);const s=document.getElementById('status');if(s)new ResizeObserver(()=>layout15()).observe(s);}catch(e){}addEventListener('resize',layout15);setInterval(layout15,2000);layout15();};startLayout();
 
-  const st=document.createElement('style');st.textContent=`.sup15{background:#2a1f05;border:1px solid #6b5212;color:#ffd98a;padding:6px 8px;border-radius:8px;font-size:12px;margin:0 0 8px}`;document.head.appendChild(st);
+  const st=document.createElement('style');st.textContent=`.sup15{background:#2a1f05;border:1px solid #6b5212;color:#ffd98a;padding:6px 8px;border-radius:8px;font-size:12px;margin:0 0 8px}.sup15b{display:flex;gap:8px;align-items:center}.sup15b span{flex:1}.sup15b button{flex:none;margin:0;padding:6px 10px;font-size:12px}`;document.head.appendChild(st);
 })();

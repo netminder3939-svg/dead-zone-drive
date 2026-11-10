@@ -97,7 +97,7 @@
 
   // ---------- outposts: Home + Forward ----------
   const _ol15=outpostsLive;outpostsLive=function(){return Object.values(W().outposts||{}).filter(o=>o.state!=='down'&&!o.kind).length;};window.outpostsLive=outpostsLive;
-  function placeSpecial15(id,kind){const w=W(),c=outpostCost();w.outposts=w.outposts||{};
+  function placeSpecial15(id,kind){const w=W(),c=outpostCost();w.outposts=w.outposts||{};const _u015=window.unpaid64?unpaid64().length:0;
     if(factionAt(id))return toast('🚫 Retake this hex from the raiders first');const o=G.terr[id];if(o&&!o.released&&(o.ai||(o.uid&&!isMe(o.uid))))return toast(o.ai?'🚫 Raiders hold that hex':'🚫 That hex belongs to a teammate');
     if(w.outposts[id]&&w.outposts[id].state!=='down')return toast('🚫 There is already an outpost here');
     if(id===shHex15())return toast('🚫 That is your Stronghold');
@@ -105,12 +105,31 @@
     if(kind==='fwd'&&ops15('fwd').length>=B15.fwdMax)return toast(`🚫 You already have ${B15.fwdMax} Forward Outposts`);
     if(!canPay(c))return toast('🚫 Not enough resources');pay(c);
     w.outposts[id]={state:'capturing',kind,start:Date.now(),endsAt:Date.now()+BAL.outpost.holdMin*60e3,hpPct:1};if(!P.tiles[id])claimTile(id);
-    save();drawWorld();try{pushMember();}catch(e){}toast(`${kind==='home'?'🏡':'🚩'} Building: holds for ${BAL.outpost.holdMin} min, then it's up`);allianceLog(`${kind==='home'?'🏡':'🚩'} ${P.name} is building a ${kind==='home'?'Home':'Forward'} Outpost`);UI.closeModal();}
+    save();drawWorld();try{pushMember();}catch(e){}{let rv=0;try{if(window.supplyBust64){supplyBust64();rv=_u015-unpaid64().length;}}catch(e){}toast(`${kind==='home'?'🏡':'🚩'} Building: holds for ${BAL.outpost.holdMin} min, then it's up.${rv>0?` ${rv} hex${rv===1?'':'es'} pay again now.`:''}`);}allianceLog(`${kind==='home'?'🏡':'🚩'} ${P.name} is building a ${kind==='home'?'Home':'Forward'} Outpost`);UI.closeModal();}
   window.placeSpecial15=placeSpecial15;
   function teammateLandNear15(id,km){for(const [hx,o] of Object.entries(G.terr||{})){if(!o||o.ai||o.released||!o.uid||isMe(o.uid))continue;if(kmBetween(hx,id)<=km)return o.uid;}
     const M=(G.al&&G.al.members)||{};for(const [uid,m] of Object.entries(M)){if(isMe(uid)||!Array.isArray(m.defs))continue;for(const d of m.defs){if(d&&d.hex&&kmBetween(d.hex,id)<=km)return uid;}}return null;}
   window.teammateLandNear15=teammateLandNear15;
-  function fwdOk15(id){if(!teammateLandNear15(id,B15.fwdNearMi*MI/1000))return`Forward Outposts go within ${B15.fwdNearMi} mi of a teammate's land`;return null;}
+  // R6.4: one validity function for the Forward picker (green hexes, the tap and the build all agree). The first failing reason wins.
+  //  Teammate anchors (their held hexes + their buildings) are listed once per pick and the answer per hex is memoised;
+  //  both reset when territory or the alliance changes.
+  let anc15=null,ancKey15='',okMemo15=new Map();
+  function ancSig15(){const M=(G.al&&G.al.members)||{};return Object.keys(G.terr||{}).length+'|'+Object.keys(M).length+'|'+Object.values(M).reduce((a,m)=>a+((m&&m.defs&&m.defs.length)||0),0)+'|'+(G.terrV15||0);}
+  function fwdAnchors15(){const k=ancSig15();if(anc15&&k===ancKey15)return anc15;ancKey15=k;okMemo15=new Map();const out=[],seen=new Set();
+    for(const [hx,o] of Object.entries(G.terr||{})){if(!o||o.ai||o.released||!o.uid||isMe(o.uid))continue;if(seen.has(hx))continue;seen.add(hx);out.push({hex:hx,uid:o.uid,c:ctr(hx)});}
+    const M=(G.al&&G.al.members)||{};for(const [uid,m] of Object.entries(M)){if(isMe(uid)||!Array.isArray(m.defs))continue;for(const d of m.defs){if(d&&d.hex&&!seen.has(d.hex)){seen.add(d.hex);out.push({hex:d.hex,uid,c:ctr(d.hex)});}}}
+    return anc15=out;}
+  // nearest teammate anchor: {uid, mi, hex} or null
+  function fwdNearest15(id){const A=fwdAnchors15();if(!A.length)return null;const c=ctr(id);let best=null;for(const a of A){const m=distM(c[0],c[1],a.c[0],a.c[1])/MI;if(!best||m<best.mi)best={uid:a.uid,hex:a.hex,mi:m};}return best;}
+  function fwdOk15(id){const k=ancSig15();if(k!==ancKey15)fwdAnchors15();if(okMemo15.has(id))return okMemo15.get(id);let why=null;
+    const o=G.terr[id];
+    if(factionAt(id)||(o&&!o.released&&o.ai))why='Raiders hold that hex';
+    else if(o&&!o.released&&o.uid&&!isMe(o.uid))why='That hex belongs to a teammate';
+    else if((W().outposts||{})[id]&&W().outposts[id].state!=='down')why='There is already an outpost here';
+    else if(id===shHex15())why='That is your Stronghold';
+    else{const n=fwdNearest15(id);if(!n||n.mi>B15.fwdNearMi)why=`Forward Outposts go within ${B15.fwdNearMi} mi of a teammate's land`;}
+    okMemo15.set(id,why);return why;}
+  window.fwdOk15=fwdOk15;Object.assign(window,{fwdAnchors15,fwdNearest15,fwdMemoReset15:()=>{anc15=null;okMemo15=new Map();}});
   // Build menu: Home Outpost where you stand (GPS only)
   const _bd15=UI.build;UI.build=function(){_bd15.apply(this,arguments);try{if(!G.pos)return;const mb=$('#modalBody');if(!mb||mb.querySelector('.home15'))return;const id=hexAt(...G.pos).id,gps=curBase15()==='gps',has=ops15('home').length>=B15.homeMax;
       const c=outpostCost(),cost=Object.entries(c).map(([k,v])=>`<span class="${(P.res[k]||0)<v?'short':''}">${v} ${RES[k]}</span>`).join(' ');
@@ -142,16 +161,19 @@
   window.moveSh15=moveSh15;
   function pickBar15(){let el=document.getElementById('pick15');const k=G.pick15&&Date.now()-(G.pick15At||0)<=180e3?G.pick15:null;if(!k){if(el)el.remove();if(G.pick15&&!k)G.pick15=null;return;}
     if(!el){el=document.createElement('div');el.id='pick15';document.body.appendChild(el);}
-    const t=k==='free4'?'🏰 Tap a green hex for your Stronghold (free move)':k==='hq'?'🏛️ Tap the hex for the alliance HQ':k==='sh'?`🏰 Tap a free hex within ${B15.hqMi} mi of the HQ`:`🚩 Tap a free hex within ${B15.fwdNearMi} mi of a teammate's land`;
-    if(el.dataset.k!==k){el.dataset.k=k;el.innerHTML=`<span>${t}</span><button onclick="G.pick15=null;pickBar15()">Cancel</button>`;}}
+    const t=k==='free4'?'🏰 Tap a green hex for your Stronghold (free move)':k==='hq'?'🏛️ Tap the hex for the alliance HQ':k==='sh'?`🏰 Tap a free hex within ${B15.hqMi} mi of the HQ`:(fwdAnchors15().length?`🚩 Tap a green hex: within ${B15.fwdNearMi} mi of a teammate's land, not on anyone's hexes.`:`🚩 None of your teammates hold land yet, so there's nowhere to put a Forward Outpost.`);
+    if(k==='fwd'&&!fwdAnchors15().length&&!G.pick15None){G.pick15None=setTimeout(()=>{G.pick15None=null;if(G.pick15==='fwd'){G.pick15=null;pickBar15();}},5000);}
+    const kk=k+(k==='fwd'?(fwdAnchors15().length?'+':'0'):'');if(el.dataset.k!==kk){el.dataset.k=kk;el.innerHTML=`<span>${t}</span><button onclick="G.pick15=null;window.ringShow64&&ringShow64(null);pickBar15()">Cancel</button>`;}}
   window.pickBar15=pickBar15;setInterval(()=>{try{pickBar15();}catch(e){}},1000);
   function pick15(kind){G.pick15=kind;G.pick15At=Date.now();setTimeout(pickBar15,0);try{UI.closeModal();UI.close&&UI.close();}catch(e){}}
   window.pick15=pick15;
   const _it15=UI.infoTile;UI.infoTile=function(id){if(G.pick15&&Date.now()-(G.pick15At||0)>180e3)G.pick15=null;const k=G.pick15;if(!k)return _it15.apply(this,arguments);
     if(k==='hq'){return UI.modal(`<h2>🏛️ Alliance HQ here?</h2><p>${hexName(id)}. Teammates can jump here and build their Strongholds within ${B15.hqMi} mi.</p><input id="hq15name" maxlength="24" placeholder="HQ name (e.g. Rathdrum)" value="${esc15((hq15()||{}).name||'')}"><div class="btns24"><button class="red24" onclick="setHq15('${id}',$('#hq15name').value)">✅ Place HQ</button><button class="ghost24" onclick="G.pick15=null;UI.closeModal()">Cancel</button></div>`);}
     if(k==='sh'){const why=startOk15(id);if(why){toast('🚫 '+why);return;}const old=shHex15();return UI.modal(`<h2>🏰 Stronghold here?</h2><p>${hexName(id)} near the alliance HQ.${old&&!homeOp15()?' Your current Stronghold spot becomes your 🏡 Home Outpost, so driving and pipelines keep working there.':''} Moving again is possible after 7 days.</p><div class="btns24"><button class="red24" onclick="G.pick15=null;moveSh15('${id}')">✅ Build here</button><button class="ghost24" onclick="UI.closeModal()">Pick another</button></div>`);}
-    if(k==='fwd'){const why=fwdOk15(id);if(why){toast('🚫 '+why);return;}const c=outpostCost(),cost=Object.entries(c).map(([kk,v])=>`${v} ${RES[kk]}`).join(' ');
-      return UI.modal(`<h2>🚩 Forward Outpost here?</h2><p>${hexName(id)}. It guards the hexes around it like any outpost. 🌀 Portal troops in to defend it and march from it. You can't claim by walking here unless you're really there.</p><p class="tiny">Cost ${cost} · ${ops15('fwd').length}/${B15.fwdMax} used</p><div class="btns24"><button class="red24" onclick="G.pick15=null;placeSpecial15('${id}','fwd')">✅ Build</button><button class="ghost24" onclick="UI.closeModal()">Pick another</button></div>`);}
+    if(k==='fwd'){const why=window.fwdOk15(id);if(why){toast('🚫 '+why);return;}const c=outpostCost(),cost=Object.entries(c).map(([kk,v])=>`${v} ${RES[kk]}`).join(' ');
+      const nb=fwdNearest15(id),nm=nb?esc15((typeof who24==='function'?who24(nb.uid).name:'')||'a teammate'):'a teammate';
+      let rp=null;try{rp=window.ringPreview64?ringPreview64(id,'fwd'):null;if(window.ringShow64)ringShow64(id,'fwd');}catch(e){}
+      return UI.modal(`<h2>🚩 Forward Outpost here?</h2><p>${hexName(id)}${nb?` · ${fmtMi(nb.mi*1.60934)} from ${nm}'s land`:''}</p>${rp?`<p><b>${claimLine64(rp)}</b>${rp.revive?`<br>${reviveLine64(rp,'fwd')}`:''}</p>`:''}<p class="tiny">It guards these hexes like any outpost. 🌀 Portal troops in to defend it and march from it. You can't claim by walking here unless you're really there.</p><p class="tiny">Cost ${cost} · ${ops15('fwd').length}/${B15.fwdMax} used</p><div class="btns24"><button class="red24" onclick="G.pick15=null;window.ringShow64&&ringShow64(null);placeSpecial15('${id}','fwd')">✅ Build</button><button class="ghost24" onclick="UI.closeModal()">Pick another</button></div>`);}
     return _it15.apply(this,arguments);};
   window.setHq15=async function(id,name){if(!isOfficer15())return toast('🚫 Only the leader or officers can place the HQ');const c=ctr(id),nm=clean15(name)||'HQ';G.pick15=null;
     try{await hqTx15(cur=>{if(!cur)throw new Error('Claim leadership first');return{...cur,hq:{hex:id,name:nm,by:P.uid,byName:P.name,t:Date.now()}};});
@@ -173,7 +195,7 @@
     x+=`<h3>Your bases</h3>`+basesHtml15();return x;}
   function basesHtml15(){const L=myBases15(),cb=curBase15();let x='';
     x+=`<div class="row"><div class="grow"><b>📍 Here (GPS)</b><small>Claim by walking and driving where you really are</small></div>${cb==='gps'?'<span class="tiny">● now</span>':`<button onclick="setOp15('gps')">Use</button>`}</div>`;
-    for(const id of L){const n=poolOf15(id),on=opHex15()===id;x+=`<div class="row"><div class="grow"><b>${baseLabel15(id)}</b><small>${hexName(id)} · 🪖 ${n.toLocaleString()} troops</small></div>${on?'<span class="tiny">● now</span>':`<button onclick="setOp15('${id===shHex15()?'sh':id}')">Operate</button>`}<button onclick="UI.portal15('${id}')">🌀</button></div>`;}
+    for(const id of L){const n=poolOf15(id),on=opHex15()===id;x+=`<div class="row"><div class="grow"><b>${baseLabel15(id)}</b><small>${hexName(id)} · 🪖 ${n.toLocaleString()} troops${window.baseLine64?' · '+baseLine64(id):''}</small></div>${on?'<span class="tiny">● now</span>':`<button onclick="setOp15('${id===shHex15()?'sh':id}')">Operate</button>`}<button onclick="UI.portal15('${id}')">🌀</button></div>`;}
     const P15=portalList15();if(P15.length)x+=`<h3>🌀 In the portal</h3>`+P15.map(p=>`<div class="row"><div class="grow">${p.n.toLocaleString()} troops → ${baseLabel15(p.to)}<small>arrive in ${fmtDur(Math.max(0,p.at-now()))}</small></div></div>`).join('');
     const f=ops15('fwd').length;x+=`<p class="tiny">🚩 Forward Outposts ${f}/${B15.fwdMax}: open a teammate's card and tap "Forward Outpost near them".</p>`;return x;}
   UI.hq15=function(){try{this.tab='alliance';this.sub.alliance='hq';UI.open?UI.open('alliance'):UI.render();}catch(e){UI.modal(hqHtml15());}};
@@ -187,7 +209,7 @@
   // teammate card: forward outpost near them + jump
   const _pp15=UI.person26;if(_pp15)UI.person26=function(uid){const r=_pp15.apply(this,arguments);try{if(isMe(uid))return r;const mb=$('#modalBody');if(!mb||mb.querySelector('.fw15'))return r;const m=((G.al&&G.al.members)||{})[uid]||{};
       const d=(Array.isArray(m.defs)?m.defs:[]).find(x=>x&&x.k==='sh'&&x.hex)||(Array.isArray(m.defs)?m.defs:[]).find(x=>x&&x.hex);if(!d)return r;
-      mb.insertAdjacentHTML('beforeend',`<div class="btns24 fw15"><button onclick="map.setView(hexCenter(...idQR('${d.hex}')),14);UI.closeModal();try{UI.close()}catch(e){}">🧭 Jump to their base</button><button ${ops15('fwd').length>=B15.fwdMax?'disabled':''} onclick="map.setView(hexCenter(...idQR('${d.hex}')),14);pick15('fwd')">🚩 Forward Outpost near them</button></div>`);}catch(e){}return r;};
+      mb.insertAdjacentHTML('beforeend',`<div class="btns24 fw15"><button onclick="map.setView(hexCenter(...idQR('${d.hex}')),14);UI.closeModal();try{UI.close()}catch(e){}">🧭 Jump to their base</button><button ${ops15('fwd').length>=B15.fwdMax?'disabled':''} onclick="map.setView(hexCenter(...idQR('${d.hex}')),13);pick15('fwd')">🚩 Forward Outpost near them</button></div>`);}catch(e){}return r;};
   // outpost card: kind + troops + portal
   const _io15=UI.infoOutpost;UI.infoOutpost=function(id){const r=_io15.apply(this,arguments);try{const o=(W().outposts||{})[id];const mb=$('#modalBody');if(!o||!mb||mb.querySelector('.op15'))return r;
       mb.insertAdjacentHTML('afterbegin',`<div class="op15"><b>${baseLabel15(id)}</b> · 🪖 ${poolOf15(id).toLocaleString()} troops here${o.state==='up'?`<div class="btns24"><button onclick="UI.portal15('${id}')">🌀 Portal troops here</button>${opHex15()===id?'':`<button onclick="setOp15('${id}')">Operate from here</button>`}</div>`:''}</div>`);}catch(e){}return r;};

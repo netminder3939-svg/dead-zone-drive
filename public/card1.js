@@ -44,8 +44,10 @@
     if(auto()&&(isOpen()||Date.now()-CARD1.lastClose<2000))return wait('alert',rep,'Raid report');
     return _aa.apply(this,arguments);};
   function openNext(){const x=CARD1.queue.shift();bar();if(!x)return;CARD1.lastTap=Date.now();
-    try{if(x.kind==='replay')UI.replay(x.arg);else if(x.kind==='info')UI.info(x.arg);else UI.attackAlert(x.arg);}catch(e){console.warn('card1 open',e);}}
+    try{if(x.kind==='replay')UI.replay(x.arg);else if(x.kind==='info')UI.info(x.arg);else if(x.kind==='info64'){if(typeof opCard64==='function')opCard64(x.arg);}else UI.attackAlert(x.arg);}catch(e){console.warn('card1 open',e);}}
   window.cardNext1=openNext;
+  // R6.4: outpost results (supply64) wait their turn like march replays: cardWait1('info64', records, '⛺ Outpost up')
+  window.cardWait1=function(kind,arg,label){wait(kind,arg,label);};window.cardBusy1=()=>isOpen()||Date.now()-CARD1.lastClose<2000;
   function bar(){let b=document.getElementById('cardq1');const n=CARD1.queue.length;
     if(!n||isOpen()){if(b)b.remove();return;}
     if(!b){b=document.createElement('button');b.id='cardq1';b.type='button';b.onclick=e=>{e.stopPropagation();openNext();};document.body.appendChild(b);}

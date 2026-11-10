@@ -56,23 +56,26 @@
   UI.replay=function(o){try{if(o&&o.f&&!o._rec1){o._rec1=1;const r=duelRecord(o);if(r){P.rp1=[r,...(P.rp1||[])].slice(0,CAP1);save();}}}catch(e){console.warn('reports1 duel',e);}
     return _rp1.apply(this,arguments);};
   // ---------- one list for Reports: category per row
-  function catOf(x){if(x.k==='d')return['drive'];if(x.k==='m')return['march'];
+  function catOf(x){if(x.k==='o')return['bases'];if(x.k==='d')return['drive'];if(x.k==='m')return['march'];
     if(x.k==='a'){const c=[x.r.kind==='monster'?'attack':'attack'];if(x.r.horde)c.push('horde');return c;}
     const r=x.r,c=[];if(r.ally)c.push('alliance');else c.push('defense');c.push('horde');return c;}
   const _items=reportItems26;
   reportItems26=function(){const L=_items.apply(this,arguments);
     (P.rp1||[]).forEach(r=>L.push({k:'a',t:r.t,ico:r.kind==='monster'?'🐀':r.win?'⚔️':'💀',title:(r.win?'Won':'Lost')+' · '+(r.title||'Fight'),
       sub:((r.us&&r.us.troops&&r.us.troops.sent)?`you lost ${n1(r.us.troops.lost)} of ${n1(r.us.troops.sent)} troops`:(r.us&&r.us.hero?`hero ${n1(r.us.hero.hp1)}/${n1(r.us.hero.max)} HP`:''))+(r.xp?` · +${n1(r.xp)} XP`:''),r}));
+    (P.op64||[]).forEach(r=>{const ico=r.kind==='home'?'🏡':r.kind==='fwd'?'🚩':'⛺';const kn=r.kind==='home'?'Home Outpost':r.kind==='fwd'?'Forward Outpost':'Outpost';
+      L.push({k:'o',t:r.t,ico,title:r.ok?`${kn} up · ${hexName(r.hex)}`:`${kn} capture failed · ${hexName(r.hex)}`,
+        sub:r.ok?[`claimed ${r.claimed}`,...(r.skipped||[]).map(s=>`skipped ${s.n} (${s.why==='teammate'?'teammate':s.why==='fort'?'raider fort':s.why==='locked'?'not signed in':'raiders'})`),`${r.keeps} hexes paying`].join(' · '):'the hex was taken during the hold',r});});
     L.forEach(x=>{if(x.k==='f'&&x.r&&x.r.xp1)x.sub=(x.sub||'')+` · +${n1(x.r.xp1)} XP`;});
     L.forEach(x=>{x.cats=catOf(x);});return L.sort((a,b)=>b.t-a.t);};
   window.reportItems26=reportItems26;
   // ---------- delete, select, clear
-  const LISTS1={f:'fr25',d:'dr26',m:'mr26',a:'rp1'};
+  const LISTS1={f:'fr25',d:'dr26',m:'mr26',a:'rp1',o:'op64'};
   function del1(items){const by={};items.forEach(x=>{(by[x.k]=by[x.k]||new Set()).add(x.r);});
     for(const [k,set] of Object.entries(by)){const key=LISTS1[k];if(!key)continue;P[key]=(P[key]||[]).filter(r=>!set.has(r));}save();}
   window.reportDel1=del1;
   UI._sel1=null;UI._rf1=UI._rf1||'all';
-  const TABS1=[['all','All'],['attack','⚔️ Attacks'],['defense','🛡️ Defense'],['horde','☠️ Horde'],['alliance','🤝 Alliance'],['drive','🚗 Drives'],['march','🚩 Marches']];
+  const TABS1=[['all','All'],['attack','⚔️ Attacks'],['defense','🛡️ Defense'],['horde','☠️ Horde'],['alliance','🤝 Alliance'],['drive','🚗 Drives'],['march','🚩 Marches'],['bases','⛺ Outposts']];
   function shown1(L,f){return L.map((x,i)=>[x,i]).filter(([x])=>f==='all'||(x.cats||[]).includes(f));}
   reportsHTML26=function(){const f=UI._rf1||'all',L=reportItems26(),seen=P.rp26Seen||0;UI._ri26=L;const sel=UI._sel1;
     const cnt=k=>shown1(L,k).length;
@@ -81,7 +84,7 @@
     const rows=S.map(([x,i])=>`<div class="rp26 ${x.t>seen?'new':''} ${sel&&sel.has(i)?'sel1':''}" onclick="${sel?`reportPick1(${i})`:`UI.reportAt26(${i})`}">${sel?`<span class="ck1">${sel.has(i)?'☑️':'⬜'}</span>`:''}<span class="ri">${x.ico}</span><div class="grow"><b>${esc1(strip1(x.title))}</b><small>${esc1(x.sub||'')} · ${when(x.t)}</small></div>${sel?'':`<button class="rx1" title="Delete this report" onclick="event.stopPropagation();reportDelAt1(${i})">✕</button>`}</div>`).join('');
     const ctl=S.length?(sel?`<div class="rpc1"><button onclick="reportPickAll1()">${sel.size===S.length?'Select none':'Select all'}</button><button class="bad1" ${sel.size?'':'disabled'} onclick="reportDelSel1()">🗑️ Delete ${sel.size}</button><button onclick="UI._sel1=null;UI.reports26()">Done</button></div>`
       :`<div class="rpc1"><button onclick="UI._sel1=new Set();UI.reports26()">☑️ Select</button><button class="bad1" onclick="reportClear1()">🧹 Clear ${f==='all'?'all':'this tab'}</button></div>`):'';
-    return`<div class="rps26"><div class="seg rpf26 rpf1">${tabs}</div>${ctl}${rows||'<p class="tiny">Nothing here yet. Fights, drives and marches land here and stay for 14 days.</p>'}<p class="tiny">Logins, stories and badge toasts are in <a href="#" onclick="UI.actlog26();return false">📒 Activity log</a>.</p></div>`;};
+    return`<div class="rps26"><div class="seg rpf26 rpf1">${tabs}</div>${ctl}${rows||'<p class="tiny">Nothing here yet. Fights, drives, marches and outposts land here and stay for 14 days.</p>'}<p class="tiny">Logins, stories and badge toasts are in <a href="#" onclick="UI.actlog26();return false">📒 Activity log</a>.</p></div>`;};
   window.reportsHTML26=reportsHTML26;
   const refresh1=()=>{try{if(UI.tab==='base'&&UI.sub.base==='reports'&&$('#sheet')&&!$('#sheet').classList.contains('hidden')&&$('#modal').classList.contains('hidden'))UI.render();else UI.reports26();}catch(e){UI.reports26();}};
   window.reportDelAt1=function(i){const x=(UI._ri26||[])[i];if(!x)return;del1([x]);toast('🗑️ Report deleted');refresh1();};
@@ -110,7 +113,7 @@
   function details1(rounds){if(!rounds||!rounds.length)return'';return`<details class="det1"><summary>Details: round by round</summary>${rounds.map(x=>`<div class="r24"><span>Round ${x.k}</span><b>dealt ${n1(x.dealt)} · took ${n1(x.taken)}</b></div>`).join('')}</details>`;}
   window.details1=details1;
   const _rep26=UI.report26;
-  UI.report26=function(k,r){if(k==='a'){this.modal(duelHTML1(r));$('#modal').classList.add('rpm26');}else _rep26.apply(this,arguments);
+  UI.report26=function(k,r){if(k==='o'){if(typeof opCard64==='function')opCard64([r]);return;}if(k==='a'){this.modal(duelHTML1(r));$('#modal').classList.add('rpm26');}else _rep26.apply(this,arguments);
     try{if(k==='f'){const b=$('#modalBody .btns26');const extra=(r.xp1?`<div class="r24"><span>XP earned</span><b>+${n1(r.xp1)}</b></div>`:'')+details1(r.r26&&r.r26.rounds);if(b&&extra)b.insertAdjacentHTML('beforebegin',extra);}}catch(e){}
     try{const b=$('#modalBody .btns26')||$('#modalBody');if(b&&!b.querySelector('.rdel1')){const d=document.createElement('button');d.className='rdel1';d.textContent='🗑️ Delete';
       d.onclick=()=>{const x=(reportItems26()||[]).find(y=>y.r===r);if(x)del1([x]);toast('🗑️ Report deleted');UI.reports26();};b.appendChild(d);}}catch(e){}};

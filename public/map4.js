@@ -7,9 +7,9 @@
     allyFlags:'alliance',allyDefs:'alliance',
     pipes:'resource',lm:'resource',
     mons:'monster',nest:'monster',
-    mark:'pin',plan:'pin'};
+    mark:'pin',plan:'pin',pay64:'skip'};
   const PRI4={threat:1,march:3,building:4,alliance:4.5,resource:5,monster:6,pin:7,other:8};
-  const FILT4=[['threat','⚠️ Threats',true],['march','🚩 Marches'],['resource','⛽ Resources'],['building','🏰 Buildings'],['alliance','🤝 Alliance'],['monster','👾 Monsters'],['pin','📍 Pins']];
+  const FILT4=[['threat','⚠️ Threats',true],['march','🚩 Marches'],['resource','⛽ Resources'],['building','🏰 Buildings'],['alliance','🤝 Alliance'],['monster','👾 Monsters'],['pin','📍 Pins'],['pay64','📦 Pay range']]; // R6.4: Pay range SHOWS an overlay (on unless wl_f4.payOn===false)
   const LS='wl_f4';let off={};try{off=JSON.parse(localStorage.getItem(LS)||'{}')||{};}catch(e){off={};}
   const saveOff=()=>{try{localStorage.setItem(LS,JSON.stringify(off));}catch(e){}};
   window.MAP4={CAT4,PRI4,off};
@@ -23,9 +23,9 @@
   window.tidy4=tidy4;
   // filter chips
   function chips4(){if(document.getElementById('f4'))return;const d=document.createElement('div');d.id='f4';
-    d.innerHTML=`<button id="f4t" aria-expanded="false" title="Map filters">🧭</button><div id="f4c">${FILT4.map(([k,n,lock])=>`<button data-k="${k}" class="${off[k]?'off':''}" ${lock?'disabled title="Threats always show"':''}>${n}</button>`).join('')}</div>`;
+    d.innerHTML=`<button id="f4t" aria-expanded="false" title="Map filters">🧭</button><div id="f4c">${FILT4.map(([k,n,lock])=>`<button data-k="${k}" class="${(k==='pay64'?off.payOn===false:off[k])?'off':''}" ${lock?'disabled title="Threats always show"':''}>${n}</button>`).join('')}<small id="pay64leg"></small></div>`;
     document.body.appendChild(d);d.querySelector('#f4t').onclick=e=>{e.stopPropagation();d.classList.toggle('open');d.querySelector('#f4t').setAttribute('aria-expanded',d.classList.contains('open'));};
-    d.querySelectorAll('#f4c button[data-k]').forEach(b=>b.onclick=e=>{e.stopPropagation();const k=b.dataset.k;if(k==='threat')return;off[k]=!off[k];b.classList.toggle('off',!!off[k]);saveOff();tidy4();});}
+    d.querySelectorAll('#f4c button[data-k]').forEach(b=>b.onclick=e=>{e.stopPropagation();const k=b.dataset.k;if(k==='threat')return;if(k==='pay64'){off.payOn=off.payOn===false;b.classList.toggle('off',off.payOn===false);saveOff();try{window.payChip64&&payChip64();}catch(e){}return;}off[k]=!off[k];b.classList.toggle('off',!!off[k]);saveOff();tidy4();});}
   // bottom-left, just above the march list arrow (the right side has Drive and the base rail)
   const place4=()=>{try{const d=document.getElementById('f4');if(!d)return;const mc=document.getElementById('mcToggle'),tabs=document.getElementById('tabs');
       const phone=innerWidth<1100;let bottom,left;
@@ -45,7 +45,7 @@
   st.textContent=`[data-f4="1"]{display:none!important}
   #f4{position:fixed;left:10px;z-index:640;display:flex;flex-direction:column-reverse;align-items:flex-start;gap:6px;pointer-events:none}#f4 button{pointer-events:auto}
   #f4t{width:44px;height:44px;border-radius:10px;border:1.5px solid #c9a24a;background:#1a140ce8;font-size:18px}#f4c{display:none;flex-wrap:wrap;gap:4px;max-width:min(320px,calc(100vw - 40px));padding:6px;border-radius:12px;background:#120e09e6;border:1px solid #3a2f22}
-  #f4.open #f4c{display:flex}#f4c button{padding:6px 8px;border-radius:14px;font-size:12px;background:#2a1f10;border:1px solid #c9a24a;color:#ffe6a8}#f4c button.off{opacity:.45;text-decoration:line-through}#f4c button[disabled]{opacity:1}
+  #f4.open #f4c{display:flex}#f4c button{padding:6px 8px;border-radius:14px;font-size:12px;background:#2a1f10;border:1px solid #c9a24a;color:#ffe6a8}#f4c button.off{opacity:.45;text-decoration:line-through}#f4c button[disabled]{opacity:1}#pay64leg{flex-basis:100%;color:#ffd98a;font-size:11px;line-height:1.3}#pay64leg:empty{display:none}
 `;
   document.head.appendChild(st);
 })();
