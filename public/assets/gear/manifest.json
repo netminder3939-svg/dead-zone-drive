@@ -1,201 +1,317 @@
 {
- "_readme": "Gear art: put <slot>/<art>.png here (512x768, transparent, drawn on top of body-template.svg), then set png:true. body.png replaces the base survivor.",
+ "_readme": "Gear art: put <slot>/<art>.png here (512x768, transparent, drawn on top of body-template.svg), then set png:true. body.png replaces the base survivor. v2: icon = slot/card icon (256x256, cut from the art sheets). avatars = pre-drawn dressed figures; a set figure shows only with all 4 set pieces equipped, else base. Avatar png:false = not drawn yet (shows base). Item layer png:false stays (no paper-doll).",
  "body": {
   "png": false
  },
  "pipe-wrench": {
   "png": false,
   "slot": "weapon",
-  "name": "Pipe Wrench"
+  "name": "Pipe Wrench",
+  "icon": "assets/gear/icons/pipe-wrench.webp",
+  "iconFallback": "assets/gear/icons/pipe-wrench.png"
  },
  "nail-bat": {
   "png": false,
   "slot": "weapon",
-  "name": "Nail Bat"
+  "name": "Nail Bat",
+  "icon": "assets/gear/icons/nail-bat.webp",
+  "iconFallback": "assets/gear/icons/nail-bat.png"
  },
  "scrap-crossbow": {
   "png": false,
   "slot": "weapon",
-  "name": "Scrap Crossbow"
+  "name": "Scrap Crossbow",
+  "icon": "assets/gear/icons/scrap-crossbow.webp",
+  "iconFallback": "assets/gear/icons/scrap-crossbow.png"
  },
  "rebar-spear": {
   "png": false,
   "slot": "weapon",
-  "name": "Rebar Spear"
+  "name": "Rebar Spear",
+  "icon": "assets/gear/icons/rebar-spear.webp",
+  "iconFallback": "assets/gear/icons/rebar-spear.png"
  },
  "machete": {
   "png": false,
   "slot": "weapon",
-  "name": "Machete"
+  "name": "Machete",
+  "icon": "assets/gear/icons/machete.webp",
+  "iconFallback": "assets/gear/icons/machete.png"
  },
  "riot-shield-baton": {
   "png": false,
   "slot": "weapon",
-  "name": "Riot Shield & Baton"
+  "name": "Riot Shield & Baton",
+  "icon": "assets/gear/icons/riot-shield-baton.webp",
+  "iconFallback": "assets/gear/icons/riot-shield-baton.png"
  },
  "lucky-bottlecap": {
   "png": false,
   "slot": "trinket",
-  "name": "Lucky Bottlecap"
+  "name": "Lucky Bottlecap",
+  "icon": "assets/gear/icons/lucky-bottlecap.webp",
+  "iconFallback": "assets/gear/icons/lucky-bottlecap.png"
  },
  "geiger-charm": {
   "png": false,
   "slot": "trinket",
-  "name": "Geiger Charm"
+  "name": "Geiger Charm",
+  "icon": "assets/gear/icons/geiger-charm.webp",
+  "iconFallback": "assets/gear/icons/geiger-charm.png"
  },
  "dog-tags": {
   "png": false,
   "slot": "trinket",
-  "name": "Dog Tags"
+  "name": "Dog Tags",
+  "icon": "assets/gear/icons/dog-tags.webp",
+  "iconFallback": "assets/gear/icons/dog-tags.png"
  },
  "rabbit-foot": {
   "png": false,
   "slot": "trinket",
-  "name": "Rabbit Foot"
+  "name": "Rabbit Foot",
+  "icon": "assets/gear/icons/rabbit-foot.webp",
+  "iconFallback": "assets/gear/icons/rabbit-foot.png"
  },
  "old-compass": {
   "png": false,
   "slot": "trinket",
-  "name": "Old Compass"
+  "name": "Old Compass",
+  "icon": "assets/gear/icons/old-compass.webp",
+  "iconFallback": "assets/gear/icons/old-compass.png"
  },
  "welding-mask": {
   "png": false,
   "slot": "head",
-  "name": "Welding Mask"
+  "name": "Welding Mask",
+  "icon": "assets/gear/icons/welding-mask.webp",
+  "iconFallback": "assets/gear/icons/welding-mask.png"
  },
  "tire-vest": {
   "png": false,
   "slot": "chest",
-  "name": "Tire Vest"
+  "name": "Tire Vest",
+  "icon": "assets/gear/icons/tire-vest.webp",
+  "iconFallback": "assets/gear/icons/tire-vest.png"
  },
  "patched-jeans": {
   "png": false,
   "slot": "legs",
-  "name": "Patched Jeans"
+  "name": "Patched Jeans",
+  "icon": "assets/gear/icons/patched-jeans.webp",
+  "iconFallback": "assets/gear/icons/patched-jeans.png"
  },
  "work-boots": {
   "png": false,
   "slot": "boots",
-  "name": "Work Boots"
+  "name": "Work Boots",
+  "icon": "assets/gear/icons/work-boots.webp",
+  "iconFallback": "assets/gear/icons/work-boots.png"
  },
  "hubcap-helm": {
   "png": false,
   "slot": "head",
-  "name": "Hubcap Helm"
+  "name": "Hubcap Helm",
+  "icon": "assets/gear/icons/hubcap-helm.webp",
+  "iconFallback": "assets/gear/icons/hubcap-helm.png"
  },
  "road-sign-plate": {
   "png": false,
   "slot": "chest",
-  "name": "Road-Sign Plate"
+  "name": "Road-Sign Plate",
+  "icon": "assets/gear/icons/road-sign-plate.webp",
+  "iconFallback": "assets/gear/icons/road-sign-plate.png"
  },
  "tire-greaves": {
   "png": false,
   "slot": "legs",
-  "name": "Tire Greaves"
+  "name": "Tire Greaves",
+  "icon": "assets/gear/icons/tire-greaves.webp",
+  "iconFallback": "assets/gear/icons/tire-greaves.png"
  },
  "tread-boots": {
   "png": false,
   "slot": "boots",
-  "name": "Tread Boots"
+  "name": "Tread Boots",
+  "icon": "assets/gear/icons/tread-boots.webp",
+  "iconFallback": "assets/gear/icons/tread-boots.png"
  },
  "gas-mask": {
   "png": false,
   "slot": "head",
-  "name": "Gas Mask"
+  "name": "Gas Mask",
+  "icon": "assets/gear/icons/gas-mask.webp",
+  "iconFallback": "assets/gear/icons/gas-mask.png"
  },
  "hazmat-coat": {
   "png": false,
   "slot": "chest",
-  "name": "Hazmat Coat"
+  "name": "Hazmat Coat",
+  "icon": "assets/gear/icons/hazmat-coat.webp",
+  "iconFallback": "assets/gear/icons/hazmat-coat.png"
  },
  "hazmat-pants": {
   "png": false,
   "slot": "legs",
-  "name": "Hazmat Pants"
+  "name": "Hazmat Pants",
+  "icon": "assets/gear/icons/hazmat-pants.webp",
+  "iconFallback": "assets/gear/icons/hazmat-pants.png"
  },
  "rubber-boots": {
   "png": false,
   "slot": "boots",
-  "name": "Rubber Boots"
+  "name": "Rubber Boots",
+  "icon": "assets/gear/icons/rubber-boots.webp",
+  "iconFallback": "assets/gear/icons/rubber-boots.png"
  },
  "runner-cap": {
   "png": false,
   "slot": "head",
-  "name": "Runner Cap"
+  "name": "Runner Cap",
+  "icon": "assets/gear/icons/runner-cap.webp",
+  "iconFallback": "assets/gear/icons/runner-cap.png"
  },
  "runner-jacket": {
   "png": false,
   "slot": "chest",
-  "name": "Runner Jacket"
+  "name": "Runner Jacket",
+  "icon": "assets/gear/icons/runner-jacket.webp",
+  "iconFallback": "assets/gear/icons/runner-jacket.png"
  },
  "track-pants": {
   "png": false,
   "slot": "legs",
-  "name": "Track Pants"
+  "name": "Track Pants",
+  "icon": "assets/gear/icons/track-pants.webp",
+  "iconFallback": "assets/gear/icons/track-pants.png"
  },
  "runner-sneakers": {
   "png": false,
   "slot": "boots",
-  "name": "Runner Sneakers"
+  "name": "Runner Sneakers",
+  "icon": "assets/gear/icons/runner-sneakers.webp",
+  "iconFallback": "assets/gear/icons/runner-sneakers.png"
  },
  "scout-goggles": {
   "png": false,
   "slot": "head",
-  "name": "Scout Goggles"
+  "name": "Scout Goggles",
+  "icon": "assets/gear/icons/scout-goggles.webp",
+  "iconFallback": "assets/gear/icons/scout-goggles.png"
  },
  "long-duster": {
   "png": false,
   "slot": "chest",
-  "name": "Long Duster"
+  "name": "Long Duster",
+  "icon": "assets/gear/icons/long-duster.webp",
+  "iconFallback": "assets/gear/icons/long-duster.png"
  },
  "cargo-pants": {
   "png": false,
   "slot": "legs",
-  "name": "Cargo Pants"
+  "name": "Cargo Pants",
+  "icon": "assets/gear/icons/cargo-pants.webp",
+  "iconFallback": "assets/gear/icons/cargo-pants.png"
  },
  "trail-boots": {
   "png": false,
   "slot": "boots",
-  "name": "Trail Boots"
+  "name": "Trail Boots",
+  "icon": "assets/gear/icons/trail-boots.webp",
+  "iconFallback": "assets/gear/icons/trail-boots.png"
  },
  "hard-hat": {
   "png": false,
   "slot": "head",
-  "name": "Hard Hat"
+  "name": "Hard Hat",
+  "icon": "assets/gear/icons/hard-hat.webp",
+  "iconFallback": "assets/gear/icons/hard-hat.png"
  },
  "work-vest": {
   "png": false,
   "slot": "chest",
-  "name": "Work Vest"
+  "name": "Work Vest",
+  "icon": "assets/gear/icons/work-vest.webp",
+  "iconFallback": "assets/gear/icons/work-vest.png"
  },
  "knee-pad-carhartts": {
   "png": false,
   "slot": "legs",
-  "name": "Knee-Pad Carhartts"
+  "name": "Knee-Pad Carhartts",
+  "icon": "assets/gear/icons/knee-pad-carhartts.webp",
+  "iconFallback": "assets/gear/icons/knee-pad-carhartts.png"
  },
  "steel-toe-boots": {
   "png": false,
   "slot": "boots",
-  "name": "Steel-Toe Boots"
+  "name": "Steel-Toe Boots",
+  "icon": "assets/gear/icons/steel-toe-boots.webp",
+  "iconFallback": "assets/gear/icons/steel-toe-boots.png"
  },
  "skull-helm": {
   "png": false,
   "slot": "head",
-  "name": "Skull Helm"
+  "name": "Skull Helm",
+  "icon": "assets/gear/icons/skull-helm.webp",
+  "iconFallback": "assets/gear/icons/skull-helm.png"
  },
  "spiked-plate": {
   "png": false,
   "slot": "chest",
-  "name": "Spiked Plate"
+  "name": "Spiked Plate",
+  "icon": "assets/gear/icons/spiked-plate.webp",
+  "iconFallback": "assets/gear/icons/spiked-plate.png"
  },
  "chain-kilt": {
   "png": false,
   "slot": "legs",
-  "name": "Chain Kilt"
+  "name": "Chain Kilt",
+  "icon": "assets/gear/icons/chain-kilt.webp",
+  "iconFallback": "assets/gear/icons/chain-kilt.png"
  },
  "stomper-boots": {
   "png": false,
   "slot": "boots",
-  "name": "Stomper Boots"
+  "name": "Stomper Boots",
+  "icon": "assets/gear/icons/stomper-boots.webp",
+  "iconFallback": "assets/gear/icons/stomper-boots.png"
+ },
+ "avatars": {
+  "base": {
+   "png": true,
+   "img": "assets/gear/avatars/base.webp",
+   "fallback": "assets/gear/avatars/base.png"
+  },
+  "hazmat": {
+   "png": true,
+   "img": "assets/gear/avatars/hazmat.webp",
+   "fallback": "assets/gear/avatars/hazmat.png"
+  },
+  "runner": {
+   "png": true,
+   "img": "assets/gear/avatars/runner.webp",
+   "fallback": "assets/gear/avatars/runner.png"
+  },
+  "pathfinder": {
+   "png": true,
+   "img": "assets/gear/avatars/pathfinder.webp",
+   "fallback": "assets/gear/avatars/pathfinder.png"
+  },
+  "foreman": {
+   "png": true,
+   "img": "assets/gear/avatars/foreman.webp",
+   "fallback": "assets/gear/avatars/foreman.png"
+  },
+  "warlord": {
+   "png": true,
+   "img": "assets/gear/avatars/warlord.webp",
+   "fallback": "assets/gear/avatars/warlord.png"
+  },
+  "road": {
+   "png": false,
+   "img": "assets/gear/avatars/road.webp",
+   "fallback": "assets/gear/avatars/road.png",
+   "_note": "Artist is drawing this figure. Set png:true when road.png/.webp are added."
+  }
  }
 }

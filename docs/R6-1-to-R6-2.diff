@@ -1,0 +1,899 @@
+diff --git a/docs/HANDOFF-R6-2.md b/docs/HANDOFF-R6-2.md
+new file mode 100644
+index 0000000..bdf35fa
+--- /dev/null
++++ b/docs/HANDOFF-R6-2.md
+@@ -0,0 +1,79 @@
++# Dead Zone Drive: R6.2 handoff (Nov 9, 2026)
++
++**For Grok (deploy) and Pope.** R6.2 = R6.1 (`build-r6-1` 3bcbf17) + the Hero and Gear screen redesign from
++`HERO-GEAR-SCREEN-SPEC.md` v2 (pre-drawn avatars). Branch `build-r6-2`.
++Cache `ddd-v26-12i-integrated-6-r6-2`, HUD label `12i-integrated-6-r6-2`.
++**Presentation only:** hosting files, no rules, no Firestore, no auth, no data or stat changes. TEST only; LIVE stays on
++9745fd7.
++
++Changed / new files:
++- New: `hero62.js` (loaded last), `hero62.css`, 39 icons + 6 avatars (WebP + PNG fallback) under `assets/gear/`.
++- `assets/gear/manifest.json` = the kit's `manifest.proposed.json`: every existing key kept, plus `icon` paths and the
++  `avatars` block. Road is `png:false`.
++- `index.html` (script + stylesheet), `bal14.js` (label), `sw.js` (cache), `tests/home-still.js` (label).
++- No other game file is edited. `hero62.js` wraps `UI.render` / `UI.close`, and replaces `dollSVG` / `gearTabHTML` by
++  name (the old SVG survivor is kept as the last fallback).
++
++Diff: `docs/R6-1-to-R6-2.diff` (code only, art omitted). Hashes: `docs/R6-2-SHA256SUMS.txt` (every new or changed
++hosted file, art included).
++
++## What the player sees
++- **Hero opens full screen** from the nav, the name plate or news links:
++  - A wasteland header with ☢️, the tab name, LEVEL and a 44 px ✕.
++  - A metal tab strip in today's order (Stats, Class, Skills, Gear, Quests, Save, Buffs, Achievements). The active tab
++    glows and scrolls into view, and the red dots still show.
++  - The bottom nav is hidden while Hero is open.
++  - ✕, Escape and the back button close it and bring back the map and nav.
++- **Gear:**
++  - The survivor stands in the middle, with head, chest and legs to the left and boots, weapon and trinket to the right.
++  - Below: a stat bar (tap for the full breakdown), VIEW FULL STATS and the set chip, then the parchment card for the
++    tapped slot (Take off, Upgrade with its exact cost, Swap).
++  - Then the spare list, Sets and How gear works.
++- **The figure** changes to a set's outfit only when head, chest, legs and boots are all from that one set. Anything else
++  shows the hooded base survivor.
++  - Road Warrior shows base until the artist's `road.png` arrives. To switch it on: drop `road.png` + `road.webp` in
++    `assets/gear/avatars/` and set `"road":{"png":true,...}` in the manifest. No code change.
++- **Spare rows** compare against what's worn: stat deltas, ⚡ ±, set count changes, and "changes look to …".
++- **Small polish:**
++  - A 150 ms fade when the outfit changes (off under reduced motion).
++  - The other outfits preload once the screen is idle.
++  - Desktop content is capped at 560 px and centered.
++
++## Spec decisions I made
++- On the Gear screen only, the theme's flavor line is hidden so the stage sits right under the tabs as in the mockup.
++  The other Hero tabs keep theirs. Without this the card buttons didn't fit on a 430x932 phone.
++- Rarity names on the parchment card are the rarity color darkened, so they're readable on the light background. The
++  name is always written out too.
++- Avatar fallback chain: the set's WebP, then its PNG, then base WebP, then base PNG, then the R6.1 SVG survivor.
++  Missing icon: its PNG, then the slot emoji.
++
++## Bug caught in testing
++My first version could freeze the page when Hero closed. A class change re-fired its own watcher forever. Fixed: it
++only touches the class list when something is set. The full test now runs in 30 s, where it used to hang.
++
++## Tests (all on R6.2)
++- New `tests/r6-2-hero.js`: 36 checks covering the spec's acceptance list.
++  - Shell and close paths, and tab order.
++  - Every avatar case: none, basics, 3+1, 4/4 for each set, boots off, Road Warrior off and on, and upgrades, rarity,
++    weapon and trinket not changing it.
++  - Fallbacks, all 39 icons loading, slot looks, and stat bar = `stats()` = the breakdown Total.
++  - Card actions: Upgrade spends exactly `upCost`, plus Swap, Take off, best-spare Equip and the no-spare text.
++  - Compare notes, reload persistence, salvage still blocked, the Stats-tab figure, and every Hero tab in the shell.
++  - Screen sizes 360x640, 375x667, 390x844, 393x852, 430x932 and 1280x800: figure never cropped, no side scroll, card
++    position as specced, ≤ 560 px on desktop.
++  - Gear HTML builds in ≤ 8 ms.
++- Earlier suites all pass on R6.2.
++  - home-still (label -r6-2) 25, r1-cards 14, r1-reports 11, r1-oldsave 3, fort-march 22, march-one 21, drive-claim 15,
++    r2-view 7, r2-xp 6, r3-tiers 13, r3-ui 8, r4-map 5, r4-1-flicker 5, r5-horde 10, r6-hq 22, s5 (same numbers),
++    s9 20, s10 8, march-panel 8, h12-gaps 5, qa-gates 10, phone-front 9, import-own 2.
++  - Crawl phone + desktop: 39 screens each, 0 script errors, only the old base/fort SVG note.
++    - `tests/qa/crawl.js` now ignores items inside a sideways-scrolling strip that itself fits the screen.
++    - Before that change it flagged the Hero tabs that sit off to the right of the strip, which is how the strip is
++      meant to scroll.
++
++## Deploy (TEST only)
++Pull `build-r6-2`, compare hashes, then from `public/`:
++`npx -y firebase-tools@latest hosting:channel:deploy test --project dead-zone-drive --no-authorized-domains --json`.
++LIVE untouched. No rules step.
++
++**Rollback:** redeploy `build-r6-1` (3bcbf17).
+diff --git a/public/bal14.js b/public/bal14.js
+index 32281b0..0f615c3 100644
+--- a/public/bal14.js
++++ b/public/bal14.js
+@@ -39,5 +39,5 @@
+   bankOf=function(f){try{const s=scale14();HE.capBase=BASE14.cap*s;HE.convPerH=BASE14.conv*s;HE.resPerH=BASE14.res*s;}catch(e){}return _bank14.apply(this,arguments);};
+   window.bankOf=bankOf;
+   // Visible label for this combined build. The service worker cache is ddd-v26-12h-integrated, not Claude's ddd-v26-12h.
+-  try{document.documentElement.dataset.build='12i-integrated-6-r6-1';const who=document.querySelector('#hud .who');if(who&&!document.getElementById('build14')){const el=document.createElement('span');el.id='build14';el.textContent='12i-integrated-6-r6-1';el.title='Build 12i-integrated-6';el.style.cssText='display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#2a241c;color:#e7d7c1;font:600 10px system-ui;letter-spacing:.02em;vertical-align:middle';who.appendChild(el);}}catch(e){}
++  try{document.documentElement.dataset.build='12i-integrated-6-r6-2';const who=document.querySelector('#hud .who');if(who&&!document.getElementById('build14')){const el=document.createElement('span');el.id='build14';el.textContent='12i-integrated-6-r6-2';el.title='Build 12i-integrated-6';el.style.cssText='display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#2a241c;color:#e7d7c1;font:600 10px system-ui;letter-spacing:.02em;vertical-align:middle';who.appendChild(el);}}catch(e){}
+ })();
+diff --git a/public/hero62.css b/public/hero62.css
+new file mode 100644
+index 0000000..2ce84dd
+--- /dev/null
++++ b/public/hero62.css
+@@ -0,0 +1,119 @@
++/* hero62 (R6.2) Hero screen: full screen, wasteland style. CSS only; the only images are the gear icons and avatars. */
++:root{--hz-bg:#0e100d;--hz-iron:#2b2a26;--hz-iron-hi:#3b3730;--hz-iron-lo:#211f1b;--hz-edge:#4d4232;--hz-seam:#15130f;
++ --hz-rust:#c0643a;--hz-rust-dk:#7a3b22;--hz-tox:#8fd14f;--hz-tox-hi:#b6ff5c;--hz-acc:#d6a03a;
++ --hz-parch:#d8cfb4;--hz-parch-dk:#bfb291;--hz-ink:#221c12;--hz-txt:#e9e3d2;--hz-dim:#a9a796}
++/* ---- shell */
++body.hero-open #tabs{display:none!important}
++body.hero-open #mini22,body.hero-open #offBanner{display:none!important}
++#sheet.hero-full{position:fixed!important;inset:0!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:auto!important;max-width:none!important;max-height:none!important;
++ height:100%!important;transform:none!important;border:0!important;border-radius:0!important;z-index:890;overflow-y:auto;overscroll-behavior:contain;
++ padding:max(8px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))!important;
++ background:radial-gradient(120% 60% at 50% 30%,#2a3320 0%,#161a12 45%,#0b0c09 100%) fixed,var(--hz-bg)!important;color:var(--hz-txt)}
++#sheet.hero-full:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.18;mix-blend-mode:overlay;z-index:0;
++ background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>")}
++#sheet.hero-full>.grab,#sheet.hero-full>#sheetX{display:none!important}
++#sheet.hero-full #sheetBody{position:relative;z-index:1;max-width:560px;margin:0 auto;padding:0!important}
++/* metal plate */
++.hero-full .plate{position:relative;background:linear-gradient(180deg,var(--hz-iron-hi) 0%,#2a2722 55%,var(--hz-iron-lo) 100%);border:2px solid var(--hz-seam);
++ box-shadow:inset 0 1px 0 #6b5c44,inset 0 -2px 0 #0008,inset 0 0 0 1px var(--hz-edge),0 3px 8px #000a;border-radius:8px}
++.hero-full .plate.rusty{background:radial-gradient(40px 18px at 18% 20%,#7a3b2288,transparent 70%),radial-gradient(60px 22px at 85% 80%,#6b331d88,transparent 70%),
++ linear-gradient(180deg,var(--hz-iron-hi) 0%,#2a2722 55%,var(--hz-iron-lo) 100%)}
++.hero-full .rivets:after{content:"";position:absolute;inset:4px;pointer-events:none;
++ background:radial-gradient(circle at 4px 4px,#8a7a60 0 2px,#2a241c 2.5px,transparent 3px),radial-gradient(circle at calc(100% - 4px) 4px,#8a7a60 0 2px,#2a241c 2.5px,transparent 3px),
++ radial-gradient(circle at 4px calc(100% - 4px),#8a7a60 0 2px,#2a241c 2.5px,transparent 3px),radial-gradient(circle at calc(100% - 4px) calc(100% - 4px),#8a7a60 0 2px,#2a241c 2.5px,transparent 3px)}
++/* ---- header */
++.hz-hdr{height:72px;display:flex;align-items:center;gap:8px;padding:0 8px 0 10px;margin-bottom:8px}
++.hz-hdr .emb{width:46px;height:46px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:26px;
++ background:radial-gradient(circle,#24301a 0 55%,#3a3226 56% 70%,#1a1712 71%);box-shadow:0 0 0 2px var(--hz-seam),0 0 14px #8fd14f66,inset 0 0 10px #8fd14f55}
++.hz-hdr .ttl{flex:1;min-width:0;text-align:center}
++.hz-hdr .ttl b{display:block;font:700 clamp(13px,4.1vw,26px)/1 'Cinzel Decorative',Cinzel,serif;letter-spacing:.5px;color:#e8dcc2;text-shadow:0 2px 0 #000,0 0 10px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
++.hz-hdr .ttl small{display:block;margin-top:5px;font:700 13px Cinzel,serif;letter-spacing:5px;color:var(--hz-tox);text-shadow:0 0 8px #8fd14f88;white-space:nowrap}
++.hz-hdr .lvl{flex:none;text-align:center;font:700 10px Inter,sans-serif;color:var(--hz-dim)}.hz-hdr .lvl b{display:block;font:700 20px Cinzel,serif;color:var(--hz-acc)}
++.hz-x{flex:none;width:44px;height:44px;min-width:44px;padding:0!important;border-radius:50%!important;display:grid;place-items:center;font:700 18px Inter,sans-serif;color:var(--hz-txt)!important;
++ background:linear-gradient(180deg,#4a443a,#2b2822)!important;border:2px solid var(--hz-seam)!important;box-shadow:inset 0 1px 0 #7a6a50,0 2px 6px #000a}
++.hz-x:focus-visible,.hero-full .hz-tabs button:focus-visible,.hz-slot:focus-visible,.hz-st:focus-visible,.hz-btn:focus-visible,.hz-setchip:focus-visible,.hz-card .cb:focus-visible{outline:2px solid var(--hz-tox-hi);outline-offset:2px}
++@media (max-height:700px){.hz-hdr{height:48px;margin-bottom:8px}.hz-hdr .ttl b{display:none}.hz-hdr .ttl small{margin:0;font-size:14px}.hz-hdr .emb{width:36px;height:36px;font-size:19px}.hz-hdr .lvl b{font-size:16px}}
++/* ---- tab strip (still the one .seg of UI.SUBS.player) */
++.hero-full .seg.hz-tabs{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;scrollbar-width:none;
++ padding:2px 2px 6px;margin:0 0 6px;background:none!important;border:0!important;-webkit-mask:linear-gradient(90deg,#000 88%,transparent);mask:linear-gradient(90deg,#000 88%,transparent)}
++.hero-full .seg.hz-tabs::-webkit-scrollbar{display:none}
++.hero-full .seg.hz-tabs>button{position:relative;flex:0 0 auto;min-width:72px;min-height:56px;padding:4px 10px!important;scroll-snap-align:start;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
++ font:700 10.5px Cinzel,serif!important;letter-spacing:1px;text-transform:uppercase;color:#c9c0aa!important;background:linear-gradient(180deg,var(--hz-iron-hi) 0%,#2a2722 55%,var(--hz-iron-lo) 100%)!important}
++.hero-full .seg.hz-tabs>button>i{font-style:normal;font-size:19px;line-height:1;filter:grayscale(.5) brightness(.9)}
++.hero-full .seg.hz-tabs>button[aria-current]{color:var(--hz-tox-hi)!important;border-color:var(--hz-tox)!important;box-shadow:inset 0 0 14px #8fd14f55,0 0 10px #8fd14f55,0 3px 8px #000a}
++.hero-full .seg.hz-tabs>button[aria-current]>i{filter:none;text-shadow:0 0 8px #8fd14f}
++.hero-full .seg.hz-tabs>button .dot,.hero-full .seg.hz-tabs>button .subdot{position:absolute;top:6px;right:8px}
++/* other Hero tabs keep their content; just make it readable on the dark backdrop */
++.hero-full #sheetBody>h2,.hero-full #sheetBody>h3,.hero-full .hz-gear h3{font-family:Cinzel,serif;color:#e3d9c1;letter-spacing:.5px}
++.hero-full .avatarbox{background:linear-gradient(180deg,#1d2117,#12140f);border-color:var(--hz-edge)}
++/* ---- stage */
++.hz-gear{--S:clamp(76px,22vw,108px);--SH:calc(var(--S) * 1.18)}
++.hz-stage{display:grid;grid-template-columns:var(--S) 1fr var(--S);gap:8px;padding:8px;height:calc(var(--SH) * 3 + 20px + 16px);box-sizing:border-box}
++.hz-col{display:flex;flex-direction:column;gap:10px;justify-content:space-between}
++.hz-slot{position:relative;height:var(--SH);min-height:90px;width:100%;margin:0!important;padding:4px 4px 6px!important;border-radius:10px!important;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
++ background:radial-gradient(circle at 50% 42%,#2c3424 0,#1b1d17 70%)!important;border:3px solid var(--rc,#4a4234)!important;box-shadow:inset 0 0 0 1px #0009,inset 0 0 18px #000c,0 2px 6px #000a;color:var(--hz-txt)!important;cursor:pointer;overflow:hidden}
++.hz-slot img{position:absolute;left:50%;top:42%;width:calc(var(--S) * .76);height:calc(var(--S) * .76);max-width:86px;max-height:86px;object-fit:contain;transform:translate(-50%,-50%);filter:drop-shadow(0 3px 3px #000c);pointer-events:none}
++.hz-slot[data-slot=weapon] img{transform:translate(-50%,-50%) rotate(-38deg) scale(1.45)}
++.hz-slot .hz-emo{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);font-size:34px}
++.hz-slot b{position:relative;font:700 10.5px Cinzel,serif;letter-spacing:1px;color:#e3d9c1;text-shadow:0 1px 2px #000}
++.hz-slot small{position:relative;max-width:100%;font:400 9.5px Inter,sans-serif;color:var(--hz-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
++.hz-slot .up{position:absolute;top:4px;right:5px;z-index:1;font:700 11px Inter,sans-serif;color:#111;background:var(--hz-tox);border-radius:6px;padding:0 4px;box-shadow:0 0 6px #8fd14f}
++.hz-slot .set{position:absolute;top:6px;left:6px;z-index:1;width:9px;height:9px;border-radius:50%;box-shadow:0 0 0 2px #000}
++.hz-slot.sel{box-shadow:0 0 0 2px var(--hz-tox-hi),0 0 16px #8fd14faa,inset 0 0 18px #000c}
++.hz-slot.empty{border-style:dashed!important;border-color:#5a4e3c!important}.hz-slot.empty .ghost{position:absolute;top:28%;font-size:32px;opacity:.25}
++.hz-doll{position:relative;min-width:0;border-radius:12px;overflow:hidden;background:radial-gradient(70% 45% at 50% 62%,#5c7a2a55,transparent 70%),linear-gradient(180deg,#1d2117,#12140f);
++ box-shadow:inset 0 0 0 2px var(--hz-seam),inset 0 0 0 3px var(--hz-edge),inset 0 0 30px #000}
++.hz-doll:before{content:"";position:absolute;left:0;right:0;bottom:0;height:38%;background:linear-gradient(180deg,transparent,#0c0d0a 80%),
++ url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 120' preserveAspectRatio='none'><path d='M0 120V70l14-6v-20h10v14l12-4V30h16v30l10 4V48l14-8v34h12V20l6-8 6 8v56l16-4V44h20v30l10-6V36l8 4v36l14 4V54h12v26l10-8V40l14 6v34l12-6v46z' fill='%23161812'/></svg>") bottom/100% 100% no-repeat;opacity:.9}
++.hz-doll .glow{position:absolute;left:50%;bottom:4%;width:80%;height:8%;transform:translateX(-50%);border-radius:50%;background:radial-gradient(#8fd14f55,transparent 70%)}
++.hz-fig{position:absolute;inset:26px 0 2px;display:flex;justify-content:center;align-items:flex-end}
++.hz-fig img.avatar,.hz-fig svg{height:100%;max-width:100%;aspect-ratio:2/3;object-fit:contain;display:block}
++.hz-fig.hz-fade img.avatar{animation:hzFade .15s ease-out}
++@keyframes hzFade{from{opacity:.25}to{opacity:1}}
++.hz-name{position:absolute;left:8px;top:6px;right:58px;font:700 12px Cinzel,serif;color:#e3d9c1;text-shadow:0 1px 2px #000;z-index:1}
++.hz-name small{display:block;font:400 10px Inter,sans-serif;color:var(--hz-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
++.hz-gs{position:absolute;right:8px;top:6px;font:700 13px Inter,sans-serif;color:var(--hz-tox-hi);text-shadow:0 0 6px #8fd14f;z-index:1}
++/* ---- stat bar, actions */
++.hz-stats{display:grid;grid-template-columns:repeat(6,1fr);margin:8px 0;padding:4px;min-height:72px}
++.hz-st{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2px 0!important;margin:0!important;background:none!important;border:0!important;border-right:1px solid #0008!important;border-radius:0!important;box-shadow:1px 0 0 #5a4c3833;color:var(--hz-txt)!important;cursor:pointer;min-width:0}
++.hz-st:last-child{border-right:0!important;box-shadow:none}
++.hz-st span{font:700 10px Cinzel,serif;letter-spacing:1px;color:#cfc3a8}.hz-st i{font-style:normal;font-size:16px;margin:2px 0}
++.hz-st b{font:700 clamp(15px,5vw,21px) Cinzel,serif;color:var(--hz-tox-hi);text-shadow:0 0 8px #8fd14f77}
++.hz-actions{display:flex;gap:8px;margin-bottom:8px}
++.hz-btn{flex:1;min-height:44px;margin:0!important;display:flex;align-items:center;justify-content:center;padding:0 10px!important;font:700 12px Cinzel,serif!important;letter-spacing:1px;
++ color:var(--hz-tox-hi)!important;border-color:var(--hz-tox)!important;box-shadow:inset 0 0 12px #8fd14f44,0 0 8px #8fd14f44!important}
++.hz-setchip{flex:1;min-width:0;min-height:44px;margin:0!important;display:flex;align-items:center;gap:8px;padding:4px 10px!important;text-align:left;font:700 12px Inter,sans-serif!important;color:var(--hz-txt)!important}
++.hz-setchip>i{width:10px;height:10px;border-radius:50%;flex:none}.hz-setchip>span{min-width:0}
++.hz-setchip small{display:block;font-weight:400;color:var(--hz-tox);font-size:10.5px;white-space:normal}
++/* ---- item card (parchment) */
++.hz-card{position:relative;display:grid;grid-template-columns:84px 1fr;gap:8px 12px;padding:10px 12px;margin-bottom:12px;
++ background:linear-gradient(180deg,var(--hz-parch),var(--hz-parch-dk));color:var(--hz-ink);border:3px solid #1a1611;border-radius:8px;box-shadow:inset 0 0 0 2px #6e5c3e,inset 0 0 30px #7a5a2a66,0 4px 10px #000c}
++.hz-card:before{content:"";position:absolute;inset:0;opacity:.3;mix-blend-mode:multiply;border-radius:6px;pointer-events:none;
++ background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.04' numOctaves='3'/><feColorMatrix values='0 0 0 0 .45 0 0 0 0 .3 0 0 0 0 .12 0 0 0 1.4 -.5'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>")}
++.hz-card>*{position:relative}
++.hz-card .cicon{width:84px;height:84px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle,#2c3424,#14160f);border:3px solid var(--rc,#6e5c3e);box-shadow:0 0 0 3px #1a1611}
++.hz-card .cicon img{width:68px;height:68px;object-fit:contain}.hz-card .cicon .hz-emo{font-size:34px}
++.hz-card .ch{font:700 18px Cinzel,serif;letter-spacing:.5px;text-transform:uppercase}.hz-card .ch .u{color:#3d6b12}
++.hz-card .cm{font-size:12px;color:#4a3f2c;margin:2px 0 6px}.hz-card .cm b{text-shadow:0 0 1px #0006}
++.hz-card .cs{font:700 13px Inter,sans-serif;color:#22371a;display:flex;flex-wrap:wrap;gap:2px 10px}
++.hz-card .cset{font-size:11.5px;color:#4a3f2c;margin-top:4px}.hz-card .cset b{color:#7a4e0a}.hz-card .ok{color:#2f6b12;font-weight:700}
++.hz-card .crow{grid-column:1/3;display:flex;gap:8px}
++.hz-card .cb{flex:1;min-height:48px;margin:0!important;border-radius:8px!important;border:2px solid #1a1611!important;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2px 4px!important;
++ font:700 12px Cinzel,serif!important;letter-spacing:.5px;color:var(--hz-txt)!important;background:linear-gradient(180deg,#4a443a,#2b2822)!important;box-shadow:inset 0 1px 0 #7a6a50}
++.hz-card .cb small{font:400 10.5px Inter,sans-serif;color:#cfc3a8}
++.hz-card .cb.tox{background:linear-gradient(180deg,#3d5a1e,#24371a)!important;border-color:#12200a!important;color:#d8ffb0!important;box-shadow:inset 0 1px 0 #8fd14f88,0 0 8px #8fd14f55}
++.hz-card .cb:disabled{opacity:.75;filter:grayscale(.6)}
++/* ---- below: spares, sets */
++.hz-more h3{margin-top:4px}
++.hz-row{align-items:center}.hz-ri{flex:none;width:44px;height:44px;border-radius:8px;border:2px solid var(--rc,#4a4234);display:grid;place-items:center;background:radial-gradient(circle,#2c3424,#14160f)}
++.hz-ri img{width:38px;height:38px;object-fit:contain}.hz-ri .hz-emo{font-size:22px}
++.hz-cmp{display:block;margin-top:2px}.hz-cmp .pos{color:#8fd14f}.hz-cmp .neg{color:#ff7a6a}.hz-cmp span{margin-right:6px}
++/* Hero › Stats avatar box shows the same figure */
++.avatarbox .dollbox img.avatar{width:120px;height:150px;object-fit:contain;background:radial-gradient(#2a241c,#16130f);border-radius:12px}
++@media (prefers-reduced-motion:reduce){.hz-fig.hz-fade img.avatar{animation:none}}
++
++.hero-full p.flavor{margin:0 0 6px}
++/* the Gear screen follows the mockup: no flavor line between the tabs and the stage (other Hero tabs keep theirs) */
++#sheetBody[data-hzsub=gear]>p.flavor{display:none}
++/* rarity names on parchment: the same hue, darkened enough to read (text, never color alone) */
++.hz-card .cm b.hz-rar{color:var(--rcol);color:color-mix(in srgb,var(--rcol) 55%,#000)}
+diff --git a/public/hero62.js b/public/hero62.js
+new file mode 100644
+index 0000000..bab6061
+--- /dev/null
++++ b/public/hero62.js
+@@ -0,0 +1,135 @@
++// hero62 (R6.2) Hero screen redesign, presentation only (HERO-GEAR-SCREEN-SPEC v2).
++//  * Every Hero (player) sub-tab opens full screen with a wasteland header (✕ closes) and a metal tab strip.
++//    The tab strip is still the one .seg in UI.SUBS.player order, so the red dots (news8/fix13) and flavor lines keep working.
++//  * Gear: the survivor in the middle is a pre-drawn figure. A set's figure shows ONLY when head, chest, legs and boots are
++//    all from that one set (same rule as the 4-piece bonus) and its art is switched on in the manifest; anything else shows
++//    the hooded base. Weapon, trinket, rarity and upgrades never change the figure.
++//  * Slot boxes and the item card use the cut icons (assets/gear/icons). Missing icon -> the slot emoji.
++//  * Nothing here changes stats, data, saves, Firestore, rules or auth. It only reads stats(), setCounts(), g3Score(),
++//    upCost() and calls the existing UI.equip / UI.unequip / upgradeGear / UI.salvage / UI.statBreak.
++(function(){
++  const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
++  const AVATAR_SLOTS=['head','chest','legs','boots'];
++  const SLOT_NAME={head:'Head',chest:'Chest',legs:'Legs',boots:'Boots',weapon:'Weapon',trinket:'Trinket'};
++  const STAT_ICON={atk:'⚔️',def:'🛡️',hp:'❤️',crit:'💥',agi:'💨',luck:'🍀'},STAT_NAME={atk:'Attack',def:'Defense',hp:'Health',crit:'Crit',agi:'Agility',luck:'Luck'};
++  // ---------- the avatar rule
++  // eqMap: {slot: gear} (defaults to what is equipped now). Returns a set id or 'base'.
++  function heroAvatar(eqMap){const eq=eqMap||Object.fromEntries(equippedGear());const sets=AVATAR_SLOTS.map(sl=>gearSet(eq[sl]));
++    const s=sets[0];return(s&&sets.every(x=>x===s))?s:'base';}
++  function avatarEntry(id){const A=GEAR_ART.avatars||{},a=A[id];return a&&a.png?a:(A.base&&A.base.png?A.base:null);}
++  // which figure is actually shown (a set whose art is off shows base)
++  function shownAvatar(eqMap){const id=heroAvatar(eqMap),A=GEAR_ART.avatars||{};return A[id]&&A[id].png?id:'base';}
++  window.heroAvatar=heroAvatar;window.avatarEntry=avatarEntry;window.shownAvatar=shownAvatar;
++  const _oldDollSVG=dollSVG;window._oldDollSVG=_oldDollSVG;
++  dollSVG=function(){const id=heroAvatar(),a=avatarEntry(id);
++    if(!a)return _oldDollSVG(); // manifest missing -> the R6.1 SVG survivor
++    const A=GEAR_ART.avatars||{},shown=a===A[id]?id:'base',base=A.base||{};
++    const alt='Your survivor'+(shown!=='base'&&GEAR_SETS[shown]?' in the '+GEAR_SETS[shown].name+' outfit':'');
++    const fb=a.fallback||'',fb2=(base.png&&base.img)||'';
++    return`<img class="doll avatar" data-av="${shown}" src="${esc(a.img)}" alt="${esc(alt)}" data-fb="${esc(fb)}" data-fb2="${esc(fb2===a.img?(base.fallback||''):fb2)}" onerror="hzAvErr(this)">`;};
++  window.dollSVG=dollSVG;
++  // avatar errors: its own PNG, then the base figure, then the base PNG, then the old SVG survivor
++  window.hzAvErr=function(img){const steps=['fb','fb2'];for(const k of steps){const v=img.dataset[k];if(v){img.dataset[k]='';img.src=v;return;}}
++    const base=(GEAR_ART.avatars||{}).base||{};if(base.fallback&&img.dataset.fb3!=='1'&&img.src.indexOf(base.fallback)<0){img.dataset.fb3='1';img.src=base.fallback;return;}
++    img.onerror=null;const t=document.createElement('span');t.innerHTML=_oldDollSVG();const s=t.firstElementChild;if(s)img.replaceWith(s);};
++  // ---------- icons
++  function iconOf(g){const a=g&&GEAR_ART[g.art];return a&&a.icon?a:null;}
++  function iconHTML(g,sl){const a=iconOf(g);if(!a)return`<span class="hz-emo" aria-hidden="true">${SLOT_ICON[sl||g.slot]}</span>`;
++    return`<img src="${esc(a.icon)}" alt="" loading="lazy" data-fb="${esc(a.iconFallback||'')}" data-emo="${SLOT_ICON[sl||g.slot]}" onerror="hzIcErr(this)">`;}
++  window.hzIcErr=function(img){const v=img.dataset.fb;if(v){img.dataset.fb='';img.src=v;return;}img.onerror=null;const s=document.createElement('span');s.className='hz-emo';s.setAttribute('aria-hidden','true');s.textContent=img.dataset.emo||'';img.replaceWith(s);};
++  // ---------- small helpers (same text as gear3's Sets list)
++  const pl=o=>Object.entries(o||{}).map(([k,v])=>`+${v}% ${k.toUpperCase()}`).join(' ');
++  const fl=o=>Object.entries(o||{}).map(([k,v])=>{const d=GEAR3.perks.find(x=>x.k===k);return d?d.t.replace('{v}',v):k==='regen'?`+${v} HP regen`:`+${v} ${k}`;}).join(' · ');
++  const bonusTxt=(S,n)=>[pl(S['p'+n]),fl(S['f'+n])].filter(Boolean).join(', ');
++  const statsOf=g=>STAT_K.filter(k=>g[k]).map(k=>`<span>${STAT_ICON[k]} +${g[k]} ${k.toUpperCase()}</span>`).join('');
++  const spares=sl=>P.inv.filter(g=>g.slot===sl&&!Object.values(P.equip).includes(g.id)).sort((a,b)=>g3Score(b)-g3Score(a));
++  function clsLine(){try{const c=typeof myClass==='function'?myClass():null;return c?`${c.icon} ${c.name}`:'';}catch(e){return'';}}
++  // ---------- Gear tab
++  function slotBtn([sl,g]){const sel=UI.gearSlot===sl,set=gearSet(g),R=g&&RARITY[g.rarity];
++    if(!g)return`<button class="hz-slot empty${sel?' sel':''}" data-slot="${sl}" aria-pressed="${sel}" aria-label="${SLOT_NAME[sl]}: empty" onclick="hzPick('${sl}')"><span class="ghost" aria-hidden="true">${SLOT_ICON[sl]}</span><b>${SLOT_NAME[sl].toUpperCase()}</b><small>empty</small></button>`;
++    const up=g.up||0,max=up>=GEAR3.maxUp;
++    const lab=`${SLOT_NAME[sl]}: ${g.name}${up?' +'+up:''}, ${R.name}${set?', '+GEAR_SETS[set].name+' set':''}. Tap to manage.`;
++    return`<button class="hz-slot${sel?' sel':''}" data-slot="${sl}" style="--rc:${R.color}" aria-pressed="${sel}" aria-label="${esc(lab)}" onclick="hzPick('${sl}')">${set?`<i class="set" style="background:${GEAR_SETS[set].color}" aria-hidden="true"></i>`:''}${up?`<span class="up">${max?'MAX':'+'+up}</span>`:''}${iconHTML(g,sl)}<b>${SLOT_NAME[sl].toUpperCase()}</b><small>${esc(g.name)}</small></button>`;}
++  window.hzPick=function(sl){UI.gearSlot=UI.gearSlot===sl?null:sl;UI.render();};
++  window.hzTo=function(id){const e=document.getElementById(id);if(e)e.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});};
++  window.hzSwap=function(sl){UI.gearSlot=sl;UI.render();setTimeout(()=>hzTo('hzSpare'),30);};
++  function setChip(sc){const best=Object.entries(sc).sort((a,b)=>b[1]-a[1])[0];
++    if(!best)return`<button class="hz-setchip plate" onclick="hzTo('hzSets')"><i style="background:#5a4e3c"></i><span>No set bonus<small>wear 2 of a set</small></span></button>`;
++    const [id,n]=best,S=GEAR_SETS[id];const p=k=>`${k}${n>=k?' ✓':':'} ${bonusTxt(S,k)}`;
++    return`<button class="hz-setchip plate" onclick="hzTo('hzSets')" aria-label="${esc(S.name)} set ${n} of 4. Tap for sets."><i style="background:${S.color}"></i><span>${esc(S.name)} ${n}/4<small>${p(2)} · ${p(4)}</small></span></button>`;}
++  function card(){const sl=UI.gearSlot,eq=Object.fromEntries(equippedGear());
++    if(!sl){const n=P.inv.filter(g=>!Object.values(P.equip).includes(g.id)).length;
++      return`<div class="hz-card"><div class="cicon"><span class="hz-emo">🎒</span></div><div><div class="ch">YOUR GEAR</div><div class="cm">⚡ ${gearScore()} gear score · ${Object.keys(setCounts()).length?'set bonus active':'no set bonus yet'}</div>
++        <div class="cset">Tap a slot to see the item, upgrade it or swap it.<br>🎒 ${n} spare item${n===1?'':'s'} in your pack</div></div></div>`;}
++    const g=eq[sl],sp=spares(sl);
++    if(!g){const best=sp[0];if(!best)return`<div class="hz-card"><div class="cicon"><span class="hz-emo">${SLOT_ICON[sl]}</span></div><div><div class="ch">${SLOT_NAME[sl].toUpperCase()}</div><div class="cm">empty</div><div class="cset">No spare ${sl} yet. Beat mutants, raiders and bosses to find some.</div></div></div>`;
++      const R=RARITY[best.rarity],set=gearSet(best);
++      return`<div class="hz-card"><div class="cicon" style="--rc:${R.color}">${iconHTML(best,sl)}</div><div><div class="ch">${esc(best.name)}${best.up?` <span class="u">+${best.up}</span>`:''}</div>
++        <div class="cm"><b class="hz-rar" style="--rcol:${R.color}">${R.name}</b> · ${SLOT_NAME[sl]} · iLvl ${best.iLvl||1} · ⚡ ${g3Score(best)} · best spare</div><div class="cs">${statsOf(best)}</div>${best.perk?`<div class="cset">✨ ${esc(perkText(best.perk))}</div>`:''}${set?`<div class="cset">Set: <b>${esc(GEAR_SETS[set].name)}</b></div>`:''}</div>
++        <div class="crow"><button class="cb tox" onclick="UI.equip('${best.id}')">EQUIP</button><button class="cb" onclick="hzSwap('${sl}')">ALL SPARES ›<small>${sp.length} spare</small></button></div></div>`;}
++    const R=RARITY[g.rarity],set=gearSet(g),up=g.up||0,max=up>=GEAR3.maxUp,c=upCost(g),n=set?(setCounts()[set]||0):0;
++    return`<div class="hz-card"><div class="cicon" style="--rc:${R.color}">${iconHTML(g,sl)}</div><div><div class="ch">${esc(g.name)}${up?` <span class="u">+${up}</span>`:''}</div>
++      <div class="cm"><b class="hz-rar" style="--rcol:${R.color}">${R.name}</b> · ${SLOT_NAME[sl]} · iLvl ${g.iLvl||1} · ⚡ ${g3Score(g)}</div><div class="cs">${statsOf(g)}</div>
++      ${g.perk?`<div class="cset">✨ ${esc(perkText(g.perk))}</div>`:''}
++      <div class="cset">${set?`Set: <b>${esc(GEAR_SETS[set].name)}</b> (${esc(GEAR_SETS[set].for)}) · <span class="${n>=2?'ok':''}">${n}/4${n>=4?' active':n>=2?' (2-piece active)':''}</span><br>`:''}${sp.length} spare ${sl} item${sp.length===1?'':'s'} in your pack</div></div>
++      <div class="crow"><button class="cb" onclick="UI.unequip('${sl}')">TAKE OFF</button>
++      <button class="cb tox" ${max?'disabled':''} onclick="upgradeGear('${g.id}')">${max?'MAX<small>fully upgraded</small>':`⬆️ UPGRADE +${up+1}<small>${c.scrap} 🔩 · ${c.parts} ⚙️</small>`}</button>
++      <button class="cb" onclick="hzSwap('${sl}')">SWAP ›<small>${sp.length?sp.length+' spare':'none yet'}</small></button></div></div>`;}
++  // a spare row: the old row plus the compare line (stat deltas vs what is equipped, ⚡ ±, set count / look changes)
++  function compare(g){const eq=Object.fromEntries(equippedGear()),cur=eq[g.slot];const d=STAT_K.map(k=>[k,(g[k]||0)-((cur&&cur[k])||0)]).filter(([,v])=>v);
++    const ds=g3Score(g)-(cur?g3Score(cur):0);const bits=d.map(([k,v])=>`<span class="${v>0?'pos':'neg'}">${v>0?'+':'−'}${Math.abs(v)} ${k.toUpperCase()}</span>`);
++    bits.push(`<span class="${ds>=0?'pos':'neg'}">⚡ ${ds>=0?'+':'−'}${Math.abs(ds)}</span>`);
++    const after={...eq,[g.slot]:g},notes=[];const s0=gearSet(cur),s1=gearSet(g);
++    if(s0!==s1){const cnt=m=>{const o={};AVATAR_SLOTS.forEach(sl=>{const s=gearSet(m[sl]);if(s)o[s]=(o[s]||0)+1;});return o;};const b=cnt(eq),a=cnt(after);
++      if(s1)notes.push(`${GEAR_SETS[s1].name} ${b[s1]||0}→${a[s1]||0}/4`);if(s0)notes.push(`${GEAR_SETS[s0].name} ${b[s0]||0}→${a[s0]||0}/4`);}
++    const l0=shownAvatar(eq),l1=shownAvatar(after);if(l0!==l1)notes.push(`changes look to ${l1==='base'?'the base survivor':GEAR_SETS[l1].name}`);
++    return`<small class="hz-cmp">${cur?'vs '+esc(cur.name)+': ':'new slot: '}${bits.join(' ')}${notes.length?` · <b>${esc(notes.join(' · '))}</b>`:''}</small>`;}
++  function spareRow(g){const c=upCost(g),max=(g.up||0)>=GEAR3.maxUp;
++    return`<div class="row hz-row"><div class="hz-ri" style="--rc:${RARITY[g.rarity].color}">${iconHTML(g,g.slot)}</div><div class="grow">${gearLine(g)}<small>⚡ ${g3Score(g)}${gearSet(g)?' · Set: '+esc(GEAR_SETS[gearSet(g)].name):''}</small>${compare(g)}</div>
++      <button onclick="UI.equip('${g.id}')">Equip</button><button ${max?'disabled':''} onclick="upgradeGear('${g.id}')">${max?'Max':`⬆️ +${(g.up||0)+1}<br><small>${c.scrap}🔩 ${c.parts}⚙️</small>`}</button><button class="salv" onclick="UI.salvage('${g.id}')">Salvage</button></div>`;}
++  let lastAv=null;
++  gearTabHTML=function(){migrateGear();migrateGear3();const eq=equippedGear(),sc=setCounts(),s=stats();
++    const shown=shownAvatar(),fade=lastAv&&lastAv!==shown;lastAv=shown;
++    const look=shown!=='base'?`${clsLine()?clsLine()+' · ':''}${esc(GEAR_SETS[shown].name)} look`:`${clsLine()?clsLine()+' · ':''}Complete a set to change your look`;
++    const cells=STAT_K.map(k=>`<button class="hz-st" onclick="UI.statBreak()" aria-label="${STAT_NAME[k]} ${s[k]}"><span>${k.toUpperCase()}</span><i aria-hidden="true">${STAT_ICON[k]}</i><b>${s[k]}</b></button>`).join('');
++    const pick=UI.gearSlot||null;const list=(pick?P.inv.filter(g=>g.slot===pick&&P.equip[pick]!==g.id):P.inv.filter(g=>!Object.values(P.equip).includes(g.id))).sort((a,b)=>g3Score(b)-g3Score(a));
++    const setsHTML=Object.entries(GEAR_SETS).map(([id,S])=>{const n=sc[id]||0;return`<div class="row gset ${n?'':'dim'}"><i class="cdot" style="background:${S.color}"></i><div class="grow"><b>${esc(S.name)}</b> <small style="display:inline">${n}/4 · ${esc(S.for)}</small>
++      <small class="${n>=2?'on':'off'}">2: ${bonusTxt(S,2).replace(/, /g,' · ')} ${n>=2?'✅':''}</small><small class="${n>=4?'on':'off'}">4: ${bonusTxt(S,4).replace(/, /g,' · ')} ${n>=4?'✅':''}</small>${(GEAR_ART.avatars||{})[id]&&!(GEAR_ART.avatars[id].png)?'<small class="off">Outfit figure coming soon</small>':''}</div></div>`;}).join('');
++    return`<div class="hz-gear">
++     <div class="hz-stage plate rusty"><div class="hz-col">${eq.slice(0,3).map(slotBtn).join('')}</div>
++      <div class="hz-doll"><div class="glow"></div><div class="hz-fig${fade?' hz-fade':''}">${dollSVG()}</div><div class="hz-name">${esc(P.name||'Survivor')}<small>${look}</small></div><div class="hz-gs" title="Gear score">⚡ ${gearScore()}</div></div>
++      <div class="hz-col">${eq.slice(3).map(slotBtn).join('')}</div></div>
++     <div class="hz-stats plate rusty rivets">${cells}</div>
++     <div class="hz-actions"><button class="hz-btn plate tox" onclick="UI.statBreak()">VIEW FULL STATS ›</button>${setChip(sc)}</div>
++     ${card()}
++     <div id="hzSpare" class="hz-more">${list.length?`<h3>▾ ${pick?'Spare '+pick:'Spare gear'} (${list.length})</h3>${list.map(spareRow).join('')}`:`<p class="tiny">▾ No spare ${pick||'gear'} yet. Beat mutants, raiders and bosses to find some.</p>`}</div>
++     <h3 id="hzSets">🧩 Sets</h3>${setsHTML}
++     <details class="more"><summary>ⓘ How gear works</summary><p class="tiny">Every item has an item level (the level of whatever dropped it) and a rarity. Together they set its power ⚡. Each item name splits that power its own way (a Pipe Wrench is mostly Attack, a Gas Mask mostly Health). Upgrade with scrap and parts (+6% per level, up to +10); salvaging returns 40% of what you spent. Epic and Legendary items carry a ✨ perk. Wear 2 or 4 pieces of a set (head, chest, legs, boots) for % bonuses; class sets help that class most. Wear all 4 pieces of one set and your survivor wears that outfit.</p></details></div>`;};
++  window.gearTabHTML=gearTabHTML;
++  // ---------- the full-screen Hero shell (every player sub-tab)
++  const sheet=document.getElementById('sheet');
++  function shellOff(){if(!sheet)return;const b=document.getElementById('sheetBody');if(b&&b.dataset.hzsub)delete b.dataset.hzsub;
++    // only touch the class list when something is set: classList.remove always records a mutation, which would re-fire the observer forever
++    if(sheet.classList.contains('hero-full'))sheet.classList.remove('hero-full');if(document.body.classList.contains('hero-open'))document.body.classList.remove('hero-open');}
++  if(sheet)new MutationObserver(()=>{if(sheet.classList.contains('hidden')&&sheet.classList.contains('hero-full'))shellOff();}).observe(sheet,{attributes:true,attributeFilter:['class']});
++  function shell(b){const subs=UI.SUBS.player,sub=UI.sub.player||subs[0][0],cur=subs.find(x=>x[0]===sub)||subs[0];
++    const strip=s=>String(s).replace(/^[^\p{L}\p{N}]+/u,'').trim();
++    if(!sheet.classList.contains('hero-full'))sheet.classList.add('hero-full');if(!document.body.classList.contains('hero-open'))document.body.classList.add('hero-open');b.dataset.hzsub=sub;
++    const seg=b.querySelector(':scope > .seg')||b.querySelector('.seg');
++    if(seg&&!seg.classList.contains('hz-tabs')){seg.classList.add('hz-tabs');seg.setAttribute('role','tablist');seg.setAttribute('aria-label','Hero');
++      seg.querySelectorAll(':scope > button').forEach((btn,i)=>{const k=(subs[i]||[])[0],lab=(subs[i]||[])[1]||'';const m=String(lab).match(/^([^\p{L}\p{N}]+)\s*(.*)$/u);
++        const tn=[...btn.childNodes].find(n=>n.nodeType===3);if(tn)tn.remove();
++        btn.insertAdjacentHTML('afterbegin',`<i aria-hidden="true">${m?m[1].trim():''}</i><span>${esc((m?m[2]:lab)||k)}</span>`);btn.classList.add('plate','rivets');
++        if(k===sub){btn.setAttribute('aria-current','page');}else btn.removeAttribute('aria-current');});
++      const on=seg.querySelector('button[aria-current]');if(on)requestAnimationFrame(()=>{try{const L=on.offsetLeft-seg.clientWidth/2+on.offsetWidth/2;seg.scrollLeft=Math.max(0,L);}catch(e){}});}
++    if(!b.querySelector(':scope > .hz-hdr')){const h=document.createElement('div');h.className='hz-hdr plate rusty rivets';
++      h.innerHTML=`<div class="emb" aria-hidden="true">☢️</div><div class="ttl"><b>DEAD ZONE DRIVE</b><small>${esc(strip(cur[1]).toUpperCase())}</small></div><div class="lvl">LEVEL<b>${P.lvl}</b></div><button class="hz-x" aria-label="Close Hero" onclick="UI.close()">✕</button>`;
++      b.prepend(h);}}
++  const _rr=UI.render;UI.render=function(){const r=_rr.apply(this,arguments);try{const b=document.getElementById('sheetBody');if(this.tab==='player'&&b)shell(b);else shellOff();}catch(e){console.warn('hero62',e);}return r;};
++  // close also drops the shell (UI.close hides #sheet; the observer covers any other path that hides it)
++  const _cl=UI.close;UI.close=function(){shellOff();return _cl.apply(this,arguments);};
++  // preload the other figures once the screen is idle, so swapping a set doesn't flash
++  let pre=false;const idle=window.requestIdleCallback||(f=>setTimeout(f,1200));
++  function preload(){if(pre||!GEAR_ART.avatars)return;pre=true;idle(()=>{try{Object.values(GEAR_ART.avatars).forEach(a=>{if(a&&a.png&&a.img){const i=new Image();i.decoding='async';i.src=a.img;}});}catch(e){}});}
++  const _rr2=UI.render;UI.render=function(){const r=_rr2.apply(this,arguments);try{if(this.tab==='player'&&(this.sub.player==='gear'||this.sub.player==='stats'))preload();}catch(e){}return r;};
++})();
+diff --git a/public/index.html b/public/index.html
+index de52f4e..b9ea9be 100644
+--- a/public/index.html
++++ b/public/index.html
+@@ -3,6 +3,7 @@
+ <meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#1c1813"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-192.png"><meta name="apple-mobile-web-app-title" content="Dead Zone"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+ <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☢️</text></svg>"><title>Dead Zone Drive</title>
+ <link rel="stylesheet" href="leaflet.css"><link rel="stylesheet" href="style.css?v=v20-4">
++<link rel="stylesheet" href="hero62.css">
+ </head><body>
+ <div id="map"></div><div id="tint"></div>
+ <header id="hud">
+@@ -96,4 +97,5 @@
+ <script src="hq6.js"></script>
+ <script src="card1.js"></script>
+ <script src="reports1.js"></script>
++<script src="hero62.js"></script>
+ </body></html>
+diff --git a/public/sw.js b/public/sw.js
+index b74364a..cdd2b94 100644
+--- a/public/sw.js
++++ b/public/sw.js
+@@ -1,6 +1,6 @@
+ // Dead Zone Drive service worker: network-first for the app (so updates show right away),
+ // falling back to cache when offline. Map tiles and Firebase are never cached here.
+-const C='ddd-v26-12i-integrated-6-r6-1';
++const C='ddd-v26-12i-integrated-6-r6-2';
+ self.addEventListener('install',e=>self.skipWaiting());
+ self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+ self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==location.origin)return;
+diff --git a/tests/home-still.js b/tests/home-still.js
+index eda26c7..41f0b05 100644
+--- a/tests/home-still.js
++++ b/tests/home-still.js
+@@ -34,7 +34,7 @@ function fixAt(lat, lng, acc) {
+   }));
+   ok('a saved far25 flag does not leave a stuck banner', !boot.far && !boot.banner, boot);
+   ok('retiring that flag adds no walked distance', boot.meters === 50, boot);
+-  ok('visible build label is 12i-integrated-6-r6-1', boot.build === '12i-integrated-6-r6-1', boot);
++  ok('visible build label is 12i-integrated-6-r6-2', boot.build === '12i-integrated-6-r6-2', boot);
+ 
+   const still = await p.evaluate(() => {
+     const lat = 47.8135, lng = -116.8968;
+diff --git a/tests/qa/crawl.js b/tests/qa/crawl.js
+index 35d45ad..aa17bd5 100644
+--- a/tests/qa/crawl.js
++++ b/tests/qa/crawl.js
+@@ -23,7 +23,9 @@ const BAD=/log ?out|wipe|reset|delete|remove|leave|abandon|sign out|hand over|di
+    save();try{factionCatchUp(true);}catch(e){}UI.closeModal&&UI.closeModal();});
+  await p.waitForTimeout(2000);
+  const shot=async n=>{try{await p.screenshot({path:OUT+'/'+n.replace(/[^a-z0-9_-]/gi,'_')+'.png'});}catch(e){}};
+- const overflow=()=>p.evaluate(()=>{const W=innerWidth;const bad=[];for(const el of document.querySelectorAll('#sheet *,#modal *,#hud *,#op15 *')){const r=el.getBoundingClientRect();if(r.width>0&&r.right>W+2&&getComputedStyle(el).position!=='fixed'){bad.push((el.id?'#'+el.id:el.className||el.tagName)+':'+Math.round(r.right));if(bad.length>4)break;}}
++ const overflow=()=>p.evaluate(()=>{const W=innerWidth;const bad=[];
++   // R6.2: items inside a sideways-scrolling strip (the Hero tab strip) that itself fits on screen are not overflow
++   const inScroller=el=>{for(let a=el.parentElement;a&&a!==document.body;a=a.parentElement){const ox=getComputedStyle(a).overflowX;if((ox==='auto'||ox==='scroll')&&a.scrollWidth>a.clientWidth)return a.getBoundingClientRect().right<=W+2;}return false;};for(const el of document.querySelectorAll('#sheet *,#modal *,#hud *,#op15 *')){const r=el.getBoundingClientRect();if(r.width>0&&r.right>W+2&&getComputedStyle(el).position!=='fixed'&&!inScroller(el)){bad.push((el.id?'#'+el.id:el.className||el.tagName)+':'+Math.round(r.right));if(bad.length>4)break;}}
+    return{page:document.documentElement.scrollWidth>W+2?document.documentElement.scrollWidth:0,els:bad};});
+  const report=[];
+  const tabs=await p.evaluate(()=>Object.keys(UI.SUBS));
+diff --git a/tests/r6-2-hero.js b/tests/r6-2-hero.js
+new file mode 100644
+index 0000000..216f3f7
+--- /dev/null
++++ b/tests/r6-2-hero.js
+@@ -0,0 +1,110 @@
++// R6.2 Hero/Gear screen (HERO-GEAR-SCREEN-SPEC v2 acceptance checklist): full-screen shell, tabs, the avatar rule,
++// fallbacks, icons, slot looks, stat bar = stats(), card actions, compare notes, sizes, close paths, Stats-tab avatar.
++const SHOT='/tmp/claude-0/-home-claude/00a3791d-653d-51f8-8596-70dbf5f30ee6/scratchpad/probe/';
++require('./h.js')(process.argv[2],async(p,errs)=>{
++ let fails=0;const ok=(c,m,x)=>{console.log((c?'PASS ':'FAIL ')+m+(x!==undefined?' '+JSON.stringify(x):''));if(!c)fails++;};
++ const ev=(f,a)=>p.evaluate(f,a);
++ await ev(()=>{G.playLocked=false;document.getElementById('auth12')?.remove();
++  window.T6={n:0,mk(name,rar=2,up=0){const b=G3_BY_NAME[name];const g={id:'t6_'+(++this.n),name,slot:b.slot,rarity:rar,iLvl:12,up,v3:true,set:b.set||undefined};g3Apply(g);P.inv.push(g);return g;},
++   wear(names){for(const sl of GEAR_SLOTS)delete P.equip[sl];for(const n of names){const g=this.mk(n);P.equip[g.slot]=g.id;}save();UI.render();},
++   av(){const i=document.querySelector('.hz-fig img.avatar');return i?i.dataset.av:(document.querySelector('.hz-fig svg')?'svg':null);}};
++  P.inv=P.inv.filter(g=>g.id==='starter');P.equip={weapon:'starter'};save();});
++ await p.waitForTimeout(800);
++ await ev(()=>{UI.open('player');UI.sub.player='gear';UI.render();});await p.waitForTimeout(600);
++ // 1) shell
++ const sh=await ev(()=>{const s=document.getElementById('sheet'),seg=document.querySelector('#sheetBody .hz-tabs');const r=s.getBoundingClientRect();
++  return{full:s.classList.contains('hero-full'),cover:r.top<=0.5&&r.left<=0.5&&Math.abs(r.width-innerWidth)<2&&Math.abs(r.height-innerHeight)<2,tabs:getComputedStyle(document.getElementById('tabs')).display,
++   x:!!document.querySelector('.hz-hdr .hz-x[aria-label="Close Hero"]'),order:[...seg.querySelectorAll(':scope>button')].map(b=>b.querySelector('span').textContent),subs:UI.SUBS.player.map(x=>x[0]),
++   cur:(seg.querySelector('[aria-current=page] span')||{}).textContent,hdr:document.querySelector('.hz-hdr .ttl small').textContent,firstFocus:document.querySelector('#sheetBody button')===document.querySelector('.hz-x')};});
++ ok(sh.full&&sh.cover&&sh.tabs==='none'&&sh.x,'Hero opens full screen, bottom nav hidden, ✕ in the header',sh);
++ ok(sh.order.join()==='Stats,Class,Skills,Gear,Quests,Save,Buffs,Achievements'&&sh.cur==='Gear'&&sh.hdr==='GEAR'&&sh.firstFocus,'8 tabs in today\'s order, Gear active, ✕ is the first button',sh.order);
++ // 2) avatar rule
++ const A=async(names)=>{await ev(n=>T6.wear(n),names);await p.waitForTimeout(150);return ev(()=>T6.av());};
++ const none=await A([]);ok(none==='base','nothing equipped -> base',none);
++ ok(await A(['Welding Mask','Tire Vest','Patched Jeans','Work Boots'])==='base','basics only -> base');
++ ok(await A(['Gas Mask','Hazmat Coat','Hazmat Pants','Runner Sneakers'])==='base','3 Hazmat + 1 Runner -> base');
++ const hz=await A(['Gas Mask','Hazmat Coat','Hazmat Pants','Rubber Boots','Pipe Wrench','Dog Tags']);
++ const hzInfo=await ev(()=>({alt:document.querySelector('.hz-fig img').alt,look:document.querySelector('.hz-name small').textContent}));
++ ok(hz==='hazmat'&&/Hazmat outfit/.test(hzInfo.alt)&&/Hazmat look/.test(hzInfo.look),'4 Hazmat -> hazmat figure, alt and "Hazmat look"',hzInfo);
++ await p.setViewportSize({width:390,height:844});await p.waitForTimeout(400);await p.screenshot({path:SHOT+'r62-hazmat-390.png'});
++ const off=await ev(()=>{UI.unequip('boots');return T6.av();});ok(off==='base','take off the boots -> base');
++ for(const [set,names] of Object.entries({runner:['Runner Cap','Runner Jacket','Track Pants','Runner Sneakers'],pathfinder:['Scout Goggles','Long Duster','Cargo Pants','Trail Boots'],foreman:['Hard Hat','Work Vest','Knee-Pad Carhartts','Steel-Toe Boots'],warlord:['Skull Helm','Spiked Plate','Chain Kilt','Stomper Boots']})){
++  const a=await A(names);ok(a===set,`4 ${set} -> ${set} figure`,a);await p.screenshot({path:SHOT+'r62-'+set+'.png'});}
++ const road=await A(['Hubcap Helm','Road-Sign Plate','Tire Greaves','Tread Boots']);
++ const roadLook=await ev(()=>document.querySelector('.hz-name small').textContent);
++ ok(road==='base'&&/Complete a set/.test(roadLook),'4 Road Warrior -> base while road.png is off',{road,roadLook});
++ const road2=await ev(()=>{GEAR_ART.avatars.road={png:true,img:'assets/gear/avatars/runner.webp',fallback:'assets/gear/avatars/runner.png'};UI.render();const a=T6.av();GEAR_ART.avatars.road.png=false;GEAR_ART.avatars.road.img='assets/gear/avatars/road.webp';GEAR_ART.avatars.road.fallback='assets/gear/avatars/road.png';UI.render();return a;});
++ ok(road2==='road','with a road figure switched on in the manifest -> road (no code change)');
++ const same=await ev(()=>{T6.wear(['Gas Mask','Hazmat Coat','Hazmat Pants','Rubber Boots']);const a=T6.av();for(const sl of ['head','chest','legs','boots']){const g=P.inv.find(x=>x.id===P.equip[sl]);g.up=10;g.rarity=4;g3Apply(g);}
++   const w=T6.mk('Machete',4,7);P.equip.weapon=w.id;const t=T6.mk('Rabbit Foot',1);P.equip.trinket=t.id;save();UI.render();return[a,T6.av()];});
++ ok(same[0]==='hazmat'&&same[1]==='hazmat','upgrade level, rarity, weapon and trinket never change the figure',same);
++ // 3) fallbacks
++ const fb=await ev(async()=>{const A=GEAR_ART.avatars.hazmat,keep={...A};A.img='assets/gear/avatars/nope.webp';UI.render();await new Promise(r=>setTimeout(r,700));const a=document.querySelector('.hz-fig img').getAttribute('src');
++   A.fallback='assets/gear/avatars/nope.png';UI.render();await new Promise(r=>setTimeout(r,900));const b=document.querySelector('.hz-fig img').getAttribute('src');Object.assign(A,keep);
++   const all=GEAR_ART;GEAR_ART={};UI.render();const svg=!!document.querySelector('.hz-fig svg.doll3');GEAR_ART=all;UI.render();return{a,b,svg};});
++ ok(/hazmat\.png$/.test(fb.a)&&/base\.(webp|png)$/.test(fb.b)&&fb.svg,'missing avatar -> its PNG, then base; no manifest -> the R6.1 SVG survivor',fb);
++ const ic=await ev(async()=>{const it=Object.entries(GEAR_ART).filter(([k,v])=>v&&v.slot);const res=await Promise.all(it.map(([k,v])=>new Promise(r=>{const i=new Image();i.onload=()=>r([k,i.naturalWidth]);i.onerror=()=>r([k,0]);i.src=v.icon;})));
++   const bad=res.filter(([,w])=>!w).map(([k])=>k);const g=P.inv.find(x=>x.id===P.equip.head);const keep=GEAR_ART[g.art].icon,kf=GEAR_ART[g.art].iconFallback;GEAR_ART[g.art].icon='assets/gear/icons/nope.webp';GEAR_ART[g.art].iconFallback='assets/gear/icons/nope.png';UI.render();
++   await new Promise(r=>setTimeout(r,900));const emo=(document.querySelector('.hz-slot[data-slot=head] .hz-emo')||{}).textContent;GEAR_ART[g.art].icon=keep;GEAR_ART[g.art].iconFallback=kf;UI.render();
++   const wt=getComputedStyle(document.querySelector('.hz-slot[data-slot=weapon] img')).transform;return{n:res.length,bad,emo,wt};});
++ ok(ic.n===39&&!ic.bad.length,'all 39 items have a loading icon',ic);ok(ic.emo==='⛑️'&&ic.wt!=='none','missing icon -> slot emoji; weapon icon shown rotated',ic);
++ // 4) slots
++ const sl=await ev(()=>{const h=document.querySelector('.hz-slot[data-slot=head]'),w=document.querySelector('.hz-slot[data-slot=weapon]');const g=P.inv.find(x=>x.id===P.equip.head);
++   const hex=c=>{const m=c.match(/\d+/g).map(Number);return'#'+m.slice(0,3).map(v=>v.toString(16).padStart(2,'0')).join('');};
++   const o={border:hex(getComputedStyle(h).borderTopColor),want:RARITY[g.rarity].color.toLowerCase(),up:(h.querySelector('.up')||{}).textContent,wup:(w.querySelector('.up')||{}).textContent,dot:!!h.querySelector('.set'),label:h.getAttribute('aria-label'),size:[h.offsetWidth,h.offsetHeight]};
++   delete P.equip.legs;UI.render();const e=document.querySelector('.hz-slot[data-slot=legs]');
++   return{...o,empty:e.classList.contains('empty')&&getComputedStyle(e).borderTopStyle==='dashed'&&e.getAttribute('aria-label')==='Legs: empty'};});
++ ok(sl.border===sl.want&&sl.up==='MAX'&&sl.wup==='+7'&&sl.dot&&/Head: Gas Mask \+10, Legendary, Hazmat set/.test(sl.label)&&sl.empty&&sl.size[0]>=76&&sl.size[1]>=90,'slot looks: rarity border, +N / MAX, set dot, labels, dashed empty slot, ≥76x90',sl);
++ // 5) stat bar = stats() = breakdown total
++ const st=await ev(()=>{const s=stats(),bar=[...document.querySelectorAll('.hz-st b')].map(b=>+b.textContent);UI.statBreak();const tot=[...document.querySelectorAll('.statbrk tr.tot td[data-k]')].map(t=>+t.textContent);UI.closeModal();return{s:STAT_K.map(k=>s[k]),bar,tot};});
++ ok(JSON.stringify(st.s)===JSON.stringify(st.bar)&&JSON.stringify(st.bar)===JSON.stringify(st.tot),'stat bar = stats() = the breakdown Total row',st);
++ // 6) card: take off, upgrade (cost = upCost), swap, empty slot, compare
++ const cd=await ev(async()=>{P.inv=P.inv.filter(g=>g.id==='starter');T6.wear(['Gas Mask','Hazmat Coat','Hazmat Pants','Rubber Boots','Pipe Wrench']);const g=P.inv.find(x=>x.id===P.equip.head);T6.mk('Runner Cap',1);T6.mk('Scout Goggles',3);
++   UI.gearSlot='head';UI.render();const c=upCost(g);P.res.scrap=5000;P.res.parts=500;const s0=P.res.scrap,p0=P.res.parts,u0=g.up||0;
++   const up=[...document.querySelectorAll('.hz-card .cb')].find(b=>/UPGRADE/.test(b.textContent));const txt=up.textContent;up.click();
++   const paid={scrap:s0-P.res.scrap,parts:p0-P.res.parts,up:g.up-u0,want:c,txt};
++   const cmp=[...document.querySelectorAll('#hzSpare .hz-cmp')].map(e=>e.textContent);
++   [...document.querySelectorAll('.hz-card .cb')].find(b=>/SWAP/.test(b.textContent)).click();await new Promise(r=>setTimeout(r,500));const sw=UI.gearSlot;
++   [...document.querySelectorAll('.hz-card .cb')].find(b=>/TAKE OFF/.test(b.textContent)).click();const offd=!P.equip.head;
++   const empty=document.querySelector('.hz-card').textContent;[...document.querySelectorAll('.hz-card .cb')].find(b=>/EQUIP/.test(b.textContent)).click();
++   const best=P.inv.find(x=>x.id===P.equip.head);return{paid,cmp,sw,offd,empty:empty.slice(0,160),best:best&&best.name};});
++ ok(cd.paid.scrap===cd.paid.want.scrap&&cd.paid.parts===cd.paid.want.parts&&cd.paid.up===1&&cd.paid.txt.includes(cd.paid.want.scrap+' 🔩'),'upgrade shows the upCost cost and spends exactly that',cd.paid);
++ ok(cd.cmp.length===2&&cd.cmp.every(t=>/Runner|Pathfinder/.test(t)&&/vs Gas Mask/.test(t)&&/⚡ [+−]\d+/.test(t)&&/changes look to the base survivor/.test(t)&&/Hazmat 4→3\/4/.test(t)),'spare rows compare against the equipped item: deltas, ⚡ ±, set count and look change',cd.cmp);
++ ok(cd.sw==='head'&&cd.offd&&/best spare/.test(cd.empty)&&cd.best==='Scout Goggles','swap filters the spares, take off works, an empty slot offers the best spare to equip',cd);
++ const ns=await ev(()=>{delete P.equip.trinket;P.inv=P.inv.filter(g=>g.slot!=='trinket');UI.gearSlot='trinket';UI.render();return document.querySelector('.hz-card').textContent;});
++ ok(/No spare trinket yet/.test(ns),'no-spare text shows');
++ // 7) persistence
++ await ev(()=>{UI.gearSlot=null;T6.wear(['Gas Mask','Hazmat Coat','Hazmat Pants','Rubber Boots']);const g=P.inv.find(x=>x.id===P.equip.chest);P.res.scrap=5000;P.res.parts=500;upgradeGear(g.id);window._u=g.id;save();});
++ const sv=await ev(()=>({eq:{...P.equip},up:P.inv.find(x=>x.id===window._u).up}));
++ await p.reload({waitUntil:'load'});await p.waitForTimeout(8000);await ev(()=>{G.playLocked=false;document.getElementById('auth12')?.remove();});
++ const rl=await ev(()=>({eq:{...P.equip},up:(P.inv.find(x=>x.id===Object.values(P.equip).find(id=>(P.inv.find(g=>g.id===id)||{}).name==='Hazmat Coat'))||{}).up}));
++ ok(JSON.stringify(rl.eq)===JSON.stringify(sv.eq)&&rl.up===sv.up,'equip and upgrade survive a reload',{sv,rl});
++ const salv=await ev(()=>{const id=P.equip.head;const n=P.inv.length;UI.salvage(id);return P.inv.length===n;});ok(salv,'salvage is still blocked on equipped items');
++ // 8) Stats tab shows the same figure; other tabs render inside the shell
++ const tb=await ev(()=>{G.playLocked=false;UI.open('player');UI.sub.player='stats';UI.render();const a=document.querySelector('.avatarbox img.avatar');const out={_av:a&&a.dataset.av};
++   for(const [k] of UI.SUBS.player){UI.sub.player=k;UI.render();out[k]=document.getElementById('sheet').classList.contains('hero-full')&&!!document.querySelector('.hz-hdr')&&document.getElementById('sheetBody').textContent.length>200;}return out;});
++ ok(tb._av==='hazmat'&&UI_ALL(tb),'Stats-tab avatar box shows the same figure; every Hero tab renders in the shell',tb);
++ function UI_ALL(o){return Object.entries(o).filter(([k])=>k!=='_av').every(([,v])=>v);}
++ // 9) sizes: avatar never cropped, card position
++ await ev(()=>{UI.sub.player='gear';UI.gearSlot='head';UI.render();});
++ for(const [w,h] of [[360,640],[375,667],[390,844],[393,852],[430,932],[1280,800]]){await p.setViewportSize({width:w,height:h});await p.waitForTimeout(350);
++  const m=await ev(()=>{const i=document.querySelector('.hz-fig img.avatar'),d=document.querySelector('.hz-doll'),c=document.querySelector('.hz-card'),body=document.getElementById('sheetBody');
++   const ir=i.getBoundingClientRect(),dr=d.getBoundingClientRect(),cr=c.getBoundingClientRect();const sw=document.getElementById('sheet');
++   return{inside:ir.top>=dr.top-1&&ir.bottom<=dr.bottom+1&&ir.left>=dr.left-1&&ir.right<=dr.right+1,ratio:+(ir.width/ir.height).toFixed(3),cardTop:Math.round(cr.top),cardBtm:Math.round(cr.bottom),bodyW:Math.round(body.getBoundingClientRect().width),hscroll:sw.scrollWidth>sw.clientWidth+1,hdr:Math.round(document.querySelector('.hz-hdr').getBoundingClientRect().height)};});
++  ok(m.inside&&!m.hscroll&&(w<900||m.bodyW<=560)&&(w!==430||m.cardBtm<=h)&&(w!==390||m.cardTop<h),`${w}x${h}: figure uncropped, no side scroll${w>=900?', content ≤560 px':''}${w===430?', card buttons on screen':''}${w===390?', card top on screen':''}`,m);
++  await p.screenshot({path:SHOT+`r62-${w}x${h}.png`});}
++ await p.setViewportSize({width:430,height:900});
++ // 10) close: ✕, Escape
++ const cl=await ev(()=>{document.querySelector('.hz-x').click();const s=document.getElementById('sheet');return{hidden:s.classList.contains('hidden'),full:s.classList.contains('hero-full'),tabs:getComputedStyle(document.getElementById('tabs')).display,body:document.body.classList.contains('hero-open')};});
++ ok(cl.hidden&&!cl.full&&cl.tabs!=='none'&&!cl.body,'✕ closes and restores the map and the nav',cl);
++ await ev(()=>{UI.open('player');UI.render();});await p.keyboard.press('Escape');await p.waitForTimeout(200);
++ const es=await ev(()=>({hidden:document.getElementById('sheet').classList.contains('hidden'),tabs:getComputedStyle(document.getElementById('tabs')).display}));
++ ok(es.hidden&&es.tabs!=='none','Escape closes Hero',es);
++ const ot=await ev(()=>{UI.open('player');UI.open('base');return{full:document.getElementById('sheet').classList.contains('hero-full'),tabs:getComputedStyle(document.getElementById('tabs')).display};});
++ ok(!ot.full&&ot.tabs!=='none','switching to Base drops the full-screen shell',ot);
++ // 11) load budget: only the current avatar loads at open
++ const ld=await ev(async()=>{performance.clearResourceTimings();UI.close();UI.open('player');UI.sub.player='gear';const t0=performance.now();UI.render();const dt=performance.now()-t0;await new Promise(r=>setTimeout(r,300));
++   const av=performance.getEntriesByType('resource').filter(e=>/avatars\//.test(e.name)).map(e=>e.name.split('/').pop());const t1=performance.now();gearTabHTML();return{dt:+dt.toFixed(1),html:+(performance.now()-t1).toFixed(1),av};});
++ ok(ld.html<=8,'gear tab HTML builds in ≤ 8 ms',ld);
++ console.log('errors:',errs.length);console.log(fails?`${fails} FAIL`:'ALL PASS');
++});
+diff --git a/public/assets/gear/manifest.json b/public/assets/gear/manifest.json
+index 01af536..bd28782 100644
+--- a/public/assets/gear/manifest.json
++++ b/public/assets/gear/manifest.json
+@@ -1,201 +1,317 @@
+ {
+- "_readme": "Gear art: put <slot>/<art>.png here (512x768, transparent, drawn on top of body-template.svg), then set png:true. body.png replaces the base survivor.",
++ "_readme": "Gear art: put <slot>/<art>.png here (512x768, transparent, drawn on top of body-template.svg), then set png:true. body.png replaces the base survivor. v2: icon = slot/card icon (256x256, cut from the art sheets). avatars = pre-drawn dressed figures; a set figure shows only with all 4 set pieces equipped, else base. Avatar png:false = not drawn yet (shows base). Item layer png:false stays (no paper-doll).",
+  "body": {
+   "png": false
+  },
+  "pipe-wrench": {
+   "png": false,
+   "slot": "weapon",
+-  "name": "Pipe Wrench"
++  "name": "Pipe Wrench",
++  "icon": "assets/gear/icons/pipe-wrench.webp",
++  "iconFallback": "assets/gear/icons/pipe-wrench.png"
+  },
+  "nail-bat": {
+   "png": false,
+   "slot": "weapon",
+-  "name": "Nail Bat"
++  "name": "Nail Bat",
++  "icon": "assets/gear/icons/nail-bat.webp",
++  "iconFallback": "assets/gear/icons/nail-bat.png"
+  },
+  "scrap-crossbow": {
+   "png": false,
+   "slot": "weapon",
+-  "name": "Scrap Crossbow"
++  "name": "Scrap Crossbow",
++  "icon": "assets/gear/icons/scrap-crossbow.webp",
++  "iconFallback": "assets/gear/icons/scrap-crossbow.png"
+  },
+  "rebar-spear": {
+   "png": false,
+   "slot": "weapon",
+-  "name": "Rebar Spear"
++  "name": "Rebar Spear",
++  "icon": "assets/gear/icons/rebar-spear.webp",
++  "iconFallback": "assets/gear/icons/rebar-spear.png"
+  },
+  "machete": {
+   "png": false,
+   "slot": "weapon",
+-  "name": "Machete"
++  "name": "Machete",
++  "icon": "assets/gear/icons/machete.webp",
++  "iconFallback": "assets/gear/icons/machete.png"
+  },
+  "riot-shield-baton": {
+   "png": false,
+   "slot": "weapon",
+-  "name": "Riot Shield & Baton"
++  "name": "Riot Shield & Baton",
++  "icon": "assets/gear/icons/riot-shield-baton.webp",
++  "iconFallback": "assets/gear/icons/riot-shield-baton.png"
+  },
+  "lucky-bottlecap": {
+   "png": false,
+   "slot": "trinket",
+-  "name": "Lucky Bottlecap"
++  "name": "Lucky Bottlecap",
++  "icon": "assets/gear/icons/lucky-bottlecap.webp",
++  "iconFallback": "assets/gear/icons/lucky-bottlecap.png"
+  },
+  "geiger-charm": {
+   "png": false,
+   "slot": "trinket",
+-  "name": "Geiger Charm"
++  "name": "Geiger Charm",
++  "icon": "assets/gear/icons/geiger-charm.webp",
++  "iconFallback": "assets/gear/icons/geiger-charm.png"
+  },
+  "dog-tags": {
+   "png": false,
+   "slot": "trinket",
+-  "name": "Dog Tags"
++  "name": "Dog Tags",
++  "icon": "assets/gear/icons/dog-tags.webp",
++  "iconFallback": "assets/gear/icons/dog-tags.png"
+  },
+  "rabbit-foot": {
+   "png": false,
+   "slot": "trinket",
+-  "name": "Rabbit Foot"
++  "name": "Rabbit Foot",
++  "icon": "assets/gear/icons/rabbit-foot.webp",
++  "iconFallback": "assets/gear/icons/rabbit-foot.png"
+  },
+  "old-compass": {
+   "png": false,
+   "slot": "trinket",
+-  "name": "Old Compass"
++  "name": "Old Compass",
++  "icon": "assets/gear/icons/old-compass.webp",
++  "iconFallback": "assets/gear/icons/old-compass.png"
+  },
+  "welding-mask": {
+   "png": false,
+   "slot": "head",
+-  "name": "Welding Mask"
++  "name": "Welding Mask",
++  "icon": "assets/gear/icons/welding-mask.webp",
++  "iconFallback": "assets/gear/icons/welding-mask.png"
+  },
+  "tire-vest": {
+   "png": false,
+   "slot": "chest",
+-  "name": "Tire Vest"
++  "name": "Tire Vest",
++  "icon": "assets/gear/icons/tire-vest.webp",
++  "iconFallback": "assets/gear/icons/tire-vest.png"
+  },
+  "patched-jeans": {
+   "png": false,
+   "slot": "legs",
+-  "name": "Patched Jeans"
++  "name": "Patched Jeans",
++  "icon": "assets/gear/icons/patched-jeans.webp",
++  "iconFallback": "assets/gear/icons/patched-jeans.png"
+  },
+  "work-boots": {
+   "png": false,
+   "slot": "boots",
+-  "name": "Work Boots"
++  "name": "Work Boots",
++  "icon": "assets/gear/icons/work-boots.webp",
++  "iconFallback": "assets/gear/icons/work-boots.png"
+  },
+  "hubcap-helm": {
+   "png": false,
+   "slot": "head",
+-  "name": "Hubcap Helm"
++  "name": "Hubcap Helm",
++  "icon": "assets/gear/icons/hubcap-helm.webp",
++  "iconFallback": "assets/gear/icons/hubcap-helm.png"
+  },
+  "road-sign-plate": {
+   "png": false,
+   "slot": "chest",
+-  "name": "Road-Sign Plate"
++  "name": "Road-Sign Plate",
++  "icon": "assets/gear/icons/road-sign-plate.webp",
++  "iconFallback": "assets/gear/icons/road-sign-plate.png"
+  },
+  "tire-greaves": {
+   "png": false,
+   "slot": "legs",
+-  "name": "Tire Greaves"
++  "name": "Tire Greaves",
++  "icon": "assets/gear/icons/tire-greaves.webp",
++  "iconFallback": "assets/gear/icons/tire-greaves.png"
+  },
+  "tread-boots": {
+   "png": false,
+   "slot": "boots",
+-  "name": "Tread Boots"
++  "name": "Tread Boots",
++  "icon": "assets/gear/icons/tread-boots.webp",
++  "iconFallback": "assets/gear/icons/tread-boots.png"
+  },
+  "gas-mask": {
+   "png": false,
+   "slot": "head",
+-  "name": "Gas Mask"
++  "name": "Gas Mask",
++  "icon": "assets/gear/icons/gas-mask.webp",
++  "iconFallback": "assets/gear/icons/gas-mask.png"
+  },
+  "hazmat-coat": {
+   "png": false,
+   "slot": "chest",
+-  "name": "Hazmat Coat"
++  "name": "Hazmat Coat",
++  "icon": "assets/gear/icons/hazmat-coat.webp",
++  "iconFallback": "assets/gear/icons/hazmat-coat.png"
+  },
+  "hazmat-pants": {
+   "png": false,
+   "slot": "legs",
+-  "name": "Hazmat Pants"
++  "name": "Hazmat Pants",
++  "icon": "assets/gear/icons/hazmat-pants.webp",
++  "iconFallback": "assets/gear/icons/hazmat-pants.png"
+  },
+  "rubber-boots": {
+   "png": false,
+   "slot": "boots",
+-  "name": "Rubber Boots"
++  "name": "Rubber Boots",
++  "icon": "assets/gear/icons/rubber-boots.webp",
++  "iconFallback": "assets/gear/icons/rubber-boots.png"
+  },
+  "runner-cap": {
+   "png": false,
+   "slot": "head",
+-  "name": "Runner Cap"
++  "name": "Runner Cap",
++  "icon": "assets/gear/icons/runner-cap.webp",
++  "iconFallback": "assets/gear/icons/runner-cap.png"
+  },
+  "runner-jacket": {
+   "png": false,
+   "slot": "chest",
+-  "name": "Runner Jacket"
++  "name": "Runner Jacket",
++  "icon": "assets/gear/icons/runner-jacket.webp",
++  "iconFallback": "assets/gear/icons/runner-jacket.png"
+  },
+  "track-pants": {
+   "png": false,
+   "slot": "legs",
+-  "name": "Track Pants"
++  "name": "Track Pants",
++  "icon": "assets/gear/icons/track-pants.webp",
++  "iconFallback": "assets/gear/icons/track-pants.png"
+  },
+  "runner-sneakers": {
+   "png": false,
+   "slot": "boots",
+-  "name": "Runner Sneakers"
++  "name": "Runner Sneakers",
++  "icon": "assets/gear/icons/runner-sneakers.webp",
++  "iconFallback": "assets/gear/icons/runner-sneakers.png"
+  },
+  "scout-goggles": {
+   "png": false,
+   "slot": "head",
+-  "name": "Scout Goggles"
++  "name": "Scout Goggles",
++  "icon": "assets/gear/icons/scout-goggles.webp",
++  "iconFallback": "assets/gear/icons/scout-goggles.png"
+  },
+  "long-duster": {
+   "png": false,
+   "slot": "chest",
+-  "name": "Long Duster"
++  "name": "Long Duster",
++  "icon": "assets/gear/icons/long-duster.webp",
++  "iconFallback": "assets/gear/icons/long-duster.png"
+  },
+  "cargo-pants": {
+   "png": false,
+   "slot": "legs",
+-  "name": "Cargo Pants"
++  "name": "Cargo Pants",
++  "icon": "assets/gear/icons/cargo-pants.webp",
++  "iconFallback": "assets/gear/icons/cargo-pants.png"
+  },
+  "trail-boots": {
+   "png": false,
+   "slot": "boots",
+-  "name": "Trail Boots"
++  "name": "Trail Boots",
++  "icon": "assets/gear/icons/trail-boots.webp",
++  "iconFallback": "assets/gear/icons/trail-boots.png"
+  },
+  "hard-hat": {
+   "png": false,
+   "slot": "head",
+-  "name": "Hard Hat"
++  "name": "Hard Hat",
++  "icon": "assets/gear/icons/hard-hat.webp",
++  "iconFallback": "assets/gear/icons/hard-hat.png"
+  },
+  "work-vest": {
+   "png": false,
+   "slot": "chest",
+-  "name": "Work Vest"
++  "name": "Work Vest",
++  "icon": "assets/gear/icons/work-vest.webp",
++  "iconFallback": "assets/gear/icons/work-vest.png"
+  },
+  "knee-pad-carhartts": {
+   "png": false,
+   "slot": "legs",
+-  "name": "Knee-Pad Carhartts"
++  "name": "Knee-Pad Carhartts",
++  "icon": "assets/gear/icons/knee-pad-carhartts.webp",
++  "iconFallback": "assets/gear/icons/knee-pad-carhartts.png"
+  },
+  "steel-toe-boots": {
+   "png": false,
+   "slot": "boots",
+-  "name": "Steel-Toe Boots"
++  "name": "Steel-Toe Boots",
++  "icon": "assets/gear/icons/steel-toe-boots.webp",
++  "iconFallback": "assets/gear/icons/steel-toe-boots.png"
+  },
+  "skull-helm": {
+   "png": false,
+   "slot": "head",
+-  "name": "Skull Helm"
++  "name": "Skull Helm",
++  "icon": "assets/gear/icons/skull-helm.webp",
++  "iconFallback": "assets/gear/icons/skull-helm.png"
+  },
+  "spiked-plate": {
+   "png": false,
+   "slot": "chest",
+-  "name": "Spiked Plate"
++  "name": "Spiked Plate",
++  "icon": "assets/gear/icons/spiked-plate.webp",
++  "iconFallback": "assets/gear/icons/spiked-plate.png"
+  },
+  "chain-kilt": {
+   "png": false,
+   "slot": "legs",
+-  "name": "Chain Kilt"
++  "name": "Chain Kilt",
++  "icon": "assets/gear/icons/chain-kilt.webp",
++  "iconFallback": "assets/gear/icons/chain-kilt.png"
+  },
+  "stomper-boots": {
+   "png": false,
+   "slot": "boots",
+-  "name": "Stomper Boots"
++  "name": "Stomper Boots",
++  "icon": "assets/gear/icons/stomper-boots.webp",
++  "iconFallback": "assets/gear/icons/stomper-boots.png"
++ },
++ "avatars": {
++  "base": {
++   "png": true,
++   "img": "assets/gear/avatars/base.webp",
++   "fallback": "assets/gear/avatars/base.png"
++  },
++  "hazmat": {
++   "png": true,
++   "img": "assets/gear/avatars/hazmat.webp",
++   "fallback": "assets/gear/avatars/hazmat.png"
++  },
++  "runner": {
++   "png": true,
++   "img": "assets/gear/avatars/runner.webp",
++   "fallback": "assets/gear/avatars/runner.png"
++  },
++  "pathfinder": {
++   "png": true,
++   "img": "assets/gear/avatars/pathfinder.webp",
++   "fallback": "assets/gear/avatars/pathfinder.png"
++  },
++  "foreman": {
++   "png": true,
++   "img": "assets/gear/avatars/foreman.webp",
++   "fallback": "assets/gear/avatars/foreman.png"
++  },
++  "warlord": {
++   "png": true,
++   "img": "assets/gear/avatars/warlord.webp",
++   "fallback": "assets/gear/avatars/warlord.png"
++  },
++  "road": {
++   "png": false,
++   "img": "assets/gear/avatars/road.webp",
++   "fallback": "assets/gear/avatars/road.png",
++   "_note": "Artist is drawing this figure. Set png:true when road.png/.webp are added."
++  }
+  }
+ }
+\ No newline at end of file

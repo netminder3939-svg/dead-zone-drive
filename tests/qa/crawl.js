@@ -23,7 +23,9 @@ const BAD=/log ?out|wipe|reset|delete|remove|leave|abandon|sign out|hand over|di
    save();try{factionCatchUp(true);}catch(e){}UI.closeModal&&UI.closeModal();});
  await p.waitForTimeout(2000);
  const shot=async n=>{try{await p.screenshot({path:OUT+'/'+n.replace(/[^a-z0-9_-]/gi,'_')+'.png'});}catch(e){}};
- const overflow=()=>p.evaluate(()=>{const W=innerWidth;const bad=[];for(const el of document.querySelectorAll('#sheet *,#modal *,#hud *,#op15 *')){const r=el.getBoundingClientRect();if(r.width>0&&r.right>W+2&&getComputedStyle(el).position!=='fixed'){bad.push((el.id?'#'+el.id:el.className||el.tagName)+':'+Math.round(r.right));if(bad.length>4)break;}}
+ const overflow=()=>p.evaluate(()=>{const W=innerWidth;const bad=[];
+   // R6.2: items inside a sideways-scrolling strip (the Hero tab strip) that itself fits on screen are not overflow
+   const inScroller=el=>{for(let a=el.parentElement;a&&a!==document.body;a=a.parentElement){const ox=getComputedStyle(a).overflowX;if((ox==='auto'||ox==='scroll')&&a.scrollWidth>a.clientWidth)return a.getBoundingClientRect().right<=W+2;}return false;};for(const el of document.querySelectorAll('#sheet *,#modal *,#hud *,#op15 *')){const r=el.getBoundingClientRect();if(r.width>0&&r.right>W+2&&getComputedStyle(el).position!=='fixed'&&!inScroller(el)){bad.push((el.id?'#'+el.id:el.className||el.tagName)+':'+Math.round(r.right));if(bad.length>4)break;}}
    return{page:document.documentElement.scrollWidth>W+2?document.documentElement.scrollWidth:0,els:bad};});
  const report=[];
  const tabs=await p.evaluate(()=>Object.keys(UI.SUBS));
