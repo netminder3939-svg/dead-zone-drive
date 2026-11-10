@@ -244,7 +244,7 @@ try{
     if(document.visibilityState!=='visible'||!P||!P.world)return;
     const own=pipes().some(p=>{const s=p.guard25&&stationed()[p.guard25.hex];return s&&s.n>0&&pipeState(p)==='online';});
     let ally=false;try{for(const m of Object.values((G.al&&G.al.members)||{})){if(m.me)continue;if(Array.isArray(m.pipes)&&m.pipes.some(x=>x&&x.guardN>0)){ally=true;break;}}}catch(e){}
-    if(own||ally)drawPipes();
+    if(own||ally){if(typeof slideTrucks62==='function')slideTrucks62();else drawPipes();} // R6.3: move, never rebuild
   }catch(e){}},1200);
 }catch(e){console.warn('drawPipes26g',e);}
 
@@ -271,12 +271,25 @@ try{
     return out;
   };
   const _dmv26g=window.drawMoves;
+  // R6.3: drawMoves runs every second. It used to clear the layer and rebuild every marker (avatar <img>, SVG flag,
+  // animated dashed track), so moving troops blinked and their track's dash restarted each second. Now each move keeps its
+  // marker and track; the marker slides (setLatLng) and only the ⏱ text changes. Rebuilt only when what it shows changes.
+  const MV62=new Map();
   window.drawMoves=function(){
     if(typeof map==='undefined')return;
     if(!G.layers.mv23)G.layers.mv23=L.layerGroup().addTo(map);
-    const g=G.layers.mv23;g.clearLayers();
-    const list=window.moves();
+    const g=G.layers.mv23;
+    const list=window.moves(),seen=new Set();
     for(const m of list){
+      const t0=m._pipe?'escort':m.kind==='back'?'return':'reinforce',key=m.kind+'|'+m.to+'|'+(m._pipe?'p':'s');
+      const route0=m._pipe?(((pipeGuards25()[m.to]||{}).route)||[]).join(','):JSON.stringify([m.a,m.b]);
+      const sig=t0+'|'+m.n+'|'+route0,pos=m._pipe&&m._pipePos?m._pipePos:[m.a[0]+(m.b[0]-m.a[0])*m.f,m.a[1]+(m.b[1]-m.a[1])*m.f];
+      const old=MV62.get(key);
+      if(old&&old.sig===sig&&g.hasLayer(old.mk)){seen.add(key);old.mk.setLatLng(pos);
+        const el=old.mk.getElement&&old.mk.getElement(),mt=el&&el.querySelector('.mt'),eta=typeof mticon==='function'?mticon(m.eta):'';
+        if(mt){const tx=eta?'⏱ '+eta:'';if(mt.textContent!==tx)mt.textContent=tx;}continue;}
+      if(old){old.parts.forEach(l=>g.removeLayer(l));MV62.delete(key);}
+      const before=new Set(g.getLayers());
       if(m._pipe&&m._pipePos){
         // Draw the pipe as the track and put the troop marker at progress along it
         const pg=pipeGuards25()[m.to];const route=(pg&&pg.route)||[];
@@ -285,7 +298,8 @@ try{
           L.polyline(ll,{color:'#120d08',weight:10,opacity:.4,interactive:false,lineCap:'round'}).addTo(g);
           L.polyline(ll,{color:'#6ab8ff',weight:5,dashArray:'12 9',interactive:false,className:'mtrack',lineCap:'round'}).addTo(g);
           const html=typeof mk24==='function'?mk24({type:'escort',uid:P.uid,troops:m.n,eta:typeof mticon==='function'?mticon(m.eta):''}):`<div class="mv23">🚚 🪖${m.n}</div>`;
-          L.marker(m._pipePos,{icon:L.divIcon({className:'lodm mkw24',html:html,iconSize:[0,0]}),interactive:false,zIndexOffset:950}).addTo(g);
+          const mk=L.marker(m._pipePos,{icon:L.divIcon({className:'lodm mkw24',html:html,iconSize:[0,0]}),interactive:false,zIndexOffset:950}).addTo(g);
+          MV62.set(key,{sig,mk,parts:g.getLayers().filter(l=>!before.has(l))});seen.add(key);
           continue;
         }
       }
@@ -295,8 +309,12 @@ try{
       L.polyline([m.a,m.b],{color:'#120d08',weight:10,opacity:.55,interactive:false,lineCap:'round'}).addTo(g);
       L.polyline([m.a,m.b],{color:c,weight:5,dashArray:t==='return'?'4 8':'12 9',interactive:false,className:'mtrack',lineCap:'round'}).addTo(g);
       const html=typeof mk24==='function'?mk24({type:t,uid:P.uid,troops:m.n,eta:typeof mticon==='function'?mticon(m.eta):''}):`<div class="mv23">🪖${m.n}</div>`;
-      L.marker(p,{icon:L.divIcon({className:'lodm mkw24',html:html,iconSize:[0,0]}),interactive:false,zIndexOffset:950}).addTo(g);
+      const mk=L.marker(p,{icon:L.divIcon({className:'lodm mkw24',html:html,iconSize:[0,0]}),interactive:false,zIndexOffset:950}).addTo(g);
+      MV62.set(key,{sig,mk,parts:g.getLayers().filter(l=>!before.has(l))});seen.add(key);
     }
+    for(const [k,o] of MV62)if(!seen.has(k)){o.parts.forEach(l=>g.removeLayer(l));MV62.delete(k);}
+    // anything else in the layer (e.g. drawn by an older drawMoves) is dropped
+    const own=new Set();for(const o of MV62.values())o.parts.forEach(l=>own.add(l));g.eachLayer(l=>{if(!own.has(l))g.removeLayer(l);});
   };
 }catch(e){console.warn('moves26g',e);}
 

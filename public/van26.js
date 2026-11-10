@@ -82,7 +82,7 @@
     window.drawPipes=drawPipes;
     // Keep the number stuck to the truck, and drop it within a second of a recall,
     // a death, or the other device publishing a new guard count. Does not redraw the whole pipe layer.
-    setInterval(function(){try{if(document.visibilityState==='visible')paintVans();}catch(e){}},1000);
+    setInterval(function(){try{if(document.visibilityState==='visible')slideTrucks62();}catch(e){}},1000); // R6.3: truck + count slide together
   }
   function members(){
     const out=[];
@@ -92,8 +92,8 @@
   function paintVans(){
     if(typeof map==='undefined'||!P||!P.world)return;
     if(!G.layers.van26)G.layers.van26=L.layerGroup().addTo(map);
-    const g=G.layers.van26;g.clearLayers();
-    if(map.getZoom()<12)return;
+    const g=G.layers.van26;
+    if(map.getZoom()<12){g.clearLayers();VANS62.clear();return;}
     // Drop the old in-layer pill so it cannot cover the truck or double the number.
     try{if(G.layers.pipes)G.layers.pipes.eachLayer(function(l){
       const el=l.getElement&&l.getElement();
@@ -101,7 +101,7 @@
     });}catch(e){}
     const list=typeof crewPipes==='function'?crewPipes():(typeof pipes==='function'?pipes():[]);
     const stMap=typeof window.stationed==='function'?window.stationed():((P.troops&&P.troops.stationed)||{});
-    const hide=escortHexes(list);
+    const hide=escortHexes(list),seen=new Set();
     for(const p of list){
       if(!p||!p.route||p.route.length<2)continue;
       let online=false;
@@ -118,13 +118,34 @@
       const pos=[a[0]+(b[0]-a[0])*at.t,a[1]+(b[1]-a[1])*at.t];
       const lab=typeof kf24==='function'?kf24(c.n):c.n.toLocaleString();
       const html='<div class="vanstack26" data-pipe="'+String(p.id).replace(/"/g,'')+'"><b class="vannum26"><u>🚚</u>'+lab+'</b></div>';
-      L.marker(pos,{icon:L.divIcon({className:'lodm',html:html,iconSize:[78,56],iconAnchor:[39,52]}),interactive:true,keyboard:false,zIndexOffset:780})
+      seen.add(p.id);
+      const old=VANS62.get(p.id); // R6.3: same marker every tick: slide it, swap the number only when it changes
+      if(old&&g.hasLayer(old.mk)){old.mk.setLatLng(pos);if(old.html!==html){const el=old.mk.getElement&&old.mk.getElement();if(el)el.innerHTML=html;old.html=html;}
+        if(p.guard25&&p.guard25.hex)hide[p.guard25.hex]=p.id;continue;}
+      const mk=L.marker(pos,{icon:L.divIcon({className:'lodm',html:html,iconSize:[78,56],iconAnchor:[39,52]}),interactive:true,keyboard:false,zIndexOffset:780})
         .on('click',(function(pid){return function(ev){try{if(ev&&ev.originalEvent&&L.DomEvent)L.DomEvent.stopPropagation(ev.originalEvent);if(typeof pipeVanCard26==='function')pipeVanCard26(pid);else if(typeof pipeCard==='function'){const pp=(typeof pipes==='function'?pipes():[]).find(function(x){return x.id===pid;});pp&&pipeCard(pp);}}catch(e){}};}(p.id)))
         .addTo(g);
+      VANS62.set(p.id,{mk:mk,html:html});
       if(p.guard25&&p.guard25.hex)hide[p.guard25.hex]=p.id;
     }
+    for(const [id,o] of VANS62)if(!seen.has(id)){g.removeLayer(o.mk);VANS62.delete(id);}
+    g.eachLayer(function(l){let mine=false;for(const o of VANS62.values())if(o.mk===l)mine=true;if(!mine)g.removeLayer(l);});
     window._vanHide26=hide;
   }
+  const VANS62=new Map();
+  // R6.3: slide every pipeline truck to where it is now, without rebuilding the pipe layer (the timers used to call drawPipes)
+  function slideTrucks62(){
+    try{if(typeof map==='undefined'||!P||!P.world||!G.layers.pipes)return;
+      const byId={};for(const p of (typeof crewPipes==='function'?crewPipes():[]))if(p&&p.route&&p.route.length>=2)byId[p.id]=p;
+      const u=truckU(Date.now(),(typeof PIPE!=='undefined'&&PIPE.truckH)||2);let missing=false;
+      G.layers.pipes.eachLayer(function(l){const id=l.options&&l.options.truck62;if(id==null)return;const p=byId[id];if(!p){missing=true;return;}
+        const ll=p.route.map(function(h){return hexCenter.apply(null,idQR(h));});const at=alongIndex(ll.length-1,u),a=ll[at.i],b=ll[at.i+1]||a;
+        l.setLatLng([a[0]+(b[0]-a[0])*at.t,a[1]+(b[1]-a[1])*at.t]);});
+      if(missing){drawPipes();return;}
+      paintVans();
+    }catch(e){console.warn('slideTrucks62',e);}
+  }
+  window.slideTrucks62=slideTrucks62;
   window.paintVans26=paintVans;
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);
   else setTimeout(boot,0);

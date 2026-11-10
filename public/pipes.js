@@ -54,11 +54,11 @@ function drawPipes(){if(typeof map==='undefined'||!P.world)return;if(!G.layers.p
     L.polyline(ll,{color:'#16120d',weight:1.5,opacity:.8*dim,interactive:false}).addTo(g);
     p.route.forEach((h,i)=>{if(gi[h])L.circleMarker(hexCenter(...idQR(h)),{radius:7,color:'#ff3b2f',weight:3,fillColor:'#2a0d08',fillOpacity:1,interactive:false}).addTo(g);});
     if(live){const f=(Date.now()/(PIPE.truckH*3600e3))%2,u=f<=1?f:2-f,k=u*(ll.length-1),i=Math.min(ll.length-2,Math.floor(k)),t=k-i,pos=[ll[i][0]+(ll[i+1][0]-ll[i][0])*t,ll[i][1]+(ll[i+1][1]-ll[i][1])*t];
-      L.marker(pos,{icon:L.divIcon({className:'lodm',html:'<div class="pipetruck">🚚</div>',iconSize:[0,0]}),interactive:false,zIndexOffset:500}).addTo(g);}
+      L.marker(pos,{icon:L.divIcon({className:'lodm',html:'<div class="pipetruck">🚚</div>',iconSize:[0,0]}),interactive:false,zIndexOffset:500,truck62:p.id}).addTo(g);}
     const end=ll[ll.length-1],tag=p.st==='pin'?'📍 Drive here':p.st==='cut'?'✂️ CUT':p.st==='dark'?'🕯️ dark':`+${PIPE.perHour[p.res]}${RES[p.res]}/hr`;
     L.marker(end,{icon:L.divIcon({className:'lodm',html:`<div class="pipetag ${p.st}" style="--pc:${col}">${p.own?'':m2esc(p.owner)+' · '}${tag}</div>`,iconSize:[0,0]}),zIndexOffset:640}).on('click',()=>pipeCard(p)).addTo(g);}}
 HOOK.draw(function(){try{drawPipes();}catch(e){console.warn('pipes',e);}});
-setInterval(()=>{try{if(document.visibilityState==='visible'&&pipes().some(p=>pipeState(p)==='online'))drawPipes();}catch(e){}},30e3);
+setInterval(()=>{try{if(document.visibilityState==='visible'&&pipes().some(p=>pipeState(p)==='online')){if(typeof slideTrucks62==='function')slideTrucks62();else drawPipes();}}catch(e){}},30e3); // R6.3: slide the truck, don't rebuild the line
 function pipeCard(p){const st=p.st||pipeState(p),line={pin:`Waiting for a drive · ${p._dist?Math.round(p._dist)+' m away · ':''}pin expires in ${fmtDur(Math.max(0,(p.pinExp||0)-Date.now())).replace(/ \d+s$/,'')}`,online:`Online · +${PIPE.perHour[p.res]}${RES[p.res]}/hr · ${p.total||0} delivered so far`,cut:'✂️ CUT: the horde holds a hex on the route. Retake it to restore the flow.',dark:'🕯️ Dark until the next reset (upkeep unpaid)',expired:'Pin expired'}[st]||st;
   UI.info({title:`⛓️ ${p.name}`,sub:`${p.own===false?p.owner+"'s pipeline · ":''}${RES[p.res]} ${p.res} · ${p.route.length} hexes`,body:`<p>${line}</p>`,
     buttons:[['🗺️ Show',()=>{UI.closeModal();map.setView(hexCenter(...idQR(p.route[p.route.length-1])),15);}],...(p.own!==false?[['🗑️ Remove',()=>UI.ask('Remove pipeline',`Remove the ${p.name} pipeline? The build cost is not refunded.`,'Remove').then(ok=>{if(ok){removePipe(p.id);UI.closeModal();}})]]:[]),['Close',()=>UI.closeModal()]]});}
