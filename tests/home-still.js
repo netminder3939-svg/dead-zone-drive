@@ -21,7 +21,7 @@ function fixAt(lat, lng, acc) {
   const seed = JSON.stringify({ name: 'Diag', lvl: 1, far25: { on: true, anchor: null, since: 1 }, stats: { kills: 0, meters: 50 }, res: { scrap: 3, food: 0, water: 0, fuel: 0, parts: 0 } });
   await c.addInitScript(s => { if (!sessionStorage.getItem('dzdSeed')) { localStorage.setItem('wl_p', s); sessionStorage.setItem('dzdSeed', '1'); } }, seed);
   await c.addInitScript(() => localStorage.setItem('wl_team', 'rathdrum-crew'));
-  await p.goto('http://127.0.0.1:8767/?local', { waitUntil: 'load' });
+  await p.goto((process.argv[2]||'http://127.0.0.1:8767/')+'?local', { waitUntil: 'load' });
   await p.waitForFunction(() => /GPS ±|Weak GPS|Dev position|Location blocked/.test((document.getElementById('gpschip') || {}).textContent || ''), null, { timeout: 20000 });
   await p.waitForFunction(() => !(P.far25 && P.far25.on), null, { timeout: 8000 }).catch(() => {});
   const boot = await p.evaluate(() => ({
@@ -34,7 +34,7 @@ function fixAt(lat, lng, acc) {
   }));
   ok('a saved far25 flag does not leave a stuck banner', !boot.far && !boot.banner, boot);
   ok('retiring that flag adds no walked distance', boot.meters === 50, boot);
-  ok('visible build label is 12i-integrated-6-r4', boot.build === '12i-integrated-6-r4', boot);
+  ok('visible build label is 12i-integrated-6-r4-1', boot.build === '12i-integrated-6-r4-1', boot);
 
   const still = await p.evaluate(() => {
     const lat = 47.8135, lng = -116.8968;
