@@ -11,7 +11,7 @@ const FLAVOR={
   over:'🔥 One fire, many hands. Nobody walks the dark alone.',
   members:'🫂 Every name here has bled for this ground.',
   board:'🏆 Scratched on the wall so nobody forgets who carried the crew.',
-  bank:'🏦 The crew\'s hoard. Take what you need, and leave a mark when you do.',
+  bank:'🏦 The crew\'s Vault. Take what you need, and leave a mark when you do.',
   act:'📯 Word travels fast around the fire.',
   res:'🎒 What you dragged back from the ruins, and what it cost you.',
   items:'🧪 Odd things that still work, mostly.',

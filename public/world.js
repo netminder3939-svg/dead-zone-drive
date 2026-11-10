@@ -96,7 +96,7 @@ async function payReset(label){const g=grossIncome(),share={},mine={};let tot=0,
   // tower upkeep: if you can't pay, the tower goes offline (won't defend) until next reset
   Object.entries(W().towers).forEach(([id,t])=>{if(t.state==='down')return;if(canPay(BAL.tower.upkeep)){pay(BAL.tower.upkeep);t.online=true;}else{t.online=false;report(`🗼 Tower ${id} went offline: not enough upkeep`,false);}});
   if(stot>0){try{await NET.bankMulti(P.uid,P.name,share,'auto-share');}catch(e){}}
-  report(`🌅 Daily reset: +${tot-stot} resources to you, ${stot} auto-shared to the alliance bank`,true);save();
+  report(`🌅 Daily reset: +${tot-stot} resources to you, ${stot} auto-shared to the Alliance Vault`,true);save();
   toast(`🌅 Daily income collected (${stot} auto-shared)`);}
 
 // ---------- structures ----------

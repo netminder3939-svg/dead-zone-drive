@@ -1,0 +1,421 @@
+diff --git a/public/bal14.js b/public/bal14.js
+index 140831e..2030663 100644
+--- a/public/bal14.js
++++ b/public/bal14.js
+@@ -39,5 +39,5 @@
+   bankOf=function(f){try{const s=scale14();HE.capBase=BASE14.cap*s;HE.convPerH=BASE14.conv*s;HE.resPerH=BASE14.res*s;}catch(e){}return _bank14.apply(this,arguments);};
+   window.bankOf=bankOf;
+   // Visible label for this combined build. The service worker cache is ddd-v26-12h-integrated, not Claude's ddd-v26-12h.
+-  try{document.documentElement.dataset.build='12i-integrated-6-r5';const who=document.querySelector('#hud .who');if(who&&!document.getElementById('build14')){const el=document.createElement('span');el.id='build14';el.textContent='12i-integrated-6-r5';el.title='Build 12i-integrated-6';el.style.cssText='display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#2a241c;color:#e7d7c1;font:600 10px system-ui;letter-spacing:.02em;vertical-align:middle';who.appendChild(el);}}catch(e){}
++  try{document.documentElement.dataset.build='12i-integrated-6-r6';const who=document.querySelector('#hud .who');if(who&&!document.getElementById('build14')){const el=document.createElement('span');el.id='build14';el.textContent='12i-integrated-6-r6';el.title='Build 12i-integrated-6';el.style.cssText='display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#2a241c;color:#e7d7c1;font:600 10px system-ui;letter-spacing:.02em;vertical-align:middle';who.appendChild(el);}}catch(e){}
+ })();
+diff --git a/public/base15.js b/public/base15.js
+index b9421cd..21b6f6e 100644
+--- a/public/base15.js
++++ b/public/base15.js
+@@ -82,7 +82,7 @@
+   window.troopTick=troopTick;
+ 
+   // ---------- portal ----------
+-  function portalMs15(a,b){const km=kmBetween(a,b);const min=B15.portalBaseMin+B15.portalPer100kmMin*km/100;return Math.round(Math.min(B15.portalCapH*60,min)*60e3);}
++  function portalMs15(a,b){const km=kmBetween(a,b);const min=B15.portalBaseMin+B15.portalPer100kmMin*km/100;return Math.round(Math.min(B15.portalCapH*60,min)*60e3*(1-(window.hqPortalCut6?hqPortalCut6():0)));} // R6: the HQ cuts portal time
+   window.portalMs15=portalMs15;
+   function portalList15(){const t=TP();t.portal15=t.portal15||[];return t.portal15;}
+   function portal15(from,to,n){from=from==='sh'?shHex15():from;to=to==='sh'?shHex15():to;
+@@ -164,7 +164,7 @@
+     if(h){const d=s?kmBetween(h.hex,s):null;x+=`<div class="row"><div class="grow"><b>${esc15(h.name)}</b><small>${hexName(h.hex)} · set by ${esc15(h.byName||'the leader')}${d!=null?` · your Stronghold is ${fmtMi(d)} away`:''}</small></div><button onclick="jumpHq15()">🧭 Jump</button></div>`;
+       if(!s||d>B15.hqMi*MI/1000)x+=`<div class="row"><div class="grow"><b>Play next to the crew</b><small>Build your Stronghold within ${B15.hqMi} mi of the HQ. ${s?'Your current spot becomes your 🏡 Home Outpost so driving, pipelines and resources keep working there.':''}</small></div><button class="red24" onclick="jumpHq15();setTimeout(()=>pick15('sh'),300)">🏰 Pick a spot</button></div>`;}
+     else x+=`<p class="tiny">No HQ yet.${isOfficer15()?'':' The leader or an officer places it.'}</p>`;
+-    if(isOfficer15())x+=`<div class="btns24"><button onclick="pick15('hq')">🏛️ ${h?'Move':'Place'} HQ (tap the map)</button></div>`;
++    if(isOfficer15()&&!(G.hq15&&G.hq15.bld&&G.hq15.bld.built))x+=`<div class="btns24"><button onclick="pick15('hq')">🏛️ ${h?'Move':'Place'} HQ (tap the map)</button></div>`;
+     const lu=leaderUid15(),lm=M[lu]||{};if(rk==='officer'&&lu&&Date.now()-(lm.lastActive||0)>=14*864e5)x+=`<button class="ghost24" onclick="takeOver15()">👑 Take over (leader inactive 14+ days)</button>`;
+     // ranks
+     const rows=Object.entries(M).sort((a,c)=>({leader:0,officer:1,member:2}[rankOf15(a[0])]-{leader:0,officer:1,member:2}[rankOf15(c[0])]));
+diff --git a/public/game.js b/public/game.js
+index c4e0de6..c766e2d 100644
+--- a/public/game.js
++++ b/public/game.js
+@@ -196,5 +196,5 @@ function allianceLog(text){try{if(typeof NET==='undefined')return;NET.activity&&
+ async function bankTx(res,amt){amt=Math.floor(Math.abs(amt));if(!amt)return;
+   const dep=G.bankMode!=='withdraw';if(dep&&(P.res[res]||0)<amt)return toast('You only have '+(P.res[res]||0)+' '+RES[res]);
+   try{const bal=await NET.bankTx(P.uid,P.name,res,dep?amt:-amt);
+-    P.res[res]+=dep?-amt:amt;P.contrib[dep?'deposited':'withdrawn']+=amt;save();pushMember();toast(`${dep?'Deposited':'Withdrew'} ${amt} ${RES[res]} · bank now ${bal}`);}
+-  catch(e){toast(e.message||'Bank error');}UI.hud();UI.render();}
++    P.res[res]+=dep?-amt:amt;P.contrib[dep?'deposited':'withdrawn']+=amt;save();pushMember();toast(`${dep?'Deposited':'Withdrew'} ${amt} ${RES[res]} · Vault now ${bal}`);}
++  catch(e){toast(e.message||'Vault error');}UI.hud();UI.render();}
+diff --git a/public/hq6.js b/public/hq6.js
+new file mode 100644
+index 0000000..d1c2177
+--- /dev/null
++++ b/public/hq6.js
+@@ -0,0 +1,134 @@
++// hq6 (R6) The Alliance HQ becomes a real building, the bank becomes the Alliance Vault, and officers are capped at 2.
++//  HQ: one per alliance, built by the leader or an officer from the Vault on the HQ spot (12i marker). It protects
++//  2 rings at Lv1, 3 at Lv5, 4 at Lv10, and its area counts in the spacing rule like any building. It defends with its own
++//  wall and fire (the Stronghold's 12h numbers at the HQ's level) plus any troops members station on its hex.
++//  Upgrades (leader/officers, from the Vault, take time) add wall HP and fire, cut portal time 5% a level (up to 25%)
++//  and raise the Vault's capacity.
++//  If the Horde takes the HQ hex: the HQ stops defending, the Vault locks for 24 h, the Horde takes 10% of every
++//  resource in it (that clan banks it), and the HQ must be repaired for 40% of its build cost. Nobody's own resources
++//  or troops are touched. The fall is recorded in the shared Horde record, so every phone agrees; the first leader or
++//  officer phone online applies the Vault loss and lock in one transaction (the security rules enforce the lock).
++//  Vault: the "Hoard" is now the Alliance Vault. Capacity per resource = 5,000 + 3,000 per HQ level. A full Vault
++//  refuses new deposits but never removes anything already in it.
++(function(){
++  const HQ6={cost:{scrap:1500,food:300,water:300,fuel:200,parts:150},upMult:1.5,upHPerLvl:2,maxLvl:10,portalCut:.05,portalCutMax:.25,
++    vaultBase:5000,vaultPerLvl:3000,lockH:24,takePct:.10,repairPct:.40,officers:2};
++  window.HQ6=HQ6;
++  const now=()=>Date.now();
++  const H=()=>G.hq15||{};const bld=()=>H().bld||null;const hex6=()=>(H().hq&&H().hq.hex)||null;
++  function lvl6(){const b=bld();if(!b||!b.built)return 0;return Math.min(HQ6.maxLvl,(b.lvl||1)+(b.upEnd&&now()>=b.upEnd?1:0));}
++  function rings6(L){L=L||lvl6();return L>=10?4:L>=5?3:2;}
++  function fall6(){try{const f=FX().hqFall5;const b=bld();if(!f||!b||!b.built)return null;if(f.hex!==hex6())return null;if((b.repT||0)>f.t)return null;return f;}catch(e){return null;}}
++  function up6(){const b=bld();return !!(b&&b.built)&&!fall6();}
++  function lockUntil6(){const b=bld()||{},f=fall6();return Math.max(b.lockUntil||0,f?f.t+HQ6.lockH*3600e3:0);}
++  const locked6=()=>lockUntil6()>now();
++  function vaultCap6(){return HQ6.vaultBase+HQ6.vaultPerLvl*lvl6();}
++  function upCost6(L){const m=Math.pow(HQ6.upMult,L),o={};for(const k in HQ6.cost)o[k]=Math.round(HQ6.cost[k]*m);return o;}
++  function repairCost6(){const o={};for(const k in HQ6.cost)o[k]=Math.round(HQ6.cost[k]*HQ6.repairPct*Math.pow(HQ6.upMult,Math.max(0,lvl6()-1)));return o;}
++  Object.assign(window,{hqLvl6:lvl6,hqRings6:rings6,hqFall6:fall6,hqUp6:up6,vaultLocked6:locked6,vaultLockUntil6:lockUntil6,vaultCap6,hqUpCost6:upCost6,hqRepairCost6:repairCost6});
++  window.hqPortalCut6=()=>up6()?Math.min(HQ6.portalCutMax,HQ6.portalCut*lvl6()):0;
++  // ---------- the HQ as a building in fights (the Stronghold's numbers at the HQ's level)
++  C26.bld.hq={...C26.bld.sh};
++  const _in=innate26;innate26=function(b){if(b&&b.kind==='hq'){const s=(window.SH26D||{hp:3500,hpPerLvl:.4});return Math.round(s.hp*(1+s.hpPerLvl*(Math.max(1,b.lvl||1)-1)));}return _in.apply(this,arguments);};window.innate26=innate26;
++  const hqPower6=()=>{try{return BAL.stronghold.basePower+lvl6()*BAL.stronghold.powerPerLevel*1.5;}catch(e){return 200;}};
++  const _df=defendersFor;defendersFor=function(id){const out=_df.apply(this,arguments);try{const h=hex6();if(h&&up6()&&hexDist(h,id)<=rings6())out.push({kind:'hq',id:h,power:hqPower6()});}catch(e){}return out;};window.defendersFor=defendersFor;
++  const _so=structOf;structOf=function(d){if(d&&d.kind==='hq')return up6()?{state:'up',hpPct:1,level:lvl6()}:{state:'down'};return _so.apply(this,arguments);};window.structOf=structOf;
++  const _b26=bld26;bld26=function(defs){const h=(defs||[]).find(d=>d.kind==='hq');if(h&&up6())return{kind:'hq',lvl:lvl6(),pct:1};return _b26.apply(this,arguments);};window.bld26=bld26;
++  // the HQ never "falls" from a lost garrison fight (only from the Horde taking its hex), so destroy() leaves it alone
++  const _ds=destroy;destroy=function(d){if(d&&d.kind==='hq')return;return _ds.apply(this,arguments);};window.destroy=destroy;
++  // troops stationed on the HQ hex (yours and teammates') fight with it, like a Stronghold's garrison
++  const _sd=defSides25;defSides25=function(defs){const s=_sd.apply(this,arguments);try{const d=(defs||[]).find(x=>x.kind==='hq');if(d&&s&&Array.isArray(s.guards)){const seen=new Set(s.guards.map(g=>g.key)),T=()=>TROOP.powerPer;
++      const add=g=>{if(!seen.has(g.key)&&g.pow>0){seen.add(g.key);s.guards.push(g);}};const k=stationedAt(d.id);if(k>0)add({key:'me:'+d.id,uid:P.uid,hex:d.id,n:k,pow:k*T()});
++      for(const g of allyGarAt(d.id))add({key:'al:'+g.uid+':'+g.hex,uid:g.uid,hex:g.hex,n:g.n,pow:g.power||g.n*T()});}}catch(e){}return s;};window.defSides25=defSides25;
++  // ---------- the HQ area counts in the spacing rule (space4.others4 lists it with a 2-ring footprint; protection can grow past that)
++  function hqSpaceWhy6(h){const need=(o,r)=>2+r+(o?S4.enemyGap:S4.allyGap);
++    for(const o of others4()){if(o.k==='ahq')continue;if(hexDist(h,o.hex)<need(o.enemy,o.r))return o.enemy?`Too close to ${o.who}'s base.`:`Too close to ${o.who}'s ${o.k==='sh'?'Stronghold':o.k==='tower'?'tower':'outpost'} area.`;}
++    try{for(const d of ownDefStructs())if(d&&d.hex&&hexDist(h,d.hex)<need(false,+d.r||0))return'Too close to your own building area.';}catch(e){}return null;}
++  window.hqSpaceWhy6=hqSpaceWhy6;
++  // ---------- the Horde takes the HQ hex: recorded in the shared Horde record
++  const _hs=hordeStep;hordeStep=function(k,ev){const r=_hs.apply(this,arguments);try{const h=hex6(),b=bld();if(h&&b&&b.built&&!fall6()){const fx=FX(),t=k*HB().stepMin*60e3;
++      for(const [fid,f] of Object.entries(fx.f||{}))if(f&&f.tiles&&f.tiles[h]&&f.tiles[h]>(b.repT||b.t||0)){fx.hqFall5={hex:h,t:Math.max(t,f.tiles[h]),fid,id:h+':'+f.tiles[h]};fxDirty();
++        const nm=((typeof fdef==='function'&&fdef(String(fid).split('~')[0]))||{}).name||'Horde';try{allianceLog(`🏛️🔥 The ${nm} took the alliance HQ. The Vault is locked for ${HQ6.lockH} h.`);}catch(e){}break;}}}catch(e){console.warn('hq6 step',e);}return r;};window.hordeStep=hordeStep;
++  // the first leader/officer phone online applies the Vault loss and the lock (once per fall)
++  let applying=false;
++  async function applyFall6(){const f=fall6();if(!f||applying||!isOfficer15())return;if(NET.mode==='firebase'&&!NET.uid)return;applying=true;
++    try{const fs=NET.fs;if(NET.mode!=='firebase'){const a=NET._al();if(a.fall5===f.id)return;const take={};for(const k in a.bank){take[k]=Math.floor((a.bank[k]||0)*HQ6.takePct);a.bank[k]-=take[k];}a.fall5=f.id;NET._alSave();bankHorde(f,take);return;}
++      const aRef=fs.doc(NET.db,...NET.base,'meta','alliance'),hRef=fs.doc(NET.db,...NET.base,'meta','hq');let take=null;
++      await fs.runTransaction(NET.db,async tx=>{const a=await tx.get(aRef),hd=await tx.get(hRef);const ad=a.exists()?a.data():{};if(ad.fall5===f.id){take=null;return;}
++        const bank={...(ad.bank||{})};take={};for(const k of Object.keys(bank)){take[k]=Math.floor((bank[k]||0)*HQ6.takePct);bank[k]-=take[k];}
++        tx.set(aRef,{bank,fall5:f.id},{merge:true});const cur=hd.exists()?hd.data():{};tx.set(hRef,{...cur,bld:{...(cur.bld||{}),lockUntil:f.t+HQ6.lockH*3600e3,fallT:f.t}});});
++      if(take)bankHorde(f,take);}
++    catch(e){console.warn('hq6 fall',e);}finally{applying=false;}}
++  function bankHorde(f,take){try{const c=FX().f[f.fid];if(c){const b=bankOf(c);b.res+=Object.values(take).reduce((a,b)=>a+b,0);fxDirty();publishHorde();}
++      const n=Object.entries(take).filter(([,v])=>v>0).map(([k,v])=>`${v} ${RES[k]}`).join(' ');if(n)allianceLog(`🏛️ The Horde carried off 10% of the Vault: ${n}`);}catch(e){}}
++  window.applyFall6=applyFall6;setInterval(()=>{try{applyFall6();}catch(e){}},5000);
++  // ---------- build, upgrade, repair (leader/officers, paid from the Vault in one transaction)
++  async function vaultTx6(cost,mut,label){if(!isOfficer15())return toast('🚫 Only the leader or officers can do that');if(locked6())return toast(`🔒 The Vault is locked for ${fmtDur(lockUntil6()-now())}`);
++    const short=k=>`The Vault needs ${cost[k]} ${RES[k]}`;
++    try{if(NET.mode!=='firebase'){const a=NET._al();for(const k in cost)if((a.bank[k]||0)<cost[k])throw new Error(short(k));for(const k in cost)a.bank[k]-=cost[k];NET._alSave();await hqTx15(cur=>{if(!cur)throw new Error('Claim leadership first');return mut(cur);});}
++      else{const fs=NET.fs,aRef=fs.doc(NET.db,...NET.base,'meta','alliance'),hRef=fs.doc(NET.db,...NET.base,'meta','hq');
++        await fs.runTransaction(NET.db,async tx=>{const a=await tx.get(aRef),hd=await tx.get(hRef);if(!hd.exists())throw new Error('Claim leadership first');const bank={...((a.exists()&&a.data().bank)||{})};
++          for(const k in cost)if((bank[k]||0)<cost[k])throw new Error(short(k));for(const k in cost)bank[k]-=cost[k];tx.set(aRef,{bank},{merge:true});tx.set(hRef,mut(JSON.parse(JSON.stringify(hd.data()))));});}
++      toast(label);try{allianceLog(`🏛️ ${P.name}: ${label.replace(/^\S+ /,'')}`);UI.render();drawHq15&&drawHq15();}catch(e){}}
++    catch(e){toast('🚫 '+((e&&e.message)||e));}}
++  window.buildHq6=function(){const h=hex6();if(!h)return toast('🚫 Place the HQ spot first (HQ › Place HQ)');if(bld()&&bld().built)return toast('The HQ is already built');
++    const why=hqSpaceWhy6(h);if(why)return toast('🚫 '+why+' Move the HQ spot first.');
++    if(typeof factionAt==='function'&&factionAt(h))return toast('🚫 Raiders hold that hex');
++    return vaultTx6(HQ6.cost,cur=>({...cur,bld:{built:true,lvl:1,t:now(),by:P.uid}}),'🏛️ HQ built').then(()=>{try{if(!P.tiles[h]&&!(G.terr[h]&&G.terr[h].uid&&!G.terr[h].ai))claimTile(h);}catch(e){}});};
++  window.upgradeHq6=function(){const b=bld();if(!b||!b.built)return toast('Build the HQ first');if(fall6())return toast('Repair the HQ first');if(b.upEnd&&now()<b.upEnd)return toast(`Already upgrading: ${fmtDur(b.upEnd-now())}`);
++    const L=lvl6();if(L>=HQ6.maxLvl)return toast('The HQ is at max level');const c=upCost6(L);
++    return vaultTx6(c,cur=>{const cb=cur.bld||{};const base=Math.min(HQ6.maxLvl,(cb.lvl||1)+(cb.upEnd&&now()>=cb.upEnd?1:0));return{...cur,bld:{...cb,lvl:base,upEnd:now()+HQ6.upHPerLvl*base*3600e3}};},`🏛️ HQ upgrading to Lv${L+1}`);};
++  window.repairHq6=function(){const f=fall6();if(!f)return toast('The HQ is fine');if(typeof factionAt==='function'&&factionAt(hex6()))return toast('🚫 Take the HQ hex back from the Horde first');
++    return vaultTx6(repairCost6(),cur=>({...cur,bld:{...(cur.bld||{}),repT:now()}}),'🏛️ HQ repaired');};
++  // ---------- portal time is cut in base15.portalMs15 (reads hqPortalCut6)
++  // ---------- Vault: capacity, lock, name
++  const bal6=res=>{try{return NET.mode==='firebase'?((G.al&&G.al.bank||{})[res]||0):(NET._al().bank[res]||0);}catch(e){return 0;}};
++  const _btx=NET.bankTx.bind(NET);NET.bankTx=async function(uid,name,res,amt){
++    if(amt>0){const bal=bal6(res),cap=vaultCap6();if(bal+amt>cap){const room=Math.max(0,cap-bal);throw new Error(room?`The Vault holds ${cap.toLocaleString()} ${RES[res]}: only ${room.toLocaleString()} more fits. Upgrade the HQ for more room.`:`The Vault is full of ${RES[res]} (${cap.toLocaleString()}). Upgrade the HQ for more room.`);}}
++    else if(amt<0&&locked6())throw new Error(`🔒 The Vault is locked for ${fmtDur(lockUntil6()-now())} after the HQ fell`);
++    return _btx(uid,name,res,amt);};
++  // the daily 25% auto-share: what doesn't fit in a full Vault stays with the player
++  if(NET.bankMulti){const _bm=NET.bankMulti.bind(NET);NET.bankMulti=async function(uid,name,obj,kind){const cap=vaultCap6(),send={},back={};
++      for(const [k,v] of Object.entries(obj||{})){const room=Math.max(0,cap-bal6(k)),n=Math.min(v||0,room);send[k]=n;if((v||0)>n)back[k]=v-n;}
++      if(Object.keys(back).length){try{addRes(back);save();toast(`🏦 The Vault is full: ${Object.entries(back).map(([k,v])=>v+' '+RES[k]).join(' ')} stayed with you`);}catch(e){}}
++      if(Object.values(send).some(v=>v>0))return _bm(uid,name,send,kind);};}
++  // decideReq15 (approve) and collect15 wait while the Vault is locked (rank15.js)
++  // the HQ can't be moved once it is built (it's a building now)
++  try{const _sh=window.setHq15;window.setHq15=function(){if(bld()&&bld().built)return toast('🚫 The HQ is built here. It can\'t be moved.');return _sh.apply(this,arguments);};}catch(e){}
++  try{AT26.hoard.n='🏦 Vault';UI.SUBS.alliance=Object.entries(AT26).map(([k,v])=>[k,v.n]);}catch(e){}
++  // ---------- officers: at most 2 (rank15.setRank15 refuses a 3rd; the security rules cap roles at 3 entries)
++  // ---------- HQ tab: the building, the Vault, recent attacks
++  const n6=v=>Math.round(+v||0).toLocaleString();const cst=o=>Object.entries(o).filter(([,v])=>v>0).map(([k,v])=>`${n6(v)} ${RES[k]}`).join(' ');
++  function hqCard6(){const h=hex6(),b=bld(),L=lvl6(),off=isOfficer15(),f=fall6(),bank=(G.al&&G.al.bank)||{};let x=`<div class="hq6"><h3>🏛️ HQ building</h3>`;
++    if(!h)x+=`<p class="tiny">Place the HQ spot first, then build it here from the Vault.</p>`;
++    else if(!b||!b.built){x+=`<p>Not built yet. Cost from the Vault: <b>${cst(HQ6.cost)}</b>.</p><p class="tiny">Protects 2 rings around ${hexName(h)}, defends with its own wall and fire, cuts portal time and grows the Vault.</p>${off?`<div class="btns24"><button class="red24" onclick="buildHq6()">🏛️ Build the HQ</button></div>`:'<p class="tiny">The leader or an officer builds it.</p>'}`;}
++    else{const hp=innate26({kind:'hq',lvl:L}),fire=Math.round(C26.bld.hq.fire*(1+C26.lvlFire*(L-1))),walls=Math.round(100*Math.min(C26.maxWalls,C26.bld.hq.walls+C26.lvlWalls*(L-1)));
++      const gar=(()=>{try{return stationedAt(h)+((typeof allyGarAt==='function'?allyGarAt(h):[])||[]).reduce((a,g)=>a+((g.power||0)/((typeof basePower3==='function'?basePower3():TROOP.powerPer)||1)),0);}catch(e){return 0;}})();
++      x+=f?`<div class="row hq6f"><div class="grow"><b>🔥 Fallen</b><small>The Horde took the HQ hex. The Vault is locked${locked6()?' for '+fmtDur(lockUntil6()-now()):''}. Take the hex back, then repair once the lock ends: ${cst(repairCost6())}.</small></div>${off?'<button onclick="repairHq6()">🔧 Repair</button>':''}</div>`:'';
++      x+=`<div class="hg5"><div><b>Lv${L}</b><small>level</small></div><div><b>${n6(hp)}</b><small>wall HP</small></div><div><b>${n6(fire)}</b><small>fire a round</small></div><div><b>${walls}%</b><small>walls block</small></div><div><b>${rings6(L)} rings</b><small>protected</small></div><div><b>−${Math.round(100*window.hqPortalCut6())}%</b><small>portal time</small></div></div>`;
++      x+=`<div class="r24"><span>Troops stationed on the HQ</span><b>${n6(gar)}</b></div>`;
++      if(b.upEnd&&now()<b.upEnd)x+=`<div class="r24"><span>Upgrading to Lv${L+1}</span><b>${fmtDur(b.upEnd-now())}</b></div>`;
++      else if(L<HQ6.maxLvl&&!f){const nx=L+1;x+=`<div class="row"><div class="grow"><b>Next: Lv${nx}</b><small>${cst(upCost6(L))} from the Vault · ${HQ6.upHPerLvl*L} h · wall HP ${n6(innate26({kind:'hq',lvl:nx}))}, Vault +${n6(HQ6.vaultPerLvl)} each${rings6(nx)>rings6(L)?`, ${rings6(nx)} rings`:''}${HQ6.portalCut*nx<=HQ6.portalCutMax?`, portal −${Math.round(100*HQ6.portalCut*nx)}%`:''}</small></div>${off?'<button onclick="upgradeHq6()">⬆️ Upgrade</button>':''}</div>`;}}
++    x+=`<h3>🏦 Alliance Vault</h3><div class="hg5">${Object.keys(RES).map(k=>`<div><b>${n6(bank[k]||0)}</b><small>${RES[k]} / ${n6(vaultCap6())}</small></div>`).join('')}</div>`;
++    const pend=Object.values(G.bankReq15||{}).filter(r=>r.status==='pending').length;x+=`<div class="r24"><span>Pending requests</span><b>${pend}</b></div>${locked6()?`<div class="r24"><span>🔒 Locked</span><b>${fmtDur(lockUntil6()-now())}</b></div>`:''}<p class="tiny">A full Vault refuses new deposits; nothing already in it is ever removed. <a href="#" onclick="UI.sub.alliance='hoard';UI.render();return false">Open the Vault</a></p>`;
++    const rec=(P.fr25||[]).slice(0,5);x+=`<h3>⚔️ Recent attacks on alliance land</h3>${rec.map(r=>`<div class="r24"><span>${r.win?'🛡️ Held':'💀 Lost'} ${hexName(r.hex||'')}${r.ally?' (you helped)':''}</span><b>${when(r.t)}</b></div>`).join('')||'<p class="tiny">None yet.</p>'}`;
++    const M=(G.al&&G.al.members)||{};const rk=u=>(H().roles||{})[u]||'member';const rows=Object.entries(M).sort((a,c)=>({leader:0,officer:1,member:2}[rk(a[0])]-{leader:0,officer:1,member:2}[rk(c[0])]));
++    x+=`<h3>👥 Crew</h3>`+rows.map(([u,m])=>`<div class="r24"><span>${rk(u)==='leader'?'👑':rk(u)==='officer'?'⭐':'·'} ${esc15(isMe(u)?P.name+' (you)':m.name||'Teammate')}${(H().titles||{})[u]?' · '+esc15(H().titles[u]):''}</span><b>🪖 ${n6(isMe(u)?(window.myArmy14?myArmy14():0):m.p14||0)} · ${ago(isMe(u)?Date.now():m.lastActive)}</b></div>`).join('');
++    if(typeof myRank15==='function'&&myRank15()==='leader')x+=`<p class="tiny"><a href="#" onclick="UI.sub.alliance='horde5';UI.render();return false">☠️ Horde dashboard</a></p>`;
++    return x+`</div>`;}
++  window.hqCard6=hqCard6;
++  HOOK.render(function(){try{if(this.tab!=='alliance'||this.sub.alliance!=='hq')return;const b=$('#sheetBody');if(!b||b.querySelector('.hq6'))return;const sec=b.querySelector('.p-hq')||b;const h2=sec.querySelector('h2');
++      (h2||sec).insertAdjacentHTML(h2?'afterend':'afterbegin',hqCard6());}catch(e){console.warn('hq6 tab',e);}});
++  const _rr6=UI.render;UI.render=function(){const o=_rr6.apply(this,arguments);vcap6.call(UI);return o;};function vcap6(){try{if(this.tab!=='alliance'||this.sub.alliance!=='hoard')return;const b=$('#sheetBody');if(!b||b.querySelector('.vcap6'))return;const h2=[...b.querySelectorAll('h2')].find(x=>/Vault/.test(x.textContent));if(!h2)return;
++      h2.insertAdjacentHTML('afterend',`<p class="tiny vcap6">📦 Holds up to <b>${n6(vaultCap6())}</b> of each resource${lvl6()?` (HQ Lv${lvl6()})`:' (build the HQ for more room)'}. A full Vault refuses new deposits; nothing in it is ever removed.${locked6()?` <b>🔒 Locked for ${fmtDur(lockUntil6()-now())}</b>: the HQ fell.`:''}</p>`);}catch(e){}}
++  setInterval(()=>{try{if(UI.tab==='alliance'&&UI.sub.alliance==='hq'&&$('#modal').classList.contains('hidden')){const c=document.querySelector('.hq6');if(c){const t=document.createElement('div');t.innerHTML=hqCard6();c.replaceWith(t.firstElementChild);}}}catch(e){}},5000);
++  // ---------- map: the built HQ shows its level (or 🔥) and the rings it protects
++  const _dh=window.drawHq15;window.drawHq15=function(){const r=_dh.apply(this,arguments);try{const h=hex6(),b=bld();const g=G.layers&&G.layers.hq15;if(!g||!h||!b||!b.built)return r;
++      const [q,rr]=idQR(h),c=hexCenter(q,rr),e=hexRing(q,rr,rings6()).find(x=>hexDist(x.id,h)===rings6());const ec=hexCenter(...idQR(e.id));const rad=distM(c[0],c[1],ec[0],ec[1])+(typeof HEX_R==='number'?HEX_R*.8:60);
++      const f=fall6();L.circle(c,{radius:rad,color:f?'#ff3b2f':'#ffd24a',weight:2,opacity:.8,fillOpacity:.04,interactive:false}).addTo(g);
++      g.eachLayer(l=>{const el=l.getElement&&l.getElement();const bb=el&&el.querySelector('.hq15ico b');if(bb&&!bb.dataset.h6){bb.dataset.h6=1;bb.textContent+=f?' 🔥':` Lv${lvl6()}`;}});}catch(e){}return r;};
++  const st=document.createElement('style');
++  st.textContent=`.hq6{margin:6px 0 12px}.hq6 .hg5{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:6px 0}.hq6 .hg5 div{background:#1d1710;border-radius:8px;padding:6px;text-align:center}
++  .hq6 .hg5 b{display:block;font-size:14px}.hq6 .hg5 small{font-size:10px;opacity:.75}.hq6f{border-left:3px solid #ff3b2f}.hq6 a{color:#ffb84d}`;
++  document.head.appendChild(st);
++})();
+diff --git a/public/index.html b/public/index.html
+index 3a12bee..de52f4e 100644
+--- a/public/index.html
++++ b/public/index.html
+@@ -93,6 +93,7 @@
+ <script src="space4.js"></script>
+ <script src="map4.js"></script>
+ <script src="horde5.js"></script>
++<script src="hq6.js"></script>
+ <script src="card1.js"></script>
+ <script src="reports1.js"></script>
+ </body></html>
+diff --git a/public/net.js b/public/net.js
+index c523335..a449741 100644
+--- a/public/net.js
++++ b/public/net.js
+@@ -112,12 +112,12 @@ class LocalNet {
+   updateMember(m){this._al().members[this.uid||'me']={...m,lastActive:Date.now(),me:true};this._alSave();}
+   activity(text){this._al().act.unshift({text,t:Date.now()});this._alSave();}
+   async bankMulti(uid,name,obj,kind){const a=this._al();let tot=0;for(const [res,amt] of Object.entries(obj)){if(!amt)continue;a.bank[res]=(a.bank[res]||0)+amt;tot+=amt;a.log.unshift({member:name,uid,res,amt,bal:a.bank[res],kind,t:Date.now()});}
+-    a.act.unshift({text:`🌅 Daily reset: ${poss(name)} 25% auto-share sent ${tot} resources to the bank`,t:Date.now()});this._alSave();}
+-  async bankTx(uid,name,res,amt){const a=this._al(),bal=(a.bank[res]||0)+amt;if(bal<0)throw new Error('Bank only has '+(a.bank[res]||0));
++    a.act.unshift({text:`🌅 Daily reset: ${poss(name)} 25% auto-share sent ${tot} resources to the Vault`,t:Date.now()});this._alSave();}
++  async bankTx(uid,name,res,amt){const a=this._al(),bal=(a.bank[res]||0)+amt;if(bal<0)throw new Error('The Vault only has '+(a.bank[res]||0));
+     a.bank[res]=bal;a.log.unshift({member:name,uid,res,amt,bal,kind:amt>0?'deposit':'withdraw',t:Date.now()});a.act.unshift({text:`${name} ${amt>0?'deposited':'withdrew'} ${Math.abs(amt)} ${res}`,t:Date.now()});this._alSave();return bal;}
+   onExplored(f){(this.cbs.exp=this.cbs.exp||[]).push(f);f(JSON.parse(localStorage.getItem('wl_allyexp')||'[]'));}
+   // ----- Stage 2 (local demo): research, operations, cloud-save stand-in -----
+-  async research(uid,name,id,cost){const a=this._al();a.research=a.research||{};for(const [k,v] of Object.entries(cost))if((a.bank[k]||0)<v)throw new Error('Bank needs '+v+' '+k);
++  async research(uid,name,id,cost){const a=this._al();a.research=a.research||{};for(const [k,v] of Object.entries(cost))if((a.bank[k]||0)<v)throw new Error('The Vault needs '+v+' '+k);
+     for(const [k,v] of Object.entries(cost)){if(!v)continue;a.bank[k]-=v;a.log.unshift({member:name,uid,res:k,amt:-v,bal:a.bank[k],kind:'research',t:Date.now()});}
+     a.research[id]=(a.research[id]||0)+1;a.act.unshift({text:`🔬 ${name} funded research: ${id} → Lv${a.research[id]}`,t:Date.now()});this._alSave();return a.research[id];}
+   async opsAdd(week,inc){const a=this._al();a.ops=a.ops||{};const o=a.ops[week]=a.ops[week]||{};for(const k in inc)o[k]=(o[k]||0)+inc[k];this._alSave();}
+@@ -202,17 +202,17 @@ class FirebaseNet {
+     await fs.runTransaction(this.db,async tx=>{const d=await tx.get(ref);const bank={...((d.exists()&&d.data().bank)||{})};
+       for(const [res,amt] of Object.entries(obj)){if(!amt)continue;bank[res]=(bank[res]||0)+amt;tot+=amt;tx.set(fs.doc(this.col('bankLog')),{uid,member:name,res,amt,bal:bank[res],kind,t:fs.serverTimestamp()});}
+       tx.set(ref,{bank},{merge:true});});
+-    this.activity(`🌅 Daily reset: ${poss(name)} 25% auto-share sent ${tot} resources to the bank`);}
++    this.activity(`🌅 Daily reset: ${poss(name)} 25% auto-share sent ${tot} resources to the Vault`);}
+   async bankTx(uid,name,res,amt){const fs=this.fs,ref=fs.doc(this.db,...this.base,'meta','alliance'),logRef=fs.doc(this.col('bankLog'));let bal;
+     await fs.runTransaction(this.db,async tx=>{const d=await tx.get(ref);const bank=(d.exists()&&d.data().bank)||{};bal=(bank[res]||0)+amt;
+-      if(bal<0)throw new Error('Bank only has '+(bank[res]||0));
++      if(bal<0)throw new Error('The Vault only has '+(bank[res]||0));
+       tx.set(ref,{bank:{...bank,[res]:bal}},{merge:true});
+       tx.set(logRef,{uid,member:name,res,amt,bal,kind:amt>0?'deposit':'withdraw',t:fs.serverTimestamp()});});
+     this.activity(`${name} ${amt>0?'deposited':'withdrew'} ${Math.abs(amt)} ${res}`);return bal;}
+   // ----- Stage 2: research (atomic bank spend), operations counters, cloud saves -----
+   async research(uid,name,id,cost){const fs=this.fs,ref=fs.doc(this.db,...this.base,'meta','alliance');let lvl;
+     await fs.runTransaction(this.db,async tx=>{const d=await tx.get(ref),x=d.exists()?d.data():{},bank={...(x.bank||{})},rs={...(x.research||{})};
+-      for(const [k,v] of Object.entries(cost))if((bank[k]||0)<v)throw new Error('Bank needs '+v+' '+k);
++      for(const [k,v] of Object.entries(cost))if((bank[k]||0)<v)throw new Error('The Vault needs '+v+' '+k);
+       for(const [k,v] of Object.entries(cost)){if(!v)continue;bank[k]-=v;tx.set(fs.doc(this.col('bankLog')),{uid,member:name,res:k,amt:-v,bal:bank[k],kind:'research',t:fs.serverTimestamp()});}
+       lvl=rs[id]=(rs[id]||0)+1;tx.set(ref,{bank,research:rs},{merge:true});});
+     this.activity(`🔬 ${name} funded research: ${id} → Lv${lvl}`);return lvl;}
+diff --git a/public/rank15.js b/public/rank15.js
+index ac7f569..5363fc4 100644
+--- a/public/rank15.js
++++ b/public/rank15.js
+@@ -24,7 +24,7 @@
+   window.clean15=clean15;
+ 
+   // ---------- state ----------
+-  function hqState(d){const x=d||{};G.hq15={exists:!!d,hq:x.hq||null,roles:x.roles||{},titles:x.titles||{},leader:x.leader||null};
++  function hqState(d){const x=d||{};G.hq15={exists:!!d,hq:x.hq||null,roles:x.roles||{},titles:x.titles||{},leader:x.leader||null,bld:x.bld||null}; // R6: bld = the HQ building (hq6.js)
+     try{if(typeof onHq15==='function')onHq15();}catch(e){}try{if(UI.tab==='alliance')UI.render();}catch(e){}try{drawHq15();}catch(e){}}
+   // R1: ranks, titles and bank requests are keyed by the signed-in account (the id the security rules check and the id
+   //  member docs use). An imported character can carry an older id in P.uid, which made the rules refuse leadership.
+@@ -55,9 +55,11 @@
+   window.hqTx15=hqTx15;
+   async function claimLeader15(){if(!me15())return;try{await hqTx15(cur=>{if(cur)throw new Error('This alliance already has a leader');return{leader:me15(),roles:{[me15()]:'leader'},titles:{},hq:null,v:1};});
+       allianceLog(`👑 ${P.name} is now the alliance leader`);toast('👑 You are the alliance leader');}catch(e){toast('🚫 '+err15(e));}}
++  const OFFICERS_MAX15=2; // R6: 2 officers max (the security rules allow 3 roles: the leader + 2)
++  window.OFFICERS_MAX15=OFFICERS_MAX15;
+   async function setRank15(uid,rank){if(myRank15()!=='leader')return toast('🚫 Only the leader can change ranks');
+     try{await hqTx15(cur=>{if(!cur)throw new Error('No alliance HQ doc');const r={...cur.roles};
+-        let ld=cur.leader||me15();if(rank==='leader'){r[uid]='leader';r[me15()]='officer';ld=uid;}else if(rank==='officer')r[uid]='officer';else delete r[uid];
++        let ld=cur.leader||me15();if(rank==='leader'){r[uid]='leader';r[me15()]='officer';ld=uid;}else if(rank==='officer'){if(r[uid]!=='officer'&&Object.values(r).filter(v=>v==='officer').length>=OFFICERS_MAX15)throw new Error(`The alliance already has ${OFFICERS_MAX15} officers. Make one a member first.`);r[uid]='officer';}else delete r[uid];
+         if(r[ld]!=='leader')throw new Error('The alliance needs a leader');return{...cur,roles:r,leader:ld};});
+       const nm=((G.al&&G.al.members||{})[uid]||{}).name||'A teammate';allianceLog(rank==='leader'?`👑 ${P.name} handed leadership to ${nm}`:`${rank==='officer'?'⭐':'🔻'} ${nm} is now ${RANKS15[rank]?RANKS15[rank].n:'a member'}`);UI.closeModal();}
+     catch(e){toast('🚫 '+err15(e));}}
+@@ -74,13 +76,13 @@
+   // ---------- bank requests ----------
+   const RESK=['scrap','food','water','fuel','parts'];
+   async function requestWithdraw15(res,amt,why){amt=Math.floor(Math.abs(+amt||0));if(!amt||!RESK.includes(res))return toast('Pick a resource and amount');
+-    const bank=(G.al&&G.al.bank)||{};if((bank[res]||0)<amt)return toast(`The bank only has ${bank[res]||0} ${RES[res]}`);
++    const bank=(G.al&&G.al.bank)||{};if((bank[res]||0)<amt)return toast(`The Vault only has ${bank[res]||0} ${RES[res]}`);
+     const d={uid:me15(),name:P.name,res,amt,why:clean15(why||'').slice(0,60),status:'pending'};
+     try{if(fire()){await NET.fs.addDoc(NET.col('bankReq'),{...d,t:NET.fs.serverTimestamp()});}
+       else{const o=lget(RK())||{};const id='r'+Date.now();o[id]={id,...d,t:Date.now()};lset(RK(),o);G.bankReq15=o;onReqs15();}
+-      allianceLog(`🙋 ${P.name} asked the bank for ${amt} ${RES[res]}`);toast('🙋 Request sent. A leader or officer has to approve it.');}
++      allianceLog(`🙋 ${P.name} asked the Vault for ${amt} ${RES[res]}`);toast('🙋 Request sent. A leader or officer has to approve it.');}
+     catch(e){toast('🚫 '+err15(e));}try{UI.render();}catch(e){}}
+-  async function decideReq15(id,ok){if(!isOfficer15())return toast('🚫 Only the leader or officers can approve');const r=G.bankReq15[id];if(!r||r.status!=='pending')return;
++  async function decideReq15(id,ok){if(!isOfficer15())return toast('🚫 Only the leader or officers can approve');if(ok&&window.vaultLocked6&&vaultLocked6())return toast(`🔒 The Vault is locked for ${fmtDur(vaultLockUntil6()-Date.now())} after the HQ fell`);const r=G.bankReq15[id];if(!r||r.status!=='pending')return;
+     const up={status:ok?'approved':'denied',by:me15(),byName:P.name};
+     try{if(fire())await NET.fs.updateDoc(NET.fs.doc(NET.col('bankReq'),id),{...up,decT:NET.fs.serverTimestamp()});
+       else{const o=lget(RK())||{};o[id]={...o[id],...up,decT:Date.now()};lset(RK(),o);G.bankReq15=o;onReqs15();}
+@@ -91,7 +93,8 @@
+       else{const o=lget(RK())||{};o[id]={...o[id],status:'cancelled'};lset(RK(),o);G.bankReq15=o;onReqs15();}}catch(e){toast('🚫 '+err15(e));}try{UI.render();}catch(e){}}
+   // Collect an approved request: one transaction moves it out of the bank and marks it paid; only then is it added to me.
+   const busy15={};
+-  async function collect15(id){const r=G.bankReq15[id];if(!r||r.uid!==me15()||r.status!=='approved'||busy15[id])return;busy15[id]=1;let bal=null;
++  async function collect15(id){const r=G.bankReq15[id];if(!r||r.uid!==me15()||r.status!=='approved'||busy15[id])return;if(window.vaultLocked6&&vaultLocked6())return; // R6: waits until the Vault unlocks
++    busy15[id]=1;let bal=null;
+     const held=window.SYNC13&&SYNC13.hold===false;if(window.SYNC13)SYNC13.hold=true;
+     try{if(fire()){        const fs=NET.fs,aRef=fs.doc(NET.db,...NET.base,'meta','alliance'),rRef=fs.doc(NET.col('bankReq'),id),lRef=fs.doc(NET.col('bankLog')),sRefOwn=fs.doc(NET.col('saves'),NET.uid||me15());
+         const acked=await fs.runTransaction(NET.db,async tx=>{const a=await tx.get(aRef),q=await tx.get(rRef),sv=await tx.get(sRefOwn);const x=q.exists()?q.data():null;
+@@ -101,7 +104,7 @@
+           const guard=typeof saveGuard13==='function'&&cur?saveGuard13(cur):null;
+           if(guard==='rev')throw Object.assign(new Error('save-changed'),{remote:cur});
+           if(guard==='lease')throw new Error('other-playing');
+-          const bank={...((a.exists()&&a.data().bank)||{})};const have=bank[x.res]||0;if(have<x.amt)throw new Error(`The bank only has ${have} ${RES[x.res]} now`);
++          const bank={...((a.exists()&&a.data().bank)||{})};const have=bank[x.res]||0;if(have<x.amt)throw new Error(`The Vault only has ${have} ${RES[x.res]} now`);
+           bank[x.res]=have-x.amt;bal=bank[x.res];
+           let prof={};try{prof=JSON.parse((window.profile13&&profile13())||'{}')||{};}catch(e){prof={};}
+           prof.res={...(prof.res||{})};prof.res[x.res]=(prof.res[x.res]||0)+x.amt;
+@@ -114,24 +117,24 @@
+           return{profile:prof,rev,lease};});
+         if(acked&&typeof applySave13==='function')applySave13(acked.profile,acked.rev,acked.lease);
+         else{P.res[r.res]=(P.res[r.res]||0)+r.amt;P.contrib.withdrawn=(P.contrib.withdrawn||0)+r.amt;save();}
+-        toast(`🏦 Collected ${r.amt} ${RES[r.res]} from the bank${bal!=null?' · bank now '+bal:''}`);try{UI.hud();UI.render();}catch(e){}}
++        toast(`🏦 Collected ${r.amt} ${RES[r.res]} from the Vault${bal!=null?' · Vault now '+bal:''}`);try{UI.hud();UI.render();}catch(e){}}
+       else{const o=lget(RK())||{};const x=o[id];if(!x||x.status!=='approved')throw new Error('Request is not approved any more');
+-        const have=(NET.bankBal?NET.bankBal(x.res):((G.al&&G.al.bank||{})[x.res]||0));if(have<x.amt)throw new Error('The bank is short');
++        const have=(NET.bankBal?NET.bankBal(x.res):((G.al&&G.al.bank||{})[x.res]||0));if(have<x.amt)throw new Error('The Vault is short');
+         if(NET.bankTx)bal=await NET.bankTx(me15(),P.name,x.res,-x.amt,true);o[id]={...x,status:'paid',paidT:Date.now()};lset(RK(),o);G.bankReq15=o;
+         P.res[r.res]=(P.res[r.res]||0)+r.amt;P.contrib.withdrawn=(P.contrib.withdrawn||0)+r.amt;save();pushMember();
+-        toast(`🏦 Collected ${r.amt} ${RES[r.res]} from the bank${bal!=null?' · bank now '+bal:''}`);try{UI.hud();UI.render();}catch(e){}}}
++        toast(`🏦 Collected ${r.amt} ${RES[r.res]} from the Vault${bal!=null?' · Vault now '+bal:''}`);try{UI.hud();UI.render();}catch(e){}}}
+     catch(e){if(e&&e.message==='save-changed'&&e.remote&&typeof staleSave13==='function'){try{staleSave13(e.remote);}catch(err){}toast('🏦 Nothing was paid. A newer save was loaded. Collect again to take the payout.');}
+       else if(e&&e.message==='other-playing')toast('🏦 Nothing was paid. Your other device is playing. Collect there.');
+       else toast('🚫 '+(e.message||e));}finally{delete busy15[id];if(held&&window.SYNC13&&!SYNC13.conflictOpen)SYNC13.hold=false;}}
+   Object.assign(window,{requestWithdraw15,decideReq15,cancelReq15,collect15});
+   function onReqs15(){try{for(const r of Object.values(G.bankReq15))if(r.uid===me15()&&r.status==='approved')collect15(r.id);}catch(e){}
+-    try{const n=Object.values(G.bankReq15).filter(r=>r.status==='pending').length;if(isOfficer15()&&n&&typeof newsAdd==='function')newsAdd('alliance','bank',`🙋 ${n} bank request${n>1?'s':''} waiting for approval`,'bankreq15');}catch(e){}
++    try{const n=Object.values(G.bankReq15).filter(r=>r.status==='pending').length;if(isOfficer15()&&n&&typeof newsAdd==='function')newsAdd('alliance','bank',`🙋 ${n} Vault request${n>1?'s':''} waiting for approval`,'bankreq15');}catch(e){}
+     try{if(UI.tab==='alliance')UI.render();}catch(e){}}
+ 
+   // Gate the old withdraw button: members request, leader/officers withdraw. Research is leader/officer only.
+   const _btx15=bankTx;bankTx=async function(res,amt){if(G.bankMode==='withdraw'&&ranksOn15()&&!isOfficer15()){const why=($('#bkwhy15')||{}).value||'';return requestWithdraw15(res,amt,why);}return _btx15.apply(this,arguments);};
+   window.bankTx=bankTx;
+-  try{const _rs15=NET.research.bind(NET);NET.research=async function(){if(ranksOn15()&&!isOfficer15())throw new Error('Only the leader or officers can spend the bank on research');return _rs15.apply(NET,arguments);};}catch(e){}
++  try{const _rs15=NET.research.bind(NET);NET.research=async function(){if(ranksOn15()&&!isOfficer15())throw new Error('Only the leader or officers can spend the Vault on research');return _rs15.apply(NET,arguments);};}catch(e){}
+   // LocalNet: the stock bankTx throws on overdraw, so a collect works the same offline.
+ 
+   // ---------- UI: bank part ----------
+@@ -139,7 +142,7 @@
+     const reqs=Object.values(G.bankReq15||{}).sort((a,c)=>(c.t&&c.t.toMillis?c.t.toMillis():c.t||0)-(a.t&&a.t.toMillis?a.t.toMillis():a.t||0));
+     const mine=reqs.filter(r=>r.uid===me15()&&['pending','approved','denied'].includes(r.status)).slice(0,5),pend=reqs.filter(r=>r.status==='pending');
+     let h=`<div class="bk15">`;
+-    if(!ranksOn15())h+=`<p class="tiny">🔓 The bank is open to everyone until someone claims leadership in 🏛️ HQ. After that, members ask and the leader or officers approve.</p>`;
++    if(!ranksOn15())h+=`<p class="tiny">🔓 The Vault is open to everyone until someone claims leadership in 🏛️ HQ. After that, members ask and the leader or officers approve.</p>`;
+     else if(!isOfficer15()){h+=`<p class="tiny">🔒 Withdrawals need approval from the leader or an officer. Pick an amount and tap Request.</p><input id="bkwhy15" maxlength="60" placeholder="What's it for? (optional)">`;}
+     else h+=`<p class="tiny">${RANKS15[myRank15()].ico} You can withdraw directly and approve members' requests.</p>`;
+     const row=r=>`<div class="row"><div class="grow"><b>${esc(r.name)}</b> · ${r.amt.toLocaleString()} ${RES[r.res]||''}<small>${r.why?esc(r.why)+' · ':''}${({pending:'⏳ waiting',approved:'✅ approved, collecting…',denied:'❌ denied'+(r.byName?' by '+esc(r.byName):''),paid:'paid'})[r.status]||r.status}</small></div>`;
+diff --git a/public/space4.js b/public/space4.js
+index f445645..110b4f7 100644
+--- a/public/space4.js
++++ b/public/space4.js
+@@ -18,9 +18,10 @@
+       for(const d of m.defs)if(d&&typeof d.hex==='string'&&/^-?\d+_-?\d+$/.test(d.hex))out.push({hex:d.hex,r:Math.max(0,+d.r||0),k:d.k,who:m.name||'a teammate',uid,enemy:false,t:d.t||0});}
+     try{for(const [fid,x] of Object.entries((FX()&&FX().f)||{})){if(!x)continue;const nm=(typeof fdef==='function'&&fdef(fid)||{}).name||'the Horde';
+       if(typeof x.home==='string'&&(x.tiles||{})[x.home])out.push({hex:x.home,r:S4.enemyR,k:'hq',who:nm,enemy:true});for(const h of Object.keys(x.outposts||{}))if((x.tiles||{})[h])out.push({hex:h,r:S4.enemyR,k:'op',who:nm,enemy:true});}}catch(e){}
++    try{const h=window.hqHex15&&hqHex15(),b=G.hq15&&G.hq15.bld;if(h&&b&&b.built)out.push({hex:h,r:2,k:'ahq',who:'the alliance',uid:'hq',enemy:false,t:b.t||0});}catch(e){} // R6: the HQ area
+     return out;}
+   window.others4=others4;
+-  const KN={sh:'Stronghold',tower:'tower',op:'outpost',hq:'Stronghold'};
++  const KN={sh:'Stronghold',tower:'tower',op:'outpost',hq:'Stronghold',ahq:'HQ'};
+   // null when a building of this kind can go on this hex, else the reason
+   function spaceWhy4(hex,kind,lvl){const r=myR4(kind,lvl);for(const o of others4()){const need=r+o.r+(o.enemy?S4.enemyGap:S4.allyGap),d=hexDist(hex,o.hex);
+       if(d<need)return o.enemy?`Too close to ${o.who}'s ${KN[o.k]||'base'}. Keep a free hex between your areas.`:`Too close to ${o.who}'s ${KN[o.k]||'building'} area. Areas can touch but not overlap.`;}
+diff --git a/public/stage2.js b/public/stage2.js
+index d13da40..f2fb3f4 100644
+--- a/public/stage2.js
++++ b/public/stage2.js
+@@ -185,8 +185,8 @@ function rcost(id){const l=rl(id),m=Math.pow(l+1,BAL.research.exp);return Object
+ async function fundResearch(id){if(rl(id)>=BAL.research.max)return toast('Maxed');try{const l=await NET.research(P.uid,P.name,id,rcost(id));toast(`🔬 ${BAL.research.list[id].name} Lv${l}`);}catch(e){toast(e.message||'Research failed');}UI.render();UI.hud();}
+ const _render=UI.render;UI.render=function(){_render.call(this);const t=this.tab,sub=this.sub[t],b=$('#sheetBody');if(!b)return;let h='';
+   const A=G.al||{bank:{}},bank=A.bank||{},cs=c=>Object.entries(c).filter(([,v])=>v).map(([k,v])=>`<span class="${(bank[k]||0)<v?'short':''}">${v} ${RES[k]}</span>`).join(' ');
+-  if((t==='base'&&(sub==='research'||sub==='fort'))||(t==='alliance'&&sub==='research')){const _rh=`<h2>🔬 Alliance Research</h2><p class="tiny">Paid from the Alliance Bank. Perks are permanent and shared by everyone in the alliance.</p>`+Object.entries(BAL.research.list).map(([id,r])=>{const l=rl(id),mx=l>=BAL.research.max,c=rcost(id),ok=Object.entries(c).every(([k,v])=>(bank[k]||0)>=v);
+-      return`<div class="row"><div class="grow"><b>${r.icon} ${r.name}</b> <small style="display:inline">Lv ${l}/${BAL.research.max}</small><small>${r.desc} · now ${l*r.per}%</small>${mx?'':`<small>Next: ${cs(c)}</small>`}<div class="prog"><i style="width:${100*l/BAL.research.max}%"></i></div></div>${mx?'<b>MAX</b>':`<button ${ok?'':'disabled'} onclick="fundResearch('${id}')">📜 Fund from the hoard</button>`}</div>`;}).join('')+`<p class="tiny">Bank: ${Object.keys(RES).map(k=>RES[k]+' '+(bank[k]||0)).join(' · ')}</p>`;if(sub==='fort')h+=`<div class="rsec">${_rh}</div>`;else h=_rh;}
++  if((t==='base'&&(sub==='research'||sub==='fort'))||(t==='alliance'&&sub==='research')){const _rh=`<h2>🔬 Alliance Research</h2><p class="tiny">Paid from the Alliance Vault. Perks are permanent and shared by everyone in the alliance.</p>`+Object.entries(BAL.research.list).map(([id,r])=>{const l=rl(id),mx=l>=BAL.research.max,c=rcost(id),ok=Object.entries(c).every(([k,v])=>(bank[k]||0)>=v);
++      return`<div class="row"><div class="grow"><b>${r.icon} ${r.name}</b> <small style="display:inline">Lv ${l}/${BAL.research.max}</small><small>${r.desc} · now ${l*r.per}%</small>${mx?'':`<small>Next: ${cs(c)}</small>`}<div class="prog"><i style="width:${100*l/BAL.research.max}%"></i></div></div>${mx?'<b>MAX</b>':`<button ${ok?'':'disabled'} onclick="fundResearch('${id}')">📜 Fund from the hoard</button>`}</div>`;}).join('')+`<p class="tiny">Vault: ${Object.keys(RES).map(k=>RES[k]+' '+(bank[k]||0)).join(' · ')}</p>`;if(sub==='fort')h+=`<div class="rsec">${_rh}</div>`;else h=_rh;}
+   if(t==='alliance'&&sub==='ops'){const L=opsList();P.opsClaimed=P.opsClaimed||{};h=`<h2>🎖️ Operations · this week</h2><p class="tiny">Crew-wide missions. Everyone's progress counts; each member claims the reward once. New missions every Monday (Pacific).</p>`+L.map(o=>`<div class="row"><div class="grow"><b>${o.text}</b><small>Reward each: ${Object.entries(o.reward).map(([k,v])=>v+RES[k]).join(' ')} · ${BAL.ops.xp} XP</small><div class="prog"><i style="width:${100*o.prog/o.n}%"></i></div><small>${o.prog}/${o.n}</small></div>${P.opsClaimed[o.key]?'<b>✅</b>':`<button ${o.done?'':'disabled'} onclick="opsClaim('${o.key}')">Claim</button>`}</div>`).join('');}
+   if(t==='base'&&sub==='outposts'){const w=W(),os=Object.entries(w.outposts||{}),c=BAL.outpost;h=`<h2>⛺ Outposts <small class="lv">${outpostsLive()}/${outpostCap()}</small></h2><p class="tiny">Stand on a hex and tap 🏗️ Build to capture one. ${c.holdMin}-min hold, then it claims and guards a ${hexRing(0,0,c.radius).length}-hex area with power ${outpostPower()}. Limit: ${c.capBase} + 1 per ${c.capPerShLevels} Stronghold levels.</p>`+
+       (os.map(([id,o])=>`<div class="row"><div class="grow"><b>${hexName(id)}</b><small>${o.state==='capturing'?'⏳ capturing · '+fmtDur(o.endsAt-Date.now())+' left':o.state==='up'?'✅ standing':'💥 lost'}</small></div><button onclick="UI.close();map.setView(hexCenter(...idQR('${id}')),16);UI.infoOutpost('${id}')">Show</button></div>`).join('')||'<p class="tiny">No outposts yet.</p>');}
+diff --git a/public/sw.js b/public/sw.js
+index 263f2f2..a300f2a 100644
+--- a/public/sw.js
++++ b/public/sw.js
+@@ -1,6 +1,6 @@
+ // Dead Zone Drive service worker: network-first for the app (so updates show right away),
+ // falling back to cache when offline. Map tiles and Firebase are never cached here.
+-const C='ddd-v26-12i-integrated-6-r5';
++const C='ddd-v26-12i-integrated-6-r6';
+ self.addEventListener('install',e=>self.skipWaiting());
+ self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+ self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==location.origin)return;
+diff --git a/public/theme.js b/public/theme.js
+index 206c84a..506190a 100644
+--- a/public/theme.js
++++ b/public/theme.js
+@@ -11,7 +11,7 @@ const FLAVOR={
+   over:'🔥 One fire, many hands. Nobody walks the dark alone.',
+   members:'🫂 Every name here has bled for this ground.',
+   board:'🏆 Scratched on the wall so nobody forgets who carried the crew.',
+-  bank:'🏦 The crew\'s hoard. Take what you need, and leave a mark when you do.',
++  bank:'🏦 The crew\'s Vault. Take what you need, and leave a mark when you do.',
+   act:'📯 Word travels fast around the fire.',
+   res:'🎒 What you dragged back from the ruins, and what it cost you.',
+   items:'🧪 Odd things that still work, mostly.',
+diff --git a/public/ui.js b/public/ui.js
+index d1c64b7..6d0c685 100644
+--- a/public/ui.js
++++ b/public/ui.js
+@@ -79,7 +79,7 @@ const UI={
+         ${M.sort((a,b)=>b[1].lvl-a[1].lvl).map(([uid,m])=>{const c=m.contrib||{},held=m.me?Object.keys(P.tiles).length:Object.values(G.terr).filter(o=>o&&o.uid===uid&&!o.ai&&!o.released).length,dup=!m.me&&M.some(([u2,m2])=>u2!==uid&&m2.name===m.name);return`<div class="row mem24">${av24(uid,40)}<div class="grow"><b style="color:${m.color}">${m.name}${m.me?' (you)':dup?' <small style="display:inline">(other device)</small>':''}</b> <small style="display:inline">Lv ${m.lvl} · 🏰 ${m.stronghold||1}</small>
+           <small>☠️ ${c.kills||0} · 🗺️ ${pl(held,'hex','hexes')} held now (${c.hexes||0} claimed all-time) · ⚔️ ${pl(c.raids||0,'raid')} · 🏅 ${c.badges||0} · 🚶 ${(c.km||0).toFixed(1)} km</small><small>🏦 Gave ${c.deposited||0} · took ${c.withdrawn||0} · active ${ago(m.lastActive)}</small></div></div>`;}).join('')}`;}
+       if(sub==='bank'){const mode=G.bankMode||'deposit';
+-        h+=`<h2>🏦 Alliance Bank</h2><p class="tiny">Open access: anyone in the alliance can deposit or withdraw, and every move is logged.</p>
++        h+=`<h2>🏦 Alliance Vault</h2><p class="tiny">Open access: anyone in the alliance can deposit or withdraw, and every move is logged.</p>
+         <div class="stats">${Object.keys(RES).map(k=>`<div><b>${RES[k]} ${A.bank[k]||0}</b><small>${RESN[k]} · you ${P.res[k]||0}</small></div>`).join('')}</div>
+         <div class="seg"><button class="${mode==='deposit'?'on':''}" onclick="G.bankMode='deposit';UI.render()">⬆️ Deposit</button><button class="${mode==='withdraw'?'on':''}" onclick="G.bankMode='withdraw';UI.render()">⬇️ Withdraw</button></div>
+         <div class="row"><select id="bkres">${Object.keys(RES).map(k=>`<option value="${k}">${RES[k]} ${RESN[k]}</option>`).join('')}</select><input id="bkamt" type="number" inputmode="numeric" min="1" placeholder="Amount"><button id="bkgo" onclick="bankTx($('#bkres').value,+$('#bkamt').value)">${mode==='deposit'?'Deposit':'Withdraw'}</button></div>
+diff --git a/public/world.js b/public/world.js
+index fa3df67..ad49b67 100644
+--- a/public/world.js
++++ b/public/world.js
+@@ -96,7 +96,7 @@ async function payReset(label){const g=grossIncome(),share={},mine={};let tot=0,
+   // tower upkeep: if you can't pay, the tower goes offline (won't defend) until next reset
+   Object.entries(W().towers).forEach(([id,t])=>{if(t.state==='down')return;if(canPay(BAL.tower.upkeep)){pay(BAL.tower.upkeep);t.online=true;}else{t.online=false;report(`🗼 Tower ${id} went offline: not enough upkeep`,false);}});
+   if(stot>0){try{await NET.bankMulti(P.uid,P.name,share,'auto-share');}catch(e){}}
+-  report(`🌅 Daily reset: +${tot-stot} resources to you, ${stot} auto-shared to the alliance bank`,true);save();
++  report(`🌅 Daily reset: +${tot-stot} resources to you, ${stot} auto-shared to the Alliance Vault`,true);save();
+   toast(`🌅 Daily income collected (${stot} auto-shared)`);}
+ 
+ // ---------- structures ----------

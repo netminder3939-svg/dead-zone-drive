@@ -82,7 +82,7 @@
   window.troopTick=troopTick;
 
   // ---------- portal ----------
-  function portalMs15(a,b){const km=kmBetween(a,b);const min=B15.portalBaseMin+B15.portalPer100kmMin*km/100;return Math.round(Math.min(B15.portalCapH*60,min)*60e3);}
+  function portalMs15(a,b){const km=kmBetween(a,b);const min=B15.portalBaseMin+B15.portalPer100kmMin*km/100;return Math.round(Math.min(B15.portalCapH*60,min)*60e3*(1-(window.hqPortalCut6?hqPortalCut6():0)));} // R6: the HQ cuts portal time
   window.portalMs15=portalMs15;
   function portalList15(){const t=TP();t.portal15=t.portal15||[];return t.portal15;}
   function portal15(from,to,n){from=from==='sh'?shHex15():from;to=to==='sh'?shHex15():to;
@@ -164,7 +164,7 @@
     if(h){const d=s?kmBetween(h.hex,s):null;x+=`<div class="row"><div class="grow"><b>${esc15(h.name)}</b><small>${hexName(h.hex)} · set by ${esc15(h.byName||'the leader')}${d!=null?` · your Stronghold is ${fmtMi(d)} away`:''}</small></div><button onclick="jumpHq15()">🧭 Jump</button></div>`;
       if(!s||d>B15.hqMi*MI/1000)x+=`<div class="row"><div class="grow"><b>Play next to the crew</b><small>Build your Stronghold within ${B15.hqMi} mi of the HQ. ${s?'Your current spot becomes your 🏡 Home Outpost so driving, pipelines and resources keep working there.':''}</small></div><button class="red24" onclick="jumpHq15();setTimeout(()=>pick15('sh'),300)">🏰 Pick a spot</button></div>`;}
     else x+=`<p class="tiny">No HQ yet.${isOfficer15()?'':' The leader or an officer places it.'}</p>`;
-    if(isOfficer15())x+=`<div class="btns24"><button onclick="pick15('hq')">🏛️ ${h?'Move':'Place'} HQ (tap the map)</button></div>`;
+    if(isOfficer15()&&!(G.hq15&&G.hq15.bld&&G.hq15.bld.built))x+=`<div class="btns24"><button onclick="pick15('hq')">🏛️ ${h?'Move':'Place'} HQ (tap the map)</button></div>`;
     const lu=leaderUid15(),lm=M[lu]||{};if(rk==='officer'&&lu&&Date.now()-(lm.lastActive||0)>=14*864e5)x+=`<button class="ghost24" onclick="takeOver15()">👑 Take over (leader inactive 14+ days)</button>`;
     // ranks
     const rows=Object.entries(M).sort((a,c)=>({leader:0,officer:1,member:2}[rankOf15(a[0])]-{leader:0,officer:1,member:2}[rankOf15(c[0])]));

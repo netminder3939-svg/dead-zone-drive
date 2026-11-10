@@ -24,7 +24,7 @@
   window.clean15=clean15;
 
   // ---------- state ----------
-  function hqState(d){const x=d||{};G.hq15={exists:!!d,hq:x.hq||null,roles:x.roles||{},titles:x.titles||{},leader:x.leader||null};
+  function hqState(d){const x=d||{};G.hq15={exists:!!d,hq:x.hq||null,roles:x.roles||{},titles:x.titles||{},leader:x.leader||null,bld:x.bld||null}; // R6: bld = the HQ building (hq6.js)
     try{if(typeof onHq15==='function')onHq15();}catch(e){}try{if(UI.tab==='alliance')UI.render();}catch(e){}try{drawHq15();}catch(e){}}
   // R1: ranks, titles and bank requests are keyed by the signed-in account (the id the security rules check and the id
   //  member docs use). An imported character can carry an older id in P.uid, which made the rules refuse leadership.
@@ -55,9 +55,11 @@
   window.hqTx15=hqTx15;
   async function claimLeader15(){if(!me15())return;try{await hqTx15(cur=>{if(cur)throw new Error('This alliance already has a leader');return{leader:me15(),roles:{[me15()]:'leader'},titles:{},hq:null,v:1};});
       allianceLog(`👑 ${P.name} is now the alliance leader`);toast('👑 You are the alliance leader');}catch(e){toast('🚫 '+err15(e));}}
+  const OFFICERS_MAX15=2; // R6: 2 officers max (the security rules allow 3 roles: the leader + 2)
+  window.OFFICERS_MAX15=OFFICERS_MAX15;
   async function setRank15(uid,rank){if(myRank15()!=='leader')return toast('🚫 Only the leader can change ranks');
     try{await hqTx15(cur=>{if(!cur)throw new Error('No alliance HQ doc');const r={...cur.roles};
-        let ld=cur.leader||me15();if(rank==='leader'){r[uid]='leader';r[me15()]='officer';ld=uid;}else if(rank==='officer')r[uid]='officer';else delete r[uid];
+        let ld=cur.leader||me15();if(rank==='leader'){r[uid]='leader';r[me15()]='officer';ld=uid;}else if(rank==='officer'){if(r[uid]!=='officer'&&Object.values(r).filter(v=>v==='officer').length>=OFFICERS_MAX15)throw new Error(`The alliance already has ${OFFICERS_MAX15} officers. Make one a member first.`);r[uid]='officer';}else delete r[uid];
         if(r[ld]!=='leader')throw new Error('The alliance needs a leader');return{...cur,roles:r,leader:ld};});
       const nm=((G.al&&G.al.members||{})[uid]||{}).name||'A teammate';allianceLog(rank==='leader'?`👑 ${P.name} handed leadership to ${nm}`:`${rank==='officer'?'⭐':'🔻'} ${nm} is now ${RANKS15[rank]?RANKS15[rank].n:'a member'}`);UI.closeModal();}
     catch(e){toast('🚫 '+err15(e));}}
@@ -74,13 +76,13 @@
   // ---------- bank requests ----------
   const RESK=['scrap','food','water','fuel','parts'];
   async function requestWithdraw15(res,amt,why){amt=Math.floor(Math.abs(+amt||0));if(!amt||!RESK.includes(res))return toast('Pick a resource and amount');
-    const bank=(G.al&&G.al.bank)||{};if((bank[res]||0)<amt)return toast(`The bank only has ${bank[res]||0} ${RES[res]}`);
+    const bank=(G.al&&G.al.bank)||{};if((bank[res]||0)<amt)return toast(`The Vault only has ${bank[res]||0} ${RES[res]}`);
     const d={uid:me15(),name:P.name,res,amt,why:clean15(why||'').slice(0,60),status:'pending'};
     try{if(fire()){await NET.fs.addDoc(NET.col('bankReq'),{...d,t:NET.fs.serverTimestamp()});}
       else{const o=lget(RK())||{};const id='r'+Date.now();o[id]={id,...d,t:Date.now()};lset(RK(),o);G.bankReq15=o;onReqs15();}
-      allianceLog(`🙋 ${P.name} asked the bank for ${amt} ${RES[res]}`);toast('🙋 Request sent. A leader or officer has to approve it.');}
+      allianceLog(`🙋 ${P.name} asked the Vault for ${amt} ${RES[res]}`);toast('🙋 Request sent. A leader or officer has to approve it.');}
     catch(e){toast('🚫 '+err15(e));}try{UI.render();}catch(e){}}
-  async function decideReq15(id,ok){if(!isOfficer15())return toast('🚫 Only the leader or officers can approve');const r=G.bankReq15[id];if(!r||r.status!=='pending')return;
+  async function decideReq15(id,ok){if(!isOfficer15())return toast('🚫 Only the leader or officers can approve');if(ok&&window.vaultLocked6&&vaultLocked6())return toast(`🔒 The Vault is locked for ${fmtDur(vaultLockUntil6()-Date.now())} after the HQ fell`);const r=G.bankReq15[id];if(!r||r.status!=='pending')return;
     const up={status:ok?'approved':'denied',by:me15(),byName:P.name};
     try{if(fire())await NET.fs.updateDoc(NET.fs.doc(NET.col('bankReq'),id),{...up,decT:NET.fs.serverTimestamp()});
       else{const o=lget(RK())||{};o[id]={...o[id],...up,decT:Date.now()};lset(RK(),o);G.bankReq15=o;onReqs15();}
@@ -91,7 +93,8 @@
       else{const o=lget(RK())||{};o[id]={...o[id],status:'cancelled'};lset(RK(),o);G.bankReq15=o;onReqs15();}}catch(e){toast('🚫 '+err15(e));}try{UI.render();}catch(e){}}
   // Collect an approved request: one transaction moves it out of the bank and marks it paid; only then is it added to me.
   const busy15={};
-  async function collect15(id){const r=G.bankReq15[id];if(!r||r.uid!==me15()||r.status!=='approved'||busy15[id])return;busy15[id]=1;let bal=null;
+  async function collect15(id){const r=G.bankReq15[id];if(!r||r.uid!==me15()||r.status!=='approved'||busy15[id])return;if(window.vaultLocked6&&vaultLocked6())return; // R6: waits until the Vault unlocks
+    busy15[id]=1;let bal=null;
     const held=window.SYNC13&&SYNC13.hold===false;if(window.SYNC13)SYNC13.hold=true;
     try{if(fire()){        const fs=NET.fs,aRef=fs.doc(NET.db,...NET.base,'meta','alliance'),rRef=fs.doc(NET.col('bankReq'),id),lRef=fs.doc(NET.col('bankLog')),sRefOwn=fs.doc(NET.col('saves'),NET.uid||me15());
         const acked=await fs.runTransaction(NET.db,async tx=>{const a=await tx.get(aRef),q=await tx.get(rRef),sv=await tx.get(sRefOwn);const x=q.exists()?q.data():null;
@@ -101,7 +104,7 @@
           const guard=typeof saveGuard13==='function'&&cur?saveGuard13(cur):null;
           if(guard==='rev')throw Object.assign(new Error('save-changed'),{remote:cur});
           if(guard==='lease')throw new Error('other-playing');
-          const bank={...((a.exists()&&a.data().bank)||{})};const have=bank[x.res]||0;if(have<x.amt)throw new Error(`The bank only has ${have} ${RES[x.res]} now`);
+          const bank={...((a.exists()&&a.data().bank)||{})};const have=bank[x.res]||0;if(have<x.amt)throw new Error(`The Vault only has ${have} ${RES[x.res]} now`);
           bank[x.res]=have-x.amt;bal=bank[x.res];
           let prof={};try{prof=JSON.parse((window.profile13&&profile13())||'{}')||{};}catch(e){prof={};}
           prof.res={...(prof.res||{})};prof.res[x.res]=(prof.res[x.res]||0)+x.amt;
@@ -114,24 +117,24 @@
           return{profile:prof,rev,lease};});
         if(acked&&typeof applySave13==='function')applySave13(acked.profile,acked.rev,acked.lease);
         else{P.res[r.res]=(P.res[r.res]||0)+r.amt;P.contrib.withdrawn=(P.contrib.withdrawn||0)+r.amt;save();}
-        toast(`🏦 Collected ${r.amt} ${RES[r.res]} from the bank${bal!=null?' · bank now '+bal:''}`);try{UI.hud();UI.render();}catch(e){}}
+        toast(`🏦 Collected ${r.amt} ${RES[r.res]} from the Vault${bal!=null?' · Vault now '+bal:''}`);try{UI.hud();UI.render();}catch(e){}}
       else{const o=lget(RK())||{};const x=o[id];if(!x||x.status!=='approved')throw new Error('Request is not approved any more');
-        const have=(NET.bankBal?NET.bankBal(x.res):((G.al&&G.al.bank||{})[x.res]||0));if(have<x.amt)throw new Error('The bank is short');
+        const have=(NET.bankBal?NET.bankBal(x.res):((G.al&&G.al.bank||{})[x.res]||0));if(have<x.amt)throw new Error('The Vault is short');
         if(NET.bankTx)bal=await NET.bankTx(me15(),P.name,x.res,-x.amt,true);o[id]={...x,status:'paid',paidT:Date.now()};lset(RK(),o);G.bankReq15=o;
         P.res[r.res]=(P.res[r.res]||0)+r.amt;P.contrib.withdrawn=(P.contrib.withdrawn||0)+r.amt;save();pushMember();
-        toast(`🏦 Collected ${r.amt} ${RES[r.res]} from the bank${bal!=null?' · bank now '+bal:''}`);try{UI.hud();UI.render();}catch(e){}}}
+        toast(`🏦 Collected ${r.amt} ${RES[r.res]} from the Vault${bal!=null?' · Vault now '+bal:''}`);try{UI.hud();UI.render();}catch(e){}}}
     catch(e){if(e&&e.message==='save-changed'&&e.remote&&typeof staleSave13==='function'){try{staleSave13(e.remote);}catch(err){}toast('🏦 Nothing was paid. A newer save was loaded. Collect again to take the payout.');}
       else if(e&&e.message==='other-playing')toast('🏦 Nothing was paid. Your other device is playing. Collect there.');
       else toast('🚫 '+(e.message||e));}finally{delete busy15[id];if(held&&window.SYNC13&&!SYNC13.conflictOpen)SYNC13.hold=false;}}
   Object.assign(window,{requestWithdraw15,decideReq15,cancelReq15,collect15});
   function onReqs15(){try{for(const r of Object.values(G.bankReq15))if(r.uid===me15()&&r.status==='approved')collect15(r.id);}catch(e){}
-    try{const n=Object.values(G.bankReq15).filter(r=>r.status==='pending').length;if(isOfficer15()&&n&&typeof newsAdd==='function')newsAdd('alliance','bank',`🙋 ${n} bank request${n>1?'s':''} waiting for approval`,'bankreq15');}catch(e){}
+    try{const n=Object.values(G.bankReq15).filter(r=>r.status==='pending').length;if(isOfficer15()&&n&&typeof newsAdd==='function')newsAdd('alliance','bank',`🙋 ${n} Vault request${n>1?'s':''} waiting for approval`,'bankreq15');}catch(e){}
     try{if(UI.tab==='alliance')UI.render();}catch(e){}}
 
   // Gate the old withdraw button: members request, leader/officers withdraw. Research is leader/officer only.
   const _btx15=bankTx;bankTx=async function(res,amt){if(G.bankMode==='withdraw'&&ranksOn15()&&!isOfficer15()){const why=($('#bkwhy15')||{}).value||'';return requestWithdraw15(res,amt,why);}return _btx15.apply(this,arguments);};
   window.bankTx=bankTx;
-  try{const _rs15=NET.research.bind(NET);NET.research=async function(){if(ranksOn15()&&!isOfficer15())throw new Error('Only the leader or officers can spend the bank on research');return _rs15.apply(NET,arguments);};}catch(e){}
+  try{const _rs15=NET.research.bind(NET);NET.research=async function(){if(ranksOn15()&&!isOfficer15())throw new Error('Only the leader or officers can spend the Vault on research');return _rs15.apply(NET,arguments);};}catch(e){}
   // LocalNet: the stock bankTx throws on overdraw, so a collect works the same offline.
 
   // ---------- UI: bank part ----------
@@ -139,7 +142,7 @@
     const reqs=Object.values(G.bankReq15||{}).sort((a,c)=>(c.t&&c.t.toMillis?c.t.toMillis():c.t||0)-(a.t&&a.t.toMillis?a.t.toMillis():a.t||0));
     const mine=reqs.filter(r=>r.uid===me15()&&['pending','approved','denied'].includes(r.status)).slice(0,5),pend=reqs.filter(r=>r.status==='pending');
     let h=`<div class="bk15">`;
-    if(!ranksOn15())h+=`<p class="tiny">🔓 The bank is open to everyone until someone claims leadership in 🏛️ HQ. After that, members ask and the leader or officers approve.</p>`;
+    if(!ranksOn15())h+=`<p class="tiny">🔓 The Vault is open to everyone until someone claims leadership in 🏛️ HQ. After that, members ask and the leader or officers approve.</p>`;
     else if(!isOfficer15()){h+=`<p class="tiny">🔒 Withdrawals need approval from the leader or an officer. Pick an amount and tap Request.</p><input id="bkwhy15" maxlength="60" placeholder="What's it for? (optional)">`;}
     else h+=`<p class="tiny">${RANKS15[myRank15()].ico} You can withdraw directly and approve members' requests.</p>`;
     const row=r=>`<div class="row"><div class="grow"><b>${esc(r.name)}</b> · ${r.amt.toLocaleString()} ${RES[r.res]||''}<small>${r.why?esc(r.why)+' · ':''}${({pending:'⏳ waiting',approved:'✅ approved, collecting…',denied:'❌ denied'+(r.byName?' by '+esc(r.byName):''),paid:'paid'})[r.status]||r.status}</small></div>`;

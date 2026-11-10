@@ -18,9 +18,10 @@
       for(const d of m.defs)if(d&&typeof d.hex==='string'&&/^-?\d+_-?\d+$/.test(d.hex))out.push({hex:d.hex,r:Math.max(0,+d.r||0),k:d.k,who:m.name||'a teammate',uid,enemy:false,t:d.t||0});}
     try{for(const [fid,x] of Object.entries((FX()&&FX().f)||{})){if(!x)continue;const nm=(typeof fdef==='function'&&fdef(fid)||{}).name||'the Horde';
       if(typeof x.home==='string'&&(x.tiles||{})[x.home])out.push({hex:x.home,r:S4.enemyR,k:'hq',who:nm,enemy:true});for(const h of Object.keys(x.outposts||{}))if((x.tiles||{})[h])out.push({hex:h,r:S4.enemyR,k:'op',who:nm,enemy:true});}}catch(e){}
+    try{const h=window.hqHex15&&hqHex15(),b=G.hq15&&G.hq15.bld;if(h&&b&&b.built)out.push({hex:h,r:2,k:'ahq',who:'the alliance',uid:'hq',enemy:false,t:b.t||0});}catch(e){} // R6: the HQ area
     return out;}
   window.others4=others4;
-  const KN={sh:'Stronghold',tower:'tower',op:'outpost',hq:'Stronghold'};
+  const KN={sh:'Stronghold',tower:'tower',op:'outpost',hq:'Stronghold',ahq:'HQ'};
   // null when a building of this kind can go on this hex, else the reason
   function spaceWhy4(hex,kind,lvl){const r=myR4(kind,lvl);for(const o of others4()){const need=r+o.r+(o.enemy?S4.enemyGap:S4.allyGap),d=hexDist(hex,o.hex);
       if(d<need)return o.enemy?`Too close to ${o.who}'s ${KN[o.k]||'base'}. Keep a free hex between your areas.`:`Too close to ${o.who}'s ${KN[o.k]||'building'} area. Areas can touch but not overlap.`;}

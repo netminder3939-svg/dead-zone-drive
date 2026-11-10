@@ -112,12 +112,12 @@ class LocalNet {
   updateMember(m){this._al().members[this.uid||'me']={...m,lastActive:Date.now(),me:true};this._alSave();}
   activity(text){this._al().act.unshift({text,t:Date.now()});this._alSave();}
   async bankMulti(uid,name,obj,kind){const a=this._al();let tot=0;for(const [res,amt] of Object.entries(obj)){if(!amt)continue;a.bank[res]=(a.bank[res]||0)+amt;tot+=amt;a.log.unshift({member:name,uid,res,amt,bal:a.bank[res],kind,t:Date.now()});}
-    a.act.unshift({text:`🌅 Daily reset: ${poss(name)} 25% auto-share sent ${tot} resources to the bank`,t:Date.now()});this._alSave();}
-  async bankTx(uid,name,res,amt){const a=this._al(),bal=(a.bank[res]||0)+amt;if(bal<0)throw new Error('Bank only has '+(a.bank[res]||0));
+    a.act.unshift({text:`🌅 Daily reset: ${poss(name)} 25% auto-share sent ${tot} resources to the Vault`,t:Date.now()});this._alSave();}
+  async bankTx(uid,name,res,amt){const a=this._al(),bal=(a.bank[res]||0)+amt;if(bal<0)throw new Error('The Vault only has '+(a.bank[res]||0));
     a.bank[res]=bal;a.log.unshift({member:name,uid,res,amt,bal,kind:amt>0?'deposit':'withdraw',t:Date.now()});a.act.unshift({text:`${name} ${amt>0?'deposited':'withdrew'} ${Math.abs(amt)} ${res}`,t:Date.now()});this._alSave();return bal;}
   onExplored(f){(this.cbs.exp=this.cbs.exp||[]).push(f);f(JSON.parse(localStorage.getItem('wl_allyexp')||'[]'));}
   // ----- Stage 2 (local demo): research, operations, cloud-save stand-in -----
-  async research(uid,name,id,cost){const a=this._al();a.research=a.research||{};for(const [k,v] of Object.entries(cost))if((a.bank[k]||0)<v)throw new Error('Bank needs '+v+' '+k);
+  async research(uid,name,id,cost){const a=this._al();a.research=a.research||{};for(const [k,v] of Object.entries(cost))if((a.bank[k]||0)<v)throw new Error('The Vault needs '+v+' '+k);
     for(const [k,v] of Object.entries(cost)){if(!v)continue;a.bank[k]-=v;a.log.unshift({member:name,uid,res:k,amt:-v,bal:a.bank[k],kind:'research',t:Date.now()});}
     a.research[id]=(a.research[id]||0)+1;a.act.unshift({text:`🔬 ${name} funded research: ${id} → Lv${a.research[id]}`,t:Date.now()});this._alSave();return a.research[id];}
   async opsAdd(week,inc){const a=this._al();a.ops=a.ops||{};const o=a.ops[week]=a.ops[week]||{};for(const k in inc)o[k]=(o[k]||0)+inc[k];this._alSave();}
@@ -202,17 +202,17 @@ class FirebaseNet {
     await fs.runTransaction(this.db,async tx=>{const d=await tx.get(ref);const bank={...((d.exists()&&d.data().bank)||{})};
       for(const [res,amt] of Object.entries(obj)){if(!amt)continue;bank[res]=(bank[res]||0)+amt;tot+=amt;tx.set(fs.doc(this.col('bankLog')),{uid,member:name,res,amt,bal:bank[res],kind,t:fs.serverTimestamp()});}
       tx.set(ref,{bank},{merge:true});});
-    this.activity(`🌅 Daily reset: ${poss(name)} 25% auto-share sent ${tot} resources to the bank`);}
+    this.activity(`🌅 Daily reset: ${poss(name)} 25% auto-share sent ${tot} resources to the Vault`);}
   async bankTx(uid,name,res,amt){const fs=this.fs,ref=fs.doc(this.db,...this.base,'meta','alliance'),logRef=fs.doc(this.col('bankLog'));let bal;
     await fs.runTransaction(this.db,async tx=>{const d=await tx.get(ref);const bank=(d.exists()&&d.data().bank)||{};bal=(bank[res]||0)+amt;
-      if(bal<0)throw new Error('Bank only has '+(bank[res]||0));
+      if(bal<0)throw new Error('The Vault only has '+(bank[res]||0));
       tx.set(ref,{bank:{...bank,[res]:bal}},{merge:true});
       tx.set(logRef,{uid,member:name,res,amt,bal,kind:amt>0?'deposit':'withdraw',t:fs.serverTimestamp()});});
     this.activity(`${name} ${amt>0?'deposited':'withdrew'} ${Math.abs(amt)} ${res}`);return bal;}
   // ----- Stage 2: research (atomic bank spend), operations counters, cloud saves -----
   async research(uid,name,id,cost){const fs=this.fs,ref=fs.doc(this.db,...this.base,'meta','alliance');let lvl;
     await fs.runTransaction(this.db,async tx=>{const d=await tx.get(ref),x=d.exists()?d.data():{},bank={...(x.bank||{})},rs={...(x.research||{})};
-      for(const [k,v] of Object.entries(cost))if((bank[k]||0)<v)throw new Error('Bank needs '+v+' '+k);
+      for(const [k,v] of Object.entries(cost))if((bank[k]||0)<v)throw new Error('The Vault needs '+v+' '+k);
       for(const [k,v] of Object.entries(cost)){if(!v)continue;bank[k]-=v;tx.set(fs.doc(this.col('bankLog')),{uid,member:name,res:k,amt:-v,bal:bank[k],kind:'research',t:fs.serverTimestamp()});}
       lvl=rs[id]=(rs[id]||0)+1;tx.set(ref,{bank,research:rs},{merge:true});});
     this.activity(`🔬 ${name} funded research: ${id} → Lv${lvl}`);return lvl;}

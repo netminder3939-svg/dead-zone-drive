@@ -196,5 +196,5 @@ function allianceLog(text){try{if(typeof NET==='undefined')return;NET.activity&&
 async function bankTx(res,amt){amt=Math.floor(Math.abs(amt));if(!amt)return;
   const dep=G.bankMode!=='withdraw';if(dep&&(P.res[res]||0)<amt)return toast('You only have '+(P.res[res]||0)+' '+RES[res]);
   try{const bal=await NET.bankTx(P.uid,P.name,res,dep?amt:-amt);
-    P.res[res]+=dep?-amt:amt;P.contrib[dep?'deposited':'withdrawn']+=amt;save();pushMember();toast(`${dep?'Deposited':'Withdrew'} ${amt} ${RES[res]} · bank now ${bal}`);}
-  catch(e){toast(e.message||'Bank error');}UI.hud();UI.render();}
+    P.res[res]+=dep?-amt:amt;P.contrib[dep?'deposited':'withdrawn']+=amt;save();pushMember();toast(`${dep?'Deposited':'Withdrew'} ${amt} ${RES[res]} · Vault now ${bal}`);}
+  catch(e){toast(e.message||'Vault error');}UI.hud();UI.render();}

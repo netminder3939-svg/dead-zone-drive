@@ -1,0 +1,56 @@
+--- preview-auth-rules-12i.rules	2026-11-09 13:07:06.921034192 -0800
++++ preview-auth-rules-r6.rules	2026-11-09 18:45:18.653390039 -0800
+@@ -1,3 +1,6 @@
++// NOT PUBLISHED (R6). = 12i rules + the HQ building (meta/hq.bld), the Vault lock after the HQ falls, and at most
++// 3 roles (the leader + 2 officers). Diff: 12i-to-r6-rules.diff. Tests: tests/rules-r6.test.mjs.
++// (12i notes follow.)
+ // NOT PUBLISHED (12i). = 12g rules + alliance ranks (meta/hq), bank withdrawals that need approval (bankReq),
+ // region stamps on territory (rg/al), and the territory-version flag (meta/terrv).
+ // 12g: preview saves require an email/password account for read, create, update and delete.
+@@ -48,11 +51,22 @@
+         return rq.uid == request.auth.uid && rq.status == 'approved' && getAfter(p).data.status == 'paid'
+             && nb.get(rq.res, 0) == ob.get(rq.res, 0) - rq.amt && othersNoDrop(nb, ob, rq.res);
+       }
++      // R6: after the Horde takes the HQ, meta/hq.bld.lockUntil (ms) freezes the Vault: nothing leaves it until then.
++      //  Deposits still work. The phone that applies the fall writes the 10% loss and the lock in one transaction, so
++      //  that write is checked against the state before the lock.
++      function notLocked() { return get(hqPath()).data.get('bld', {}).get('lockUntil', 0) <= request.time.toMillis(); }
+       function bankOk() {
+         let nb = request.resource.data.get('bank', {});
+         let ob = resource.data.get('bank', {});
+-        return !hqExists() || bankNoDrop(nb, ob) || isBoss()
+-            || (request.resource.data.get('payReq', '') != '' && paysReq(nb, ob, request.resource.data.payReq));
++        return !hqExists() || bankNoDrop(nb, ob)
++            || ((isBoss()
++                 || (request.resource.data.get('payReq', '') != '' && paysReq(nb, ob, request.resource.data.payReq)))
++                && notLocked());
++      }
++      // R6: nobody can shorten a running Vault lock (an expired one can be replaced by a new fall)
++      function lockKept() {
++        let o = resource.data.get('bld', {}).get('lockUntil', 0);
++        return o <= request.time.toMillis() || request.resource.data.get('bld', {}).get('lockUntil', 0) >= o;
+       }
+ 
+       // Member roster: name, level, stronghold level, contribution stats, last active. NO location fields.
+@@ -73,7 +87,7 @@
+       }
+ 
+       // 12i: ranks, clan titles, Alliance HQ. The first member to claim leadership creates it.
+-      // Leader: anything. Officer: titles + HQ only, or take over a leader inactive for 14+ days. Member: nothing.
++      // Leader: anything. Officer: titles + HQ (spot and building, R6) only, or take over a leader inactive for 14+ days. Member: nothing.
+       // The leader uid is also stored as `leader` so the inactive check can read the leader's roster doc.
+       match /meta/hq {
+         allow read: if signedIn();
+@@ -82,9 +96,11 @@
+                       && request.resource.data.roles[request.auth.uid] == 'leader';
+         allow update: if signedIn()
+                       && request.resource.data.roles.get(request.resource.data.leader, '') == 'leader'
++                      && request.resource.data.roles.size() <= 3
++                      && lockKept()
+                       && (resource.data.roles.get(request.auth.uid, '') == 'leader'
+                           || (resource.data.roles.get(request.auth.uid, '') == 'officer'
+-                              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hq', 'titles']))
++                              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hq', 'titles', 'bld']))
+                           || (resource.data.roles.get(request.auth.uid, '') == 'officer'
+                               && request.resource.data.leader == request.auth.uid
+                               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['roles', 'leader', 'takeover'])
