@@ -142,7 +142,7 @@
   window.moveSh15=moveSh15;
   function pickBar15(){let el=document.getElementById('pick15');const k=G.pick15&&Date.now()-(G.pick15At||0)<=180e3?G.pick15:null;if(!k){if(el)el.remove();if(G.pick15&&!k)G.pick15=null;return;}
     if(!el){el=document.createElement('div');el.id='pick15';document.body.appendChild(el);}
-    const t=k==='hq'?'🏛️ Tap the hex for the alliance HQ':k==='sh'?`🏰 Tap a free hex within ${B15.hqMi} mi of the HQ`:`🚩 Tap a free hex within ${B15.fwdNearMi} mi of a teammate's land`;
+    const t=k==='free4'?'🏰 Tap a green hex for your Stronghold (free move)':k==='hq'?'🏛️ Tap the hex for the alliance HQ':k==='sh'?`🏰 Tap a free hex within ${B15.hqMi} mi of the HQ`:`🚩 Tap a free hex within ${B15.fwdNearMi} mi of a teammate's land`;
     if(el.dataset.k!==k){el.dataset.k=k;el.innerHTML=`<span>${t}</span><button onclick="G.pick15=null;pickBar15()">Cancel</button>`;}}
   window.pickBar15=pickBar15;setInterval(()=>{try{pickBar15();}catch(e){}},1000);
   function pick15(kind){G.pick15=kind;G.pick15At=Date.now();setTimeout(pickBar15,0);try{UI.closeModal();UI.close&&UI.close();}catch(e){}}

@@ -1,0 +1,221 @@
+diff --git a/public/bal14.js b/public/bal14.js
+index f346b6b..0ee2a2b 100644
+--- a/public/bal14.js
++++ b/public/bal14.js
+@@ -39,5 +39,5 @@
+   bankOf=function(f){try{const s=scale14();HE.capBase=BASE14.cap*s;HE.convPerH=BASE14.conv*s;HE.resPerH=BASE14.res*s;}catch(e){}return _bank14.apply(this,arguments);};
+   window.bankOf=bankOf;
+   // Visible label for this combined build. The service worker cache is ddd-v26-12h-integrated, not Claude's ddd-v26-12h.
+-  try{document.documentElement.dataset.build='12i-integrated-6-r3';const who=document.querySelector('#hud .who');if(who&&!document.getElementById('build14')){const el=document.createElement('span');el.id='build14';el.textContent='12i-integrated-6-r3';el.title='Build 12i-integrated-6';el.style.cssText='display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#2a241c;color:#e7d7c1;font:600 10px system-ui;letter-spacing:.02em;vertical-align:middle';who.appendChild(el);}}catch(e){}
++  try{document.documentElement.dataset.build='12i-integrated-6-r4';const who=document.querySelector('#hud .who');if(who&&!document.getElementById('build14')){const el=document.createElement('span');el.id='build14';el.textContent='12i-integrated-6-r4';el.title='Build 12i-integrated-6';el.style.cssText='display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#2a241c;color:#e7d7c1;font:600 10px system-ui;letter-spacing:.02em;vertical-align:middle';who.appendChild(el);}}catch(e){}
+ })();
+diff --git a/public/base15.js b/public/base15.js
+index 92d816d..b9421cd 100644
+--- a/public/base15.js
++++ b/public/base15.js
+@@ -142,7 +142,7 @@
+   window.moveSh15=moveSh15;
+   function pickBar15(){let el=document.getElementById('pick15');const k=G.pick15&&Date.now()-(G.pick15At||0)<=180e3?G.pick15:null;if(!k){if(el)el.remove();if(G.pick15&&!k)G.pick15=null;return;}
+     if(!el){el=document.createElement('div');el.id='pick15';document.body.appendChild(el);}
+-    const t=k==='hq'?'🏛️ Tap the hex for the alliance HQ':k==='sh'?`🏰 Tap a free hex within ${B15.hqMi} mi of the HQ`:`🚩 Tap a free hex within ${B15.fwdNearMi} mi of a teammate's land`;
++    const t=k==='free4'?'🏰 Tap a green hex for your Stronghold (free move)':k==='hq'?'🏛️ Tap the hex for the alliance HQ':k==='sh'?`🏰 Tap a free hex within ${B15.hqMi} mi of the HQ`:`🚩 Tap a free hex within ${B15.fwdNearMi} mi of a teammate's land`;
+     if(el.dataset.k!==k){el.dataset.k=k;el.innerHTML=`<span>${t}</span><button onclick="G.pick15=null;pickBar15()">Cancel</button>`;}}
+   window.pickBar15=pickBar15;setInterval(()=>{try{pickBar15();}catch(e){}},1000);
+   function pick15(kind){G.pick15=kind;G.pick15At=Date.now();setTimeout(pickBar15,0);try{UI.closeModal();UI.close&&UI.close();}catch(e){}}
+diff --git a/public/index.html b/public/index.html
+index 8a40bc6..b13ccd8 100644
+--- a/public/index.html
++++ b/public/index.html
+@@ -90,6 +90,8 @@
+ <script src="xp2.js"></script>
+ <script src="tiers3.js"></script>
+ <script src="tiers3ui.js"></script>
++<script src="space4.js"></script>
++<script src="map4.js"></script>
+ <script src="card1.js"></script>
+ <script src="reports1.js"></script>
+ </body></html>
+diff --git a/public/map4.js b/public/map4.js
+new file mode 100644
+index 0000000..c863ce1
+--- /dev/null
++++ b/public/map4.js
+@@ -0,0 +1,75 @@
++// map4 (R4) One marker per hex, a list of everything on a crowded hex, map filters, and markers that merge when zoomed out.
++//  Every map layer still draws its own markers exactly as before; this file runs after them and tidies the result:
++//  on a hex with several markers only the most important one shows, with a number badge. Tapping it opens
++//  "On this hex", one row per thing with its own button. Filter chips hide whole kinds of markers (Threats can't be
++//  hidden), remembered on this device. Zoomed out, markers within one spot on screen merge into one with a count.
++(function(){
++  const CAT4={raids:'threat',sqmove:'threat',ew25:'threat',horde:'threat',clan23:'threat',intent:'threat',
++    march:'march',mv23:'march',ret25:'march',van26:'march',
++    sh26:'building',gar23:'building',hq15:'building',hex:'resource',zones:'skip',rings22:'skip',terr:'skip',
++    allyFlags:'alliance',allyDefs:'alliance',
++    pipes:'resource',lm:'resource',
++    mons:'monster',nest:'monster',
++    mark:'pin',plan:'pin'};
++  const PRI4={threat:1,march:3,building:4,alliance:4,resource:5,monster:6,pin:7,other:8};
++  const FILT4=[['threat','⚠️ Threats',true],['march','🚩 Marches'],['resource','⛽ Resources'],['building','🏰 Buildings'],['alliance','🤝 Alliance'],['monster','👾 Monsters'],['pin','📍 Pins']];
++  const LS='wl_f4';let off={};try{off=JSON.parse(localStorage.getItem(LS)||'{}')||{};}catch(e){off={};}
++  const saveOff=()=>{try{localStorage.setItem(LS,JSON.stringify(off));}catch(e){}};
++  window.MAP4={CAT4,PRI4,off};
++  function catMap(){const m=new Map();const walk=(g,c)=>{try{g.eachLayer(l=>{if(l instanceof L.LayerGroup)walk(l,c);else m.set(l,c);});}catch(e){}};
++    for(const [k,g] of Object.entries(G.layers||{}))if(g&&g.eachLayer)walk(g,CAT4[k]||'other');return m;}
++  function labelOf(mk){try{const t=mk.getTooltip&&mk.getTooltip();if(t){const c=t.getContent();const s=typeof c==='string'?c:(c&&c.textContent)||'';if(s.trim())return s.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();}
++      if(mk.options&&mk.options.title)return mk.options.title;const el=mk.getElement&&mk.getElement();if(el){const s=(el.getAttribute('title')||el.textContent||'').replace(/\s+/g,' ').trim();if(s)return s;}}catch(e){}return'';}
++  const NAME4={threat:'Threat',march:'March',building:'Building',alliance:'Alliance',resource:'Resource',monster:'Monster',pin:'Pin',other:'Marker'};
++  let groups=new Map();const badges=new Map();
++  function tidy4(){try{if(typeof map==='undefined'||!map._loaded)return;const z=map.getZoom(),cats=catMap();const all=[];
++      map.eachLayer(l=>{if(!(l instanceof L.Marker)||l._b4)return;const el=l.getElement&&l.getElement();if(!el)return;const c=cats.get(l)||'other';if(c==='skip')return;all.push({l,el,c,ll:l.getLatLng()});}); // zone names and ring markers are area labels, not things on a hex
++      // filters
++      for(const x of all){const hide=off[x.c]&&x.c!=='threat';x.el.dataset.f4=hide?'1':'';}
++      const vis=all.filter(x=>x.el.dataset.f4!=='1');
++      // group: by hex when zoomed in, by a 56 px screen cell when zoomed out
++      const zoomOut=z<13;const g=new Map();
++      for(const x of vis){let key;if(zoomOut){const p=map.latLngToContainerPoint(x.ll);key='c'+Math.floor(p.x/56)+'_'+Math.floor(p.y/56);}else{try{key=hexAt(x.ll.lat,x.ll.lng).id;}catch(e){key=x.ll.lat.toFixed(5)+','+x.ll.lng.toFixed(5);}}
++        if(!g.has(key))g.set(key,[]);g.get(key).push(x);}
++      groups=new Map();const keep=new Set();
++      for(const [key,arr] of g){arr.sort((a,b)=>(PRI4[a.c]||9)-(PRI4[b.c]||9));const top=arr[0];
++        arr.forEach((x,i)=>{x.el.dataset.h4=i?'1':'';x.el.dataset.top4=i?'':(arr.length>1?'1':'');});
++        if(arr.length>1){groups.set(key,arr);keep.add(key);const sig=arr.length+'|'+top.c+'|'+top.ll.lat.toFixed(6)+','+top.ll.lng.toFixed(6)+'|'+zoomOut;let b=badges.get(key);
++          if(!b||b._sig!==sig){if(b)b.remove();b=L.marker(top.ll,{icon:L.divIcon({className:'b4',html:`<span class="${top.c==='threat'?'t4':''}">${arr.length}</span>`,iconSize:[22,22],iconAnchor:[-6,26]}),zIndexOffset:2000,keyboard:false});
++            b._b4=1;b._sig=sig;b.on('click',e=>{L.DomEvent.stop(e);if(map.getZoom()<13){map.setView(b.getLatLng(),Math.max(14,map.getZoom()+2));return;}openHex4(key);});b.addTo(map);badges.set(key,b);}
++          // tapping the top marker of a crowded hex opens the list too
++          if(!top.el._c4){top.el._c4=1;top.el.addEventListener('click',ev=>{const k=top.el.dataset.top4==='1'?[...groups.entries()].find(([,a])=>a[0].el===top.el):null;if(!k)return;ev.stopPropagation();ev.preventDefault();if(map.getZoom()<13){map.setView(top.ll,Math.max(14,map.getZoom()+2));return;}openHex4(k[0]);},true);}}}
++      sweep4(keep);}
++    catch(e){console.warn('map4',e);}}
++  function sweep4(keep){for(const [k,b] of badges)if(!keep.has(k)){b.remove();badges.delete(k);}}
++  window.tidy4=tidy4;
++  function openHex4(key){const arr=groups.get(key);if(!arr)return;UI._h4=arr;const hex=/^-?\d+_-?\d+$/.test(key)?key:null;
++    const rows=arr.map((x,i)=>{const lab=labelOf(x.l)||NAME4[x.c];const ico=(x.el.textContent||'').trim().match(/^\S{1,2}/);
++      return`<div class="row h4row ${x.c==='threat'?'t4r':''}"><span class="h4i">${ico?ico[0]:'•'}</span><div class="grow"><b>${lab.slice(0,60).replace(/</g,'&lt;')}</b><small>${NAME4[x.c]}</small></div><button onclick="openH4(${i})">Open</button></div>`;}).join('');
++    UI.modal(`<h2>On this hex</h2>${hex?`<p class="tiny">${hexName(hex)}</p>`:''}${rows}<div class="btns24">${hex?`<button onclick="UI.closeModal();setTimeout(()=>UI.infoTile('${hex}'),60)">🔎 Hex card</button>`:''}<button onclick="UI.closeModal()">Close</button></div>`);}
++  window.openHex4=openHex4;
++  window.openH4=function(i){const x=(UI._h4||[])[i];if(!x)return;UI.closeModal();setTimeout(()=>{try{const top=x.el.dataset.top4;x.el.dataset.top4='';x.l.fire('click',{latlng:x.ll,originalEvent:null});x.el.dataset.top4=top;}catch(e){console.warn('open h4',e);}},60);};
++  // filter chips
++  function chips4(){if(document.getElementById('f4'))return;const d=document.createElement('div');d.id='f4';
++    d.innerHTML=`<button id="f4t" aria-expanded="false" title="Map filters">🧭</button><div id="f4c">${FILT4.map(([k,n,lock])=>`<button data-k="${k}" class="${off[k]?'off':''}" ${lock?'disabled title="Threats always show"':''}>${n}</button>`).join('')}</div>`;
++    document.body.appendChild(d);d.querySelector('#f4t').onclick=e=>{e.stopPropagation();d.classList.toggle('open');d.querySelector('#f4t').setAttribute('aria-expanded',d.classList.contains('open'));};
++    d.querySelectorAll('#f4c button[data-k]').forEach(b=>b.onclick=e=>{e.stopPropagation();const k=b.dataset.k;if(k==='threat')return;off[k]=!off[k];b.classList.toggle('off',!!off[k]);saveOff();tidy4();});}
++  // bottom-left, just above the march list arrow (the right side has Drive and the base rail)
++  const place4=()=>{try{const d=document.getElementById('f4');if(!d)return;const mc=document.getElementById('mcToggle'),tabs=document.getElementById('tabs');
++      const navTop=tabs?tabs.getBoundingClientRect().top:innerHeight-64;let bottom=innerHeight-navTop+12,left=10;
++      const box=document.getElementById('mcards'),shut=!box||box.classList.contains('mc-shut')||getComputedStyle(box).display==='none';
++      if(mc&&shut){const r=mc.getBoundingClientRect();if(r.width){bottom=innerHeight-r.top+8;left=Math.round(r.left);}} // march list open: stay in the corner above the tabs
++      d.style.bottom=Math.round(bottom)+'px';d.style.left=left+'px';}catch(e){}};
++  setInterval(()=>{chips4();place4();tidy4();},900);
++  document.addEventListener('pointerdown',e=>{const d=document.getElementById('f4');if(d&&d.classList.contains('open')&&!d.contains(e.target)){d.classList.remove('open');d.querySelector('#f4t').setAttribute('aria-expanded','false');}},true);
++  try{HOOK.draw(function(){setTimeout(tidy4,0);});}catch(e){}
++  setTimeout(()=>{try{map.on('zoomend moveend',()=>setTimeout(tidy4,0));}catch(e){}},1500);
++  const st=document.createElement('style');
++  st.textContent=`[data-f4="1"],[data-h4="1"]{display:none!important}.b4 span{display:inline-block;min-width:20px;height:20px;line-height:20px;padding:0 4px;border-radius:10px;background:#1a140c;border:1.5px solid #c9a24a;color:#ffe6a8;font:800 11px/18px system-ui;text-align:center;box-shadow:0 1px 4px #000a}
++  .b4 span.t4{border-color:#ff3b2f;color:#fff;background:#5a1410;animation:p4 1.2s infinite}@keyframes p4{50%{box-shadow:0 0 0 5px #ff3b2f33}}
++  #f4{position:fixed;left:10px;z-index:640;display:flex;flex-direction:column-reverse;align-items:flex-start;gap:6px;pointer-events:none}#f4 button{pointer-events:auto}
++  #f4t{width:44px;height:44px;border-radius:10px;border:1.5px solid #c9a24a;background:#1a140ce8;font-size:18px}#f4c{display:none;flex-wrap:wrap;gap:4px;max-width:min(320px,calc(100vw - 40px));padding:6px;border-radius:12px;background:#120e09e6;border:1px solid #3a2f22}
++  #f4.open #f4c{display:flex}#f4c button{padding:6px 8px;border-radius:14px;font-size:12px;background:#2a1f10;border:1px solid #c9a24a;color:#ffe6a8}#f4c button.off{opacity:.45;text-decoration:line-through}#f4c button[disabled]{opacity:1}
++  .h4row .h4i{font-size:18px;margin-right:6px}.t4r{border-left:3px solid #ff3b2f}`;
++  document.head.appendChild(st);
++})();
+diff --git a/public/space4.js b/public/space4.js
+new file mode 100644
+index 0000000..f445645
+--- /dev/null
++++ b/public/space4.js
+@@ -0,0 +1,85 @@
++// space4 (R4) One spacing rule for every building that protects hexes, and a free move for a Stronghold that overlaps.
++//  A building protects the hexes within its radius (Stronghold 2+, tower 1+, outposts 1; radii grow with level).
++//  Allies: areas may touch edges but never share a hex (distance >= radius A + radius B + 1).
++//  Enemies (Horde buildings now, other alliances later): one free hex between areas (distance >= rA + rB + 2).
++//  Your own buildings may overlap each other (a tower inside your Stronghold area is how you stack defense).
++//  Checked everywhere a building is placed: the automatic first Stronghold, Pick a spot near the HQ, towers, outposts,
++//  Home and Forward Outposts, and the free move. While picking on the map, the hexes you can use are outlined.
++//  Areas can still grow into each other later as buildings level up; they keep defending together (allies' buildings
++//  already help defend each other's hexes), the rule only stops new overlaps.
++(function(){
++  const S4={allyGap:1,enemyGap:2,enemyR:1,freeMoveMi:3,searchRings:14};
++  window.S4=S4;
++  function myR4(kind,lvl){try{if(kind==='sh')return shRadius();if(kind==='tower')return towerRadiusAt(lvl||1);return BAL.outpost.radius||1;}catch(e){return kind==='sh'?2:1;}}
++  window.myR4=myR4;
++  // other players' buildings (allies) and enemy buildings (Horde Strongholds and outposts)
++  function others4(){const out=[];
++    for(const [uid,m] of Object.entries((G.al&&G.al.members)||{})){if(isMe(uid)||m.me||!Array.isArray(m.defs))continue;
++      for(const d of m.defs)if(d&&typeof d.hex==='string'&&/^-?\d+_-?\d+$/.test(d.hex))out.push({hex:d.hex,r:Math.max(0,+d.r||0),k:d.k,who:m.name||'a teammate',uid,enemy:false,t:d.t||0});}
++    try{for(const [fid,x] of Object.entries((FX()&&FX().f)||{})){if(!x)continue;const nm=(typeof fdef==='function'&&fdef(fid)||{}).name||'the Horde';
++      if(typeof x.home==='string'&&(x.tiles||{})[x.home])out.push({hex:x.home,r:S4.enemyR,k:'hq',who:nm,enemy:true});for(const h of Object.keys(x.outposts||{}))if((x.tiles||{})[h])out.push({hex:h,r:S4.enemyR,k:'op',who:nm,enemy:true});}}catch(e){}
++    return out;}
++  window.others4=others4;
++  const KN={sh:'Stronghold',tower:'tower',op:'outpost',hq:'Stronghold'};
++  // null when a building of this kind can go on this hex, else the reason
++  function spaceWhy4(hex,kind,lvl){const r=myR4(kind,lvl);for(const o of others4()){const need=r+o.r+(o.enemy?S4.enemyGap:S4.allyGap),d=hexDist(hex,o.hex);
++      if(d<need)return o.enemy?`Too close to ${o.who}'s ${KN[o.k]||'base'}. Keep a free hex between your areas.`:`Too close to ${o.who}'s ${KN[o.k]||'building'} area. Areas can touch but not overlap.`;}
++    return null;}
++  window.spaceWhy4=spaceWhy4;
++  // older checks used allyBldNear(id,1) for Strongholds: they now use the full rule
++  allyBldNear=function(id){const o=others4().find(o=>!o.enemy&&hexDist(id,o.hex)<myR4('sh')+o.r+S4.allyGap);return o?{m:{name:o.who},d:{k:o.k,hex:o.hex}}:null;};window.allyBldNear=allyBldNear;
++  // the automatic first Stronghold: the nearest hex that passes
++  try{pickStartHex26=function(){let id=hexAt(...G.pos).id;if(startHexFree26(id)&&!spaceWhy4(id,'sh'))return id;const [q,r]=idQR(id);
++      for(let ring=1;ring<=S4.searchRings;ring++)for(const x of hexRing(q,r,ring))if(hexDist(x.id,id)===ring&&startHexFree26(x.id)&&!spaceWhy4(x.id,'sh'))return x.id;return id;};window.pickStartHex26=pickStartHex26;}catch(e){}
++  // placements
++  const guard=(fn,kind,lvlOf)=>function(id){const w=spaceWhy4(id,typeof kind==='function'?kind.apply(this,arguments):kind,lvlOf?lvlOf(id):1);if(w){toast('🚫 '+w);return;}return fn.apply(this,arguments);};
++  try{placeTower=guard(placeTower,'tower');window.placeTower=placeTower;}catch(e){}
++  try{placeOutpost=guard(placeOutpost,'op');window.placeOutpost=placeOutpost;}catch(e){}
++  try{if(window.placeSpecial15)window.placeSpecial15=guard(window.placeSpecial15,'op');}catch(e){}
++  try{if(typeof placeStronghold==='function'){placeStronghold=guard(placeStronghold,'sh');window.placeStronghold=placeStronghold;}}catch(e){}
++  try{if(window.moveSh15)window.moveSh15=guard(window.moveSh15,'sh');}catch(e){}
++  try{if(window.startOk15){const _so=window.startOk15;window.startOk15=function(id){return _so.apply(this,arguments)||spaceWhy4(id,'sh');};}}catch(e){}
++  try{if(window.fwdOk15){const _fo=window.fwdOk15;window.fwdOk15=function(id){return _fo.apply(this,arguments)||spaceWhy4(id,'op');};}}catch(e){}
++  // ---------- building times (newer of two overlapping buildings is the one that should move)
++  const _ods=ownDefStructs;ownDefStructs=function(){const out=_ods.apply(this,arguments);try{const w=W();
++      for(const d of out){const o=d.k==='sh'?w.sh:d.k==='tower'?(w.towers||{})[d.hex]:(w.outposts||{})[d.hex];if(o&&o.t4)d.t=o.t4;}}catch(e){}return out;};window.ownDefStructs=ownDefStructs;
++  function stamp4(){try{const w=W(),now=Date.now();let ch=false;const st=o=>{if(o&&o.state!=='down'&&o.t4==null){o.t4=0;ch=true;}};st(w.sh);Object.values(w.towers||{}).forEach(st);Object.values(w.outposts||{}).forEach(st);return ch;}catch(e){return false;}}
++  // anything placed from now on gets its time; buildings from before R4 are 0 ("unknown")
++  for(const n of ['placeTower','placeOutpost','placeStronghold']){try{const f=window[n];if(typeof f!=='function')continue;window[n]=function(id){const r=f.apply(this,arguments);try{const w=W();const o=(w.sh&&w.sh.hex===id)?w.sh:(w.towers||{})[id]||(w.outposts||{})[id];if(o&&!o.t4){o.t4=Date.now();save();}}catch(e){}return r;};
++    if(n==='placeTower')placeTower=window[n];else if(n==='placeOutpost')placeOutpost=window[n];else placeStronghold=window[n];}catch(e){}}
++  // ---------- overlap check for my Stronghold, and the free move
++  function overlap4(){try{const s=W().sh;if(!s||s.state==='down')return null;const r=myR4('sh');let worst=null;
++      for(const o of others4()){if(o.enemy)continue;const d=hexDist(s.hex,o.hex);if(d<=r+o.r){if(!worst||d<worst.d)worst={...o,d};}}
++      if(!worst)return null;const mine=s.t4||0;worst.mineNewer=mine&&worst.t?mine>worst.t:null;return worst;}catch(e){return null;}}
++  window.overlap4=overlap4;
++  function freeMoveOk4(id){const s=W().sh;if(!s)return'You have no Stronghold';if(id===s.hex)return'That is where it is now';
++    const km=(a,b)=>{const x=hexCenter(...idQR(a)),y=hexCenter(...idQR(b));return distM(x[0],x[1],y[0],y[1])/1000;};
++    if(km(id,s.hex)>S4.freeMoveMi*1.60934)return`Pick a spot within ${S4.freeMoveMi} mi of your Stronghold`;
++    if(factionAt(id))return'Raiders hold that hex';const o=G.terr&&G.terr[id];if(o&&!o.released&&!o.ai&&o.uid&&!isMe(o.uid))return'That hex belongs to a teammate';
++    return spaceWhy4(id,'sh');}
++  window.freeMoveOk4=freeMoveOk4;
++  window.freeMove4=function(id){const why=freeMoveOk4(id);if(why)return toast('🚫 '+why);const s=W().sh,old=s.hex;if(!overlap4())return toast('Your Stronghold no longer overlaps anyone');
++    s.hex=id;s.t4=Date.now();s.free4=1;if(!P.tiles[id]){try{claimTile(id);}catch(e){}}try{shClaimArea();}catch(e){}save();try{pushMember();drawWorld();}catch(e){}
++    G.pick15=null;try{pickBar15();}catch(e){}UI.closeModal();toast('🏰 Stronghold moved. Your tiles and pipelines stay yours.');try{allianceLog(`🏰 ${P.name} moved their Stronghold so its area no longer overlaps`);}catch(e){}};
++  window.startFree4=function(){G.pick15='free4';G.pick15At=Date.now();try{pickBar15();}catch(e){}try{UI.closeModal();UI.close&&UI.close();}catch(e){}toast('Tap a highlighted hex for your Stronghold');};
++  // map pick: the free move uses the same pick bar as the other map picks
++  const _it=UI.infoTile;UI.infoTile=function(id){if(G.pick15==='free4'){const why=freeMoveOk4(id);if(why){toast('🚫 '+why);return;}
++      return UI.modal(`<h2>🏰 Move your Stronghold here?</h2><p>${hexName(id)}. Free, one time. Your tiles, pipelines, towers and troops stay as they are.</p><div class="btns24"><button class="red24" onclick="freeMove4('${id}')">✅ Move here</button><button class="ghost24" onclick="UI.closeModal()">Pick another</button></div>`);}
++    return _it.apply(this,arguments);};
++  // the card that offers it (once per session, and in the Base tab until it's fixed)
++  function offerText4(o){return `Your Stronghold's area overlaps ${o.who}'s ${KN[o.k]||'building'} area.${o.mineNewer===false?` Yours was there first, so ${o.who} can move theirs for free.`:''} Pick a new spot nearby. This move is free.`;}
++  setInterval(()=>{try{if(!P.world||G._off4)return;const o=overlap4();if(!o||o.mineNewer===false||(P.ov4keep||{})[o.uid])return;G._off4=1;
++      UI.info({title:'🏰 Your area overlaps',body:`<p>${offerText4(o)}</p><p class="tiny">Your tiles, pipelines and troops stay yours. Until one of you moves, both buildings defend the shared hexes.</p>`,buttons:[['📍 Pick a new spot',()=>startFree4(),'fight'],['Mine stays here',()=>{P.ov4keep=P.ov4keep||{};P.ov4keep[o.uid]=Date.now();save();UI.closeModal();toast(`OK. ${o.who} can move theirs for free.`);}]]});}catch(e){}},8000);
++  HOOK.render(function(){try{if(this.tab!=='base'||this.sub.base!=='fort')return;const b=$('#sheetBody');if(!b||b.querySelector('.ov4'))return;const o=overlap4();if(!o)return;
++    b.querySelector('h2')?.insertAdjacentHTML('afterend',`<div class="row ov4"><div class="grow"><b>⚠️ Area overlaps ${o.who}</b><small>${offerText4(o)}</small></div>${o.mineNewer===false?'':'<button onclick="startFree4()">📍 Move free</button>'}</div>`);}catch(e){console.warn('ov4',e);}});
++  // ---------- while picking on the map, outline the hexes you can use
++  const valid4={hq:null,sh:id=>window.startOk15?!window.startOk15(id):!spaceWhy4(id,'sh'),fwd:id=>window.fwdOk15?!window.fwdOk15(id):!spaceWhy4(id,'op'),free4:id=>!freeMoveOk4(id)};
++  let lay4=null,key4='';
++  function drawPick4(){try{if(typeof map==='undefined')return;const k=G.pick15&&Date.now()-(G.pick15At||0)<=180e3?G.pick15:null,ok=k&&valid4[k];
++      const c=map.getCenter(),z=map.getZoom(),kk=ok?`${k}|${c.lat.toFixed(3)}|${c.lng.toFixed(3)}|${z}`:'';if(kk===key4)return;key4=kk;
++      if(lay4){lay4.remove();lay4=null;}if(!ok||z<13)return;lay4=L.layerGroup().addTo(map);const ctr=hexAt(c.lat,c.lng),[q,r]=idQR(ctr.id);let n=0;
++      for(let ring=0;ring<=9&&n<260;ring++)for(const x of (ring?hexRing(q,r,ring):[{id:ctr.id}])){if(ring&&hexDist(x.id,ctr.id)!==ring)continue;if(!ok(x.id))continue;n++;
++        L.polygon(hexPoly(...idQR(x.id)),{color:'#5fd068',weight:2,fill:true,fillOpacity:.12,interactive:false}).addTo(lay4);}}catch(e){}}
++  window.drawPick4=drawPick4;setInterval(drawPick4,700);
++  setTimeout(stamp4,3000);
++})();
+diff --git a/public/sw.js b/public/sw.js
+index cc781ef..d1669f4 100644
+--- a/public/sw.js
++++ b/public/sw.js
+@@ -1,6 +1,6 @@
+ // Dead Zone Drive service worker: network-first for the app (so updates show right away),
+ // falling back to cache when offline. Map tiles and Firebase are never cached here.
+-const C='ddd-v26-12i-integrated-6-r3';
++const C='ddd-v26-12i-integrated-6-r4';
+ self.addEventListener('install',e=>self.skipWaiting());
+ self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+ self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==location.origin)return;
