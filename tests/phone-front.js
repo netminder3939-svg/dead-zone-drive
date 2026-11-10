@@ -78,7 +78,7 @@ const ok = (n, c, e) => { if (!c) failed++; console.log((c ? 'PASS ' : 'FAIL ') 
     const early = Object.keys(fx.f).filter(id => id.endsWith('~' + far));
     return { stepMin: HB().stepMin, gap: since - t, onTime, early, slack: /since-1000/.test(String(hordeStep)) };
   });
-  ok('a new regional front spawns its clans on the rounded step', spawn.onTime.length === 3 && spawn.early.length === 3 && spawn.slack, spawn);
+  ok('a new regional front spawns its clans on the rounded step', spawn.onTime.length === 3 && spawn.early.length === 3, spawn); // R5: hordeStep is wrapped again (horde5.js), so the old source-text check for the 1 s slack is dropped; the two spawns above test the behavior
   ok('no page errors', errs.length === 0, errs.slice(0, 3));
   console.log(failed ? 'FAILED ' + failed : 'ALL PASS');
   await b.close();
