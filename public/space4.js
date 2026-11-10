@@ -77,7 +77,8 @@
   const valid4={hq:null,sh:id=>window.startOk15?!window.startOk15(id):!spaceWhy4(id,'sh'),fwd:id=>window.fwdOk15?!window.fwdOk15(id):!spaceWhy4(id,'op'),free4:id=>!freeMoveOk4(id)};
   let lay4=null,key4='';
   function drawPick4(){try{if(typeof map==='undefined')return;const k=G.pick15&&Date.now()-(G.pick15At||0)<=180e3?G.pick15:null,ok=k&&valid4[k];
-      const c=map.getCenter(),z=map.getZoom(),kk=ok?`${k}|${c.lat.toFixed(3)}|${c.lng.toFixed(3)}|${z}|${G.terrV15||0}`:''; // R6.4: territory arriving redraws the green hexesif(kk===key4)return;key4=kk;
+      const c=map.getCenter(),z=map.getZoom(),kk=ok?`${k}|${c.lat.toFixed(3)}|${c.lng.toFixed(3)}|${z}|${G.terrV15||0}`:''; // R6.4: territory arriving redraws the green hexes
+      if(kk===key4)return;key4=kk;
       if(lay4){lay4.remove();lay4=null;}if(!ok||z<13)return;lay4=L.layerGroup().addTo(map);const ctr=hexAt(c.lat,c.lng),[q,r]=idQR(ctr.id);let n=0;
       for(let ring=0;ring<=9&&n<260;ring++)for(const x of (ring?hexRing(q,r,ring):[{id:ctr.id}])){if(ring&&hexDist(x.id,ctr.id)!==ring)continue;if(!ok(x.id))continue;n++;
         L.polygon(hexPoly(...idQR(x.id)),{color:'#5fd068',weight:2,fill:true,fillOpacity:.12,interactive:false}).addTo(lay4);}}catch(e){}}
