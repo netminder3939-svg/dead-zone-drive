@@ -81,15 +81,15 @@ drawIntents=function(){if(typeof map==='undefined'||!P.world||!FX().f)return;if(
 // v22 drew a tiny red dot on every horde hex; those are the "weird little circles" -> gone (the hex fill already shows horde land)
 try{if(typeof drawHordeDots==='function')drawHordeDots=function(){};}catch(e){}
 // ---------- Stronghold look: glowing hex, double wall, crew flag, big name + level plate, HP bar. Tier look at Lv4 and Lv7 ----------
-function shHTML26(uid,lv,hp,name){const w=who24(uid),tier=lv>=7?3:lv>=4?2:1;return`<div class="sh26 t${tier}" style="--c:${esc24(w.color||'#ffc94a')}"><div class="shk26">${flag24?flag24(w.flag,26,w.color):''}<span class="kp">🏰</span></div>
+function shHTML26(uid,lv,hp,name,state){const w=who24(uid),tier=lv>=7?3:lv>=4?2:1,im=window.shArt65?shArt65(lv,'kp-img',{drop:true}):'';return`<div class="sh26 t${tier}${im?' has65':''}${state==='building'?' bld65':''}" style="--c:${esc24(w.color||'#ffc94a')}"><div class="shk26">${flag24?flag24(w.flag,26,w.color):''}<span class="kp">🏰</span>${im}</div>
   <div class="shn26">${esc24(name)} · LV${lv}</div><div class="shhp26"><i style="width:${Math.round((hp==null?1:hp)*100)}%"></i></div></div>`;}
 window.SH26=true;
 function drawSh26(){if(typeof map==='undefined'||!P.world)return;if(!G.layers.sh26)G.layers.sh26=L.layerGroup().addTo(map);const g=G.layers.sh26;g.clearLayers();if(map.getZoom()<12)return;
-  const add=(hex,uid,lv,hp,name,click)=>{const [q,r]=idQR(hex),c=hexCenter(q,r),col=who24(uid).color||'#ffc94a';
+  const add=(hex,uid,lv,hp,name,click,state)=>{const [q,r]=idQR(hex),c=hexCenter(q,r),col=who24(uid).color||'#ffc94a';
     L.polygon(hexPoly(q,r),{color:'#120d08',weight:9,opacity:.8,fillColor:col,fillOpacity:.38,interactive:false}).addTo(g);L.polygon(hexPoly(q,r),{color:col,weight:4,opacity:1,fill:false,interactive:false}).addTo(g);
     L.circle(c,{radius:HEX_R*1.05,color:col,weight:2,opacity:.85,dashArray:'6 4',fill:false,interactive:false}).addTo(g);
-    L.marker(c,{icon:L.divIcon({className:'lodm',html:shHTML26(uid,lv,hp,name),iconSize:[0,0]}),zIndexOffset:620}).on('click',click).addTo(g);};
-  const s=P.world.sh;if(s&&s.state!=='down')add(s.hex,P.uid,strongholdLevel(),s.hpPct??1,P.name,()=>UI.infoStruct('sh'));
+    L.marker(c,{icon:L.divIcon({className:'lodm',html:shHTML26(uid,lv,hp,name,state),iconSize:[0,0]}),zIndexOffset:620}).on('click',click).addTo(g);};
+  const s=P.world.sh;if(s&&s.state!=='down')add(s.hex,P.uid,strongholdLevel(),s.hpPct??1,P.name,()=>UI.infoStruct('sh'),s.state);
   const mine=P.world.sh&&P.world.sh.state!=='down'?P.world.sh.hex:null;
   for(const [uid,m] of Object.entries((G.al&&G.al.members)||{})){if(isMe(uid)||m.me||!Array.isArray(m.defs))continue;for(const d of m.defs)if(d&&d.k==='sh'&&typeof d.hex==='string'&&d.hex!==mine)add(d.hex,uid,d.lv||d.level||m.shL||1,d.hp??1,m.name||'Ally',()=>UI.infoTile(d.hex));}}
 HOOK.draw(function(){try{drawSh26();}catch(e){console.warn('sh26',e);}});

@@ -36,7 +36,7 @@ setInterval(statusStrip,1000);
 // ---------- nearest things ----------
 UI.nearest=function(){if(!G.pos)return;const out=[],me=G.pos,add=(icon,name,sub,lat,lng,fn)=>out.push({icon,name,sub,d:distM(...me,lat,lng),lat,lng,fn});
   (G.monList||[]).forEach(m=>add('👾',MONSTERS[m.mid].name,'Lv'+m.lvl,m.lat,m.lng,()=>UI.infoMon(m.mid,m.lvl,m.key,m.lat,m.lng)));
-  (G.landmarks||[]).filter(l=>isVis(hexAt(l.lat,l.lng).id)).forEach(l=>add(LANDMARK_KINDS[l.kind].icon,l.name,P.badges[l.id]?'badge ✓':'new badge',l.lat,l.lng,()=>UI.infoLandmark(l)));
+  (G.landmarks||[]).filter(l=>isVis(hexAt(l.lat,l.lng).id)).forEach(l=>add(window.lmIcon65?lmIcon65(l.kind):LANDMARK_KINDS[l.kind].icon,l.name,P.badges[l.id]?'badge ✓':'new badge',l.lat,l.lng,()=>UI.infoLandmark(l)));
   nearbyEnemies().filter(e=>isVis(e.id)).forEach(e=>{const [a,b]=hexCenter(...idQR(e.id));add('🏴','Raider Stronghold','Lv'+enemyStats(e).L,a,b,()=>UI.infoFort(e.id));});
   Object.values(G.raids).filter(r=>!r.done&&Date.now()<r.endsAt).forEach(r=>add('☠️',MONSTERS[r.bossId].name+' raid',mins(r.endsAt)+' left',r.lat,r.lng,()=>UI.infoRaid(r.id)));
   const h=hexAt(...me);hexRing(h.q,h.r,6).forEach(x=>{const t=tileInfo(x.id);if(t.res&&t.tier!=='common'&&!P.tiles[x.id]&&isVis(x.id)){const [a,b]=hexCenter(x.q,x.r);add(RES[t.res],`${t.tier} ${RESN2[t.res]} tile`,'+'+t.yield+'/day',a,b,()=>UI.infoTile(x.id));}});

@@ -152,7 +152,7 @@
     if(ranksOn15()&&!isOfficer15()&&G.bankMode==='withdraw'){const go=box.querySelector('#bkgo');if(go)go.textContent='Request';}}catch(e){console.warn('bk15',e);}}
 
   // ---------- UI: ranks + titles on the crew list and person card ----------
-  function badge15(uid){const r=rankOf15(uid),t=titleOf15(uid);return (r!=='member'?`<span class="rk15 rk-${r}">${RANKS15[r].ico} ${RANKS15[r].n}</span>`:'')+(t?`<span class="tt15">🏷️ ${esc(t)}</span>`:'');}
+  function badge15(uid){const r=rankOf15(uid),t=titleOf15(uid);return (r!=='member'?`<span class="rk15 rk-${r}">${window.rankArt65?rankArt65(r,RANKS15[r].ico):RANKS15[r].ico} ${RANKS15[r].n}</span>`:'')+(t?`<span class="tt15">🏷️ ${esc(t)}</span>`:'');}
   window.badge15=badge15;
   function badgeRows15(){try{if(UI.tab!=='alliance')return;document.querySelectorAll('#sheetBody .rp26').forEach(el=>{if(el.querySelector('.rk15,.tt15,.rkx15'))return;const m=(el.getAttribute('onclick')||'').match(/person26\('([^']+)'\)/);if(!m)return;
       const h=badge15(m[1]);const b=el.querySelector('b');if(b)b.insertAdjacentHTML('afterend',h||'<span class="rkx15"></span>');});}catch(e){}}

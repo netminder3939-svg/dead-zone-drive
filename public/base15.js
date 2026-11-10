@@ -143,7 +143,7 @@
   window.hqHex15=()=>{const h=hq15();return h&&h.hex||null;};
   function nearHq15(id){const h=hq15();return !!(h&&kmBetween(h.hex,id)<=B15.hqMi*MI/1000);}
   window.drawHq15=function(){try{if(typeof map==='undefined')return;if(!G.layers.hq15)G.layers.hq15=L.layerGroup().addTo(map);const g=G.layers.hq15;g.clearLayers();const h=hq15();if(!h)return;const c=ctr(h.hex);
-    L.marker(c,{icon:L.divIcon({className:'mk hq15mk',html:`<div class="hq15ico">🏛️<b>${esc15(h.name||'HQ')}</b></div>`,iconSize:[0,0]}),zIndexOffset:600}).on('click',()=>UI.hq15()).addTo(g);
+    L.marker(c,{icon:L.divIcon({className:'mk hq15mk',html:`<div class="hq15ico${window.hqFall6&&hqFall6()?' fall65':''}">${window.hqArt65?hqArt65():''}🏛️<b>${esc15(h.name||'HQ')}</b></div>`,iconSize:[0,0]}),zIndexOffset:600}).on('click',()=>UI.hq15()).addTo(g);
     L.circle(c,{radius:B15.hqMi*MI,color:'#ffd24a',weight:1,opacity:.5,fillOpacity:.03,dashArray:'6 6',interactive:false}).addTo(g);}catch(e){}};
   HOOK.draw(function(){drawHq15();});
   window.jumpHq15=function(){const h=hq15();if(!h)return toast('No HQ yet');try{map.setView(ctr(h.hex),15);G.view15=ctr(h.hex);}catch(e){}UI.closeModal&&UI.closeModal();try{UI.close&&UI.close();}catch(e){}};
@@ -195,7 +195,7 @@
     x+=`<h3>Your bases</h3>`+basesHtml15();return x;}
   function basesHtml15(){const L=myBases15(),cb=curBase15();let x='';
     x+=`<div class="row"><div class="grow"><b>📍 Here (GPS)</b><small>Claim by walking and driving where you really are</small></div>${cb==='gps'?'<span class="tiny">● now</span>':`<button onclick="setOp15('gps')">Use</button>`}</div>`;
-    for(const id of L){const n=poolOf15(id),on=opHex15()===id;x+=`<div class="row"><div class="grow"><b>${baseLabel15(id)}</b><small>${hexName(id)} · 🪖 ${n.toLocaleString()} troops${window.baseLine64?' · '+baseLine64(id):''}</small></div>${on?'<span class="tiny">● now</span>':`<button onclick="setOp15('${id===shHex15()?'sh':id}')">Operate</button>`}<button onclick="UI.portal15('${id}')">🌀</button></div>`;}
+    for(const id of L){const n=poolOf15(id),on=opHex15()===id;const th=window.thumb65?thumb65(id===shHex15()?shArt65(strongholdLevel()):opArt65(((W().outposts||{})[id]||{}).kind)):'';x+=`<div class="row">${th}<div class="grow"><b>${baseLabel15(id)}</b><small>${hexName(id)} · 🪖 ${n.toLocaleString()} troops${window.baseLine64?' · '+baseLine64(id):''}</small></div>${on?'<span class="tiny">● now</span>':`<button onclick="setOp15('${id===shHex15()?'sh':id}')">Operate</button>`}<button onclick="UI.portal15('${id}')">🌀</button></div>`;}
     const P15=portalList15();if(P15.length)x+=`<h3>🌀 In the portal</h3>`+P15.map(p=>`<div class="row"><div class="grow">${p.n.toLocaleString()} troops → ${baseLabel15(p.to)}<small>arrive in ${fmtDur(Math.max(0,p.at-now()))}</small></div></div>`).join('');
     const f=ops15('fwd').length;x+=`<p class="tiny">🚩 Forward Outposts ${f}/${B15.fwdMax}: open a teammate's card and tap "Forward Outpost near them".</p>`;return x;}
   UI.hq15=function(){try{this.tab='alliance';this.sub.alliance='hq';UI.open?UI.open('alliance'):UI.render();}catch(e){UI.modal(hqHtml15());}};

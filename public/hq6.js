@@ -99,7 +99,7 @@
   // ---------- officers: at most 2 (rank15.setRank15 refuses a 3rd; the security rules cap roles at 3 entries)
   // ---------- HQ tab: the building, the Vault, recent attacks
   const n6=v=>Math.round(+v||0).toLocaleString();const cst=o=>Object.entries(o).filter(([,v])=>v>0).map(([k,v])=>`${n6(v)} ${RES[k]}`).join(' ');
-  function hqCard6(){const h=hex6(),b=bld(),L=lvl6(),off=isOfficer15(),f=fall6(),bank=(G.al&&G.al.bank)||{};let x=`<div class="hq6"><h3>🏛️ HQ building</h3>`;
+  function hqCard6(){const h=hex6(),b=bld(),L=lvl6(),off=isOfficer15(),f=fall6(),bank=(G.al&&G.al.bank)||{};let x=`<div class="hq6${f?' fall65':''}">${window.hqArt65?hqArt65('hqcard65'):''}<h3>🏛️ HQ building</h3>`;
     if(!h)x+=`<p class="tiny">Place the HQ spot first, then build it here from the Vault.</p>`;
     else if(!b||!b.built){x+=`<p>Not built yet. Cost from the Vault: <b>${cst(HQ6.cost)}</b>.</p><p class="tiny">Protects 2 rings around ${hexName(h)}, defends with its own wall and fire, cuts portal time and grows the Vault.</p>${off?`<div class="btns24"><button class="red24" onclick="buildHq6()">🏛️ Build the HQ</button></div>`:'<p class="tiny">The leader or an officer builds it.</p>'}`;}
     else{const hp=innate26({kind:'hq',lvl:L}),fire=Math.round(C26.bld.hq.fire*(1+C26.lvlFire*(L-1))),walls=Math.round(100*Math.min(C26.maxWalls,C26.bld.hq.walls+C26.lvlWalls*(L-1)));
@@ -109,7 +109,7 @@
       x+=`<div class="r24"><span>Troops stationed on the HQ</span><b>${n6(gar)}</b></div>`;
       if(b.upEnd&&now()<b.upEnd)x+=`<div class="r24"><span>Upgrading to Lv${L+1}</span><b>${fmtDur(b.upEnd-now())}</b></div>`;
       else if(L<HQ6.maxLvl&&!f){const nx=L+1;x+=`<div class="row"><div class="grow"><b>Next: Lv${nx}</b><small>${cst(upCost6(L))} from the Vault · ${HQ6.upHPerLvl*L} h · wall HP ${n6(innate26({kind:'hq',lvl:nx}))}, Vault +${n6(HQ6.vaultPerLvl)} each${rings6(nx)>rings6(L)?`, ${rings6(nx)} rings`:''}${HQ6.portalCut*nx<=HQ6.portalCutMax?`, portal −${Math.round(100*HQ6.portalCut*nx)}%`:''}</small></div>${off?'<button onclick="upgradeHq6()">⬆️ Upgrade</button>':''}</div>`;}}
-    x+=`<h3>🏦 Alliance Vault</h3><div class="hg5">${Object.keys(RES).map(k=>`<div><b>${n6(bank[k]||0)}</b><small>${RES[k]} / ${n6(vaultCap6())}</small></div>`).join('')}</div>`;
+    x+=`<h3>${window.hdr65?hdr65('vault','🏦',24):'🏦'} Alliance Vault</h3><div class="hg5">${Object.keys(RES).map(k=>`<div><b>${n6(bank[k]||0)}</b><small>${RES[k]} / ${n6(vaultCap6())}</small></div>`).join('')}</div>`;
     const pend=Object.values(G.bankReq15||{}).filter(r=>r.status==='pending').length;x+=`<div class="r24"><span>Pending requests</span><b>${pend}</b></div>${locked6()?`<div class="r24"><span>🔒 Locked</span><b>${fmtDur(lockUntil6()-now())}</b></div>`:''}<p class="tiny">A full Vault refuses new deposits; nothing already in it is ever removed. <a href="#" onclick="UI.sub.alliance='hoard';UI.render();return false">Open the Vault</a></p>`;
     const rec=(P.fr25||[]).slice(0,5);x+=`<h3>⚔️ Recent attacks on alliance land</h3>${rec.map(r=>`<div class="r24"><span>${r.win?'🛡️ Held':'💀 Lost'} ${hexName(r.hex||'')}${r.ally?' (you helped)':''}</span><b>${when(r.t)}</b></div>`).join('')||'<p class="tiny">None yet.</p>'}`;
     const M=(G.al&&G.al.members)||{};const rk=u=>(H().roles||{})[u]||'member';const rows=Object.entries(M).sort((a,c)=>({leader:0,officer:1,member:2}[rk(a[0])]-{leader:0,officer:1,member:2}[rk(c[0])]));

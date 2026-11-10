@@ -60,7 +60,7 @@
     const L=SB.L;if(!L.length){el.innerHTML=`<span>📦 All your hexes pay now.</span>`;clearTimeout(SB.t);SB.t=setTimeout(()=>{SB.on=false;sbBar();payAuto('show',false);},3000);return;}
     const c=L[SB.i],mi=Math.min(...c.map(id=>nearestBaseMi64(id)||0));
     el.innerHTML=`<span><b>📦 Unpaid${L.length>1?` · ${SB.i+1} of ${L.length}`:''} · ${c.length} hex${c.length===1?'':'es'} · ${fmt(mi)} from nearest base</b><small>Build an outpost within ${SMI()} mi of them and they pay again.</small></span>${L.length>1?'<button onclick="sbStep64(-1)" aria-label="Previous">◀</button><button onclick="sbStep64(1)" aria-label="Next">▶</button>':''}<button onclick="sbDone64()">Done</button>`;}
-  function sbFit(){const c=SB.L[SB.i];if(!c)return;try{const b=L.latLngBounds(c.map(ctr));map.fitBounds(b,{padding:[60,60],maxZoom:15});if(map.getZoom()<11)map.setView(b.getCenter(),11);}catch(e){}}
+  function sbFit(){const c=SB.L[SB.i];if(!c)return;try{const b=L.latLngBounds(c.map(ctr));map.fitBounds(b,{padding:[60,60],maxZoom:15,animate:false});if(map.getZoom()<13)map.setView(b.getCenter(),13,{animate:false});}catch(e){}}
   window.showUnpaid64=function(){SB.L=clusters64();if(!SB.L.length)return toast('📦 All your hexes pay now.');SB.i=0;SB.on=true;try{UI.closeModal();}catch(e){}try{UI.close&&UI.close();}catch(e){}payAuto('show',true);sbFit();sbBar();};
   window.sbStep64=function(d){const n=SB.L.length;if(!n)return;SB.i=(SB.i+d+n)%n;sbFit();sbBar();};
   window.sbDone64=function(){SB.on=false;clearTimeout(SB.t);sbBar();payAuto('show',false);};

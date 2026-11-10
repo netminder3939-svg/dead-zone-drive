@@ -1,0 +1,156 @@
+{
+ "_readme": "Presentation-only art map for Stronghold/Base/landmarks (R6.3 proposal). img = WebP, fallback = PNG. Set png:false on any entry to fall back to the current SVG/emoji. Art is Jacob's drawn sheets, cropped as drawn. x2:false = no @2x file for that drawing (leave out srcset).",
+ "stronghold": {
+  "png": true,
+  "tiers": {
+   "1": {
+    "img": "assets/places/stronghold/stronghold-d-gothic-tower.webp",
+    "fallback": "assets/places/stronghold/stronghold-d-gothic-tower.png",
+    "levels": [
+     1,
+     3
+    ],
+    "x2": false
+   },
+   "2": {
+    "img": "assets/places/stronghold/stronghold-a-banner-keep.webp",
+    "fallback": "assets/places/stronghold/stronghold-a-banner-keep.png",
+    "levels": [
+     4,
+     6
+    ]
+   },
+   "3": {
+    "img": "assets/places/stronghold/stronghold-b-skull-gate.webp",
+    "fallback": "assets/places/stronghold/stronghold-b-skull-gate.png",
+    "levels": [
+     7,
+     10
+    ]
+   }
+  }
+ },
+ "allianceHq": {
+  "img": "assets/places/stronghold/stronghold-e-burning-citadel.webp",
+  "fallback": "assets/places/stronghold/stronghold-e-burning-citadel.png",
+  "png": true
+ },
+ "enemyFort": {
+  "png": true,
+  "note": "unchanged: assets/monsters/enemy_fort.png (same drawing as stronghold-c-skull-banner)"
+ },
+ "factionHome": {
+  "img": "assets/places/stronghold/stronghold-c-skull-banner.webp",
+  "fallback": "assets/places/stronghold/stronghold-c-skull-banner.png",
+  "png": true
+ },
+ "tower": {
+  "png": true,
+  "levels": {
+   "1": {
+    "img": "assets/places/landmark/landmark-watchtower-wood.webp",
+    "fallback": "assets/places/landmark/landmark-watchtower-wood.png"
+   },
+   "2": {
+    "img": "assets/places/landmark/landmark-watchtower-wood.webp",
+    "fallback": "assets/places/landmark/landmark-watchtower-wood.png"
+   },
+   "3": {
+    "img": "assets/places/landmark/landmark-watchtower-dark.webp",
+    "fallback": "assets/places/landmark/landmark-watchtower-dark.png"
+   },
+   "4": {
+    "img": "assets/places/landmark/landmark-watchtower-dark.webp",
+    "fallback": "assets/places/landmark/landmark-watchtower-dark.png"
+   },
+   "5": {
+    "img": "assets/places/landmark/landmark-watchtower-dark.webp",
+    "fallback": "assets/places/landmark/landmark-watchtower-dark.png"
+   }
+  }
+ },
+ "outpost": {
+  "png": true,
+  "home": {
+   "img": "assets/places/landmark/landmark-fire-shrine.webp",
+   "fallback": "assets/places/landmark/landmark-fire-shrine.png"
+  },
+  "fwd": {
+   "img": "assets/places/landmark/landmark-war-banner.webp",
+   "fallback": "assets/places/landmark/landmark-war-banner.png"
+  },
+  "other": {
+   "img": "assets/places/landmark/landmark-war-banner.webp",
+   "fallback": "assets/places/landmark/landmark-war-banner.png"
+  }
+ },
+ "landmarkKinds": {
+  "png": true,
+  "park": {
+   "img": "assets/places/landmark/landmark-angel-statue.webp",
+   "fallback": "assets/places/landmark/landmark-angel-statue.png"
+  },
+  "school": {
+   "img": "assets/places/landmark/landmark-ruined-arch-b.webp",
+   "fallback": "assets/places/landmark/landmark-ruined-arch-b.png"
+  },
+  "place_of_worship": {
+   "img": "assets/places/landmark/landmark-ruined-church.webp",
+   "fallback": "assets/places/landmark/landmark-ruined-church.png"
+  },
+  "water_tower": {
+   "img": "assets/places/landmark/landmark-watchtower-steel.webp",
+   "fallback": "assets/places/landmark/landmark-watchtower-steel.png"
+  },
+  "mall": {
+   "img": "assets/places/landmark/landmark-portal-gate-b.webp",
+   "fallback": "assets/places/landmark/landmark-portal-gate-b.png"
+  },
+  "water": {
+   "img": "assets/places/landmark/landmark-windmill-well.webp",
+   "fallback": "assets/places/landmark/landmark-windmill-well.png"
+  },
+  "fuel": {
+   "img": "assets/places/landmark/landmark-factory-derrick.webp",
+   "fallback": "assets/places/landmark/landmark-factory-derrick.png"
+  },
+  "townhall": {
+   "img": "assets/places/landmark/landmark-ruined-arch-gate.webp",
+   "fallback": "assets/places/landmark/landmark-ruined-arch-gate.png"
+  },
+  "grocery": {
+   "img": "assets/places/landmark/landmark-raider-tent-camp.webp",
+   "fallback": "assets/places/landmark/landmark-raider-tent-camp.png"
+  }
+ },
+ "ranks": {
+  "png": true,
+  "leader": {
+   "img": "assets/places/badge/badge-07-gold-crown.webp",
+   "fallback": "assets/places/badge/badge-07-gold-crown.png"
+  },
+  "officer": {
+   "img": "assets/places/badge/badge-04-winged-star.webp",
+   "fallback": "assets/places/badge/badge-04-winged-star.png"
+  }
+ },
+ "headers": {
+  "png": true,
+  "research": {
+   "img": "assets/places/misc/book-tome.webp",
+   "fallback": "assets/places/misc/book-tome.png"
+  },
+  "vault": {
+   "img": "assets/places/misc/chest-iron.webp",
+   "fallback": "assets/places/misc/chest-iron.png"
+  }
+ },
+ "brand": {
+  "png": true,
+  "logo": {
+   "img": "assets/places/branding/logo-title.webp",
+   "fallback": "assets/places/branding/logo-title.png",
+   "x2": false
+  }
+ }
+}

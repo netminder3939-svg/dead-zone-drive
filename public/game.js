@@ -23,7 +23,7 @@ function ensureQuests(){if(P.quests&&P.quests.date===today())return;const rnd=se
 function questProg(type,n=1){if(!P.quests)return;P.quests.list.forEach(q=>{if(q.type===type&&!q.done){q.prog=Math.min(q.goal,q.prog+n);if(q.prog>=q.goal){q.done=true;toast('📜 Quest done: '+q.text);UI.badge('player',true);}}});save();}
 
 // ---------- map ----------
-// v19: minZoom 13 = no zooming out past where fog + hexes draw right
+// v19: minZoom 13 = no zooming out past where fog + hexes draw right. R6.5: overview65.js lowers it to 10 (no hexes drawn below 13).
 const map=L.map('map',{zoomControl:false,attributionControl:true,minZoom:13,maxZoom:19,wheelPxPerZoomLevel:180,wheelDebounceTime:60,zoomSnap:0.5,zoomDelta:0.5}).setView([47.8135,-116.8968],16);
 // Free Esri World Street Map basemap (no key). A CSS filter gives it a dusty wasteland look while keeping streets readable.
 L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,maxNativeZoom:18,keepBuffer:4,attribution:'Tiles © Esri, OpenStreetMap'}).addTo(map);
@@ -46,7 +46,7 @@ function setPos(lat,lng){
   const jumping=!!G.jump;
   if(G.pos&&!jumping){const d=distM(G.pos[0],G.pos[1],lat,lng);if(d<2000){P.stats.meters+=d;P.contrib.km+=d/1000;questProg('meters',Math.round(d));}}
   const prev=jumping?null:G.pos;G.jump=false;const first=!G.pos;G.pos=[lat,lng];meMarker.setLatLng(G.pos).addTo(map);reachCircle.setLatLng(G.pos).addTo(map);
-  if(first||G.gps&&G.gps.recenter){map.setView(G.pos,16);if(G.gps)G.gps.recenter=false;}
+  if(first||G.gps&&G.gps.recenter){map.setView(G.pos,window.OV65&&OV65.on?map.getZoom():16);if(G.gps)G.gps.recenter=false;} // R6.5: a GPS recenter keeps a zoomed-out (overview) zoom
   NET.setCenter(lat,lng);
   if(!G.lmCenter||distM(lat,lng,...G.lmCenter)>1500)loadLandmarks(lat,lng);
   spawnMonsters();checkLandmarks();if(!G._noClaim25&&P.world&&(!G.gpsWeak||G.dev.walk||G.dev.drive||G.dev.tp||G.dev.hold))claimPath(prev,G.pos);UI.claimBtn();save();

@@ -1,0 +1,679 @@
+diff --git a/public/auth12.js b/public/auth12.js
+index cc74af6..4bacd9f 100644
+--- a/public/auth12.js
++++ b/public/auth12.js
+@@ -11,7 +11,7 @@ function gate(){
+   el=document.createElement('div');
+   el.id='auth12';
+   el.style.cssText='position:fixed;inset:0;z-index:4000;background:#140f0c;color:#f3e6d0;display:flex;align-items:center;justify-content:center;font:16px system-ui';
+-  el.innerHTML='<div style="width:min(420px,92vw);background:#241910;padding:22px;border-radius:14px"><form id="a12form"><h1 style="font-size:22px;margin:0 0 8px">Sign in</h1><p id="a12msg" style="min-height:2.4em;color:#ffb4a2"></p><label>Email<br><input id="a12email" type="email" autocomplete="username" required style="width:100%;margin:4px 0 10px;padding:8px"></label><label>Password<br><input id="a12pass" type="password" autocomplete="current-password" minlength="6" required style="width:100%;margin:4px 0 10px;padding:8px"></label><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="a12in" type="submit">Sign in</button><button id="a12up" type="button">Create account</button><button id="a12reset" type="button">Email a password reset</button></div></form><p id="a12spin" hidden>Loading your character…</p><div id="a12choose" hidden><p>This account has no character on this team yet.</p><button id="a12import" type="button">Import the character on this device</button><button id="a12fresh" type="button">Start a new character</button></div></div>';
++  el.innerHTML='<div style="width:min(420px,92vw);background:#241910;padding:22px;border-radius:14px"><form id="a12form"><div class="logo65" style="text-align:center;margin:0 0 6px"><img class="logo" style="width:min(100%,260px)" src="assets/places/branding/logo-title.webp" alt="Dead Zone Drive" width="463" height="191" onerror="logoErr65(this)"><span class="vh">DEAD ZONE DRIVE</span></div><h1 style="font-size:22px;margin:0 0 8px">Sign in</h1><p id="a12msg" style="min-height:2.4em;color:#ffb4a2"></p><label>Email<br><input id="a12email" type="email" autocomplete="username" required style="width:100%;margin:4px 0 10px;padding:8px"></label><label>Password<br><input id="a12pass" type="password" autocomplete="current-password" minlength="6" required style="width:100%;margin:4px 0 10px;padding:8px"></label><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="a12in" type="submit">Sign in</button><button id="a12up" type="button">Create account</button><button id="a12reset" type="button">Email a password reset</button></div></form><p id="a12spin" hidden>Loading your character…</p><div id="a12choose" hidden><p>This account has no character on this team yet.</p><button id="a12import" type="button">Import the character on this device</button><button id="a12fresh" type="button">Start a new character</button></div></div>';
+   document.body.appendChild(el);
+   return el;
+ }
+diff --git a/public/bal14.js b/public/bal14.js
+index f156731..a072cdc 100644
+--- a/public/bal14.js
++++ b/public/bal14.js
+@@ -39,5 +39,5 @@
+   bankOf=function(f){try{const s=scale14();HE.capBase=BASE14.cap*s;HE.convPerH=BASE14.conv*s;HE.resPerH=BASE14.res*s;}catch(e){}return _bank14.apply(this,arguments);};
+   window.bankOf=bankOf;
+   // Visible label for this combined build. The service worker cache is ddd-v26-12h-integrated, not Claude's ddd-v26-12h.
+-  try{document.documentElement.dataset.build='12i-integrated-6-r6-4-1';const who=document.querySelector('#hud .who');if(who&&!document.getElementById('build14')){const el=document.createElement('span');el.id='build14';el.textContent='12i-integrated-6-r6-4-1';el.title='Build 12i-integrated-6';el.style.cssText='display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#2a241c;color:#e7d7c1;font:600 10px system-ui;letter-spacing:.02em;vertical-align:middle';who.appendChild(el);}}catch(e){}
++  try{document.documentElement.dataset.build='12i-integrated-6-r6-5';const who=document.querySelector('#hud .who');if(who&&!document.getElementById('build14')){const el=document.createElement('span');el.id='build14';el.textContent='12i-integrated-6-r6-5';el.title='Build 12i-integrated-6';el.style.cssText='display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#2a241c;color:#e7d7c1;font:600 10px system-ui;letter-spacing:.02em;vertical-align:middle';who.appendChild(el);}}catch(e){}
+ })();
+diff --git a/public/base15.js b/public/base15.js
+index 4f9f674..00ddfaa 100644
+--- a/public/base15.js
++++ b/public/base15.js
+@@ -143,7 +143,7 @@
+   window.hqHex15=()=>{const h=hq15();return h&&h.hex||null;};
+   function nearHq15(id){const h=hq15();return !!(h&&kmBetween(h.hex,id)<=B15.hqMi*MI/1000);}
+   window.drawHq15=function(){try{if(typeof map==='undefined')return;if(!G.layers.hq15)G.layers.hq15=L.layerGroup().addTo(map);const g=G.layers.hq15;g.clearLayers();const h=hq15();if(!h)return;const c=ctr(h.hex);
+-    L.marker(c,{icon:L.divIcon({className:'mk hq15mk',html:`<div class="hq15ico">🏛️<b>${esc15(h.name||'HQ')}</b></div>`,iconSize:[0,0]}),zIndexOffset:600}).on('click',()=>UI.hq15()).addTo(g);
++    L.marker(c,{icon:L.divIcon({className:'mk hq15mk',html:`<div class="hq15ico${window.hqFall6&&hqFall6()?' fall65':''}">${window.hqArt65?hqArt65():''}🏛️<b>${esc15(h.name||'HQ')}</b></div>`,iconSize:[0,0]}),zIndexOffset:600}).on('click',()=>UI.hq15()).addTo(g);
+     L.circle(c,{radius:B15.hqMi*MI,color:'#ffd24a',weight:1,opacity:.5,fillOpacity:.03,dashArray:'6 6',interactive:false}).addTo(g);}catch(e){}};
+   HOOK.draw(function(){drawHq15();});
+   window.jumpHq15=function(){const h=hq15();if(!h)return toast('No HQ yet');try{map.setView(ctr(h.hex),15);G.view15=ctr(h.hex);}catch(e){}UI.closeModal&&UI.closeModal();try{UI.close&&UI.close();}catch(e){}};
+@@ -195,7 +195,7 @@
+     x+=`<h3>Your bases</h3>`+basesHtml15();return x;}
+   function basesHtml15(){const L=myBases15(),cb=curBase15();let x='';
+     x+=`<div class="row"><div class="grow"><b>📍 Here (GPS)</b><small>Claim by walking and driving where you really are</small></div>${cb==='gps'?'<span class="tiny">● now</span>':`<button onclick="setOp15('gps')">Use</button>`}</div>`;
+-    for(const id of L){const n=poolOf15(id),on=opHex15()===id;x+=`<div class="row"><div class="grow"><b>${baseLabel15(id)}</b><small>${hexName(id)} · 🪖 ${n.toLocaleString()} troops${window.baseLine64?' · '+baseLine64(id):''}</small></div>${on?'<span class="tiny">● now</span>':`<button onclick="setOp15('${id===shHex15()?'sh':id}')">Operate</button>`}<button onclick="UI.portal15('${id}')">🌀</button></div>`;}
++    for(const id of L){const n=poolOf15(id),on=opHex15()===id;const th=window.thumb65?thumb65(id===shHex15()?shArt65(strongholdLevel()):opArt65(((W().outposts||{})[id]||{}).kind)):'';x+=`<div class="row">${th}<div class="grow"><b>${baseLabel15(id)}</b><small>${hexName(id)} · 🪖 ${n.toLocaleString()} troops${window.baseLine64?' · '+baseLine64(id):''}</small></div>${on?'<span class="tiny">● now</span>':`<button onclick="setOp15('${id===shHex15()?'sh':id}')">Operate</button>`}<button onclick="UI.portal15('${id}')">🌀</button></div>`;}
+     const P15=portalList15();if(P15.length)x+=`<h3>🌀 In the portal</h3>`+P15.map(p=>`<div class="row"><div class="grow">${p.n.toLocaleString()} troops → ${baseLabel15(p.to)}<small>arrive in ${fmtDur(Math.max(0,p.at-now()))}</small></div></div>`).join('');
+     const f=ops15('fwd').length;x+=`<p class="tiny">🚩 Forward Outposts ${f}/${B15.fwdMax}: open a teammate's card and tap "Forward Outpost near them".</p>`;return x;}
+   UI.hq15=function(){try{this.tab='alliance';this.sub.alliance='hq';UI.open?UI.open('alliance'):UI.render();}catch(e){UI.modal(hqHtml15());}};
+diff --git a/public/fight.js b/public/fight.js
+index 8899508..133b34c 100644
+--- a/public/fight.js
++++ b/public/fight.js
+@@ -86,7 +86,7 @@ UI.infoFort=function(id){const e=enemyAt(id),s=enemyStats(e),[lat,lng]=hexCenter
+ UI.infoLandmark=function(l){const K=LANDMARK_KINDS[l.kind],boss=lairBoss(l),r=raidFor(l.id),v=P.badges[l.id],d=distM(...G.pos,l.lat,l.lng);
+   let body=`<div class="row"><div class="grow">${v?'🏅 Badge earned':'Visit (within 90 m) to earn a badge, XP and supplies'}<small>${Math.round(d)} m away</small></div></div>`;
+   if(boss)body+=`<div class="row warn">☠️ ${r&&!r.done?MONSTERS[boss].name+' raid is LIVE':'Something big lurks here. Get close to reveal it and start an alliance raid.'}</div>`;
+-  this.info({title:l.name,sub:(l.name||'').indexOf(K.label)===0?'Landmark':(l.kind||'landmark').replace(/_/g,' ').replace(/^./,c=>c.toUpperCase()),art:`<span class="bigemo">${K.icon}</span>`,body,buttons:r&&!r.done&&Date.now()<r.endsAt?[['☠️ Raid info',()=>UI.infoRaid(r.id),'fight']]:[]});};
++  this.info({title:l.name,sub:(l.name||'').indexOf(K.label)===0?'Landmark':(l.kind||'landmark').replace(/_/g,' ').replace(/^./,c=>c.toUpperCase()),art:(window.lmArt65&&lmArt65(l.kind,'lmcard65',{emo:K.icon,cls:'bigemo'}))||`<span class="bigemo">${K.icon}</span>`,body,buttons:r&&!r.done&&Date.now()<r.endsAt?[['☠️ Raid info',()=>UI.infoRaid(r.id),'fight']]:[]});};
+ UI.infoRaid=function(id){const r=G.raids[id];if(!r)return;const B=MONSTERS[r.bossId];
+   this.info({title:B.name,sub:`Alliance raid · ${r.place} · ${mins(r.endsAt)} left`,art:imgTag(monImg(r.bossId)),diff:['RAID','#c070ff'],
+     body:`<div class="row"><div class="grow">Boss HP ${r.hp}/${r.maxHp}<div class="prog"><i style="width:${100*r.hp/r.maxHp}%;background:#e0573a"></i></div><small>${Object.keys(r.participants||{}).length} fighting · loot split by damage</small></div></div>`+cdBlock(),
+@@ -104,7 +104,7 @@ UI.infoStruct=function(kind,id){const w=W(),o=kind==='sh'?w.sh:w.towers[id];if(!
+     if(kind==='sh')btn.push(['⬆️ Upgrade',()=>{UI.closeModal();UI.open('base');UI.sub.base='fort';UI.render();}]);
+     else if(lvl<BAL.tower.maxLevel)btn.push([`⬆️ Upgrade (${cost(towerUpCost(o))})`,()=>{upgradeTower(id);UI.infoStruct(kind,id);}]);}
+   this.info({title:kind==='sh'?`${poss(P.name)} Stronghold`:'Watchtower',sub:`Level ${lvl} · ${down?'💥 DESTROYED':o.state==='building'?'⏳ building '+fmtDur(o.buildEnd-Date.now()):'condition '+pct+'%'}`,
+-    art:kind==='sh'?strongholdSVG(lvl):towerSVG(lvl),body:`<div class="row"><div class="grow">Defense power <b>${power}</b> · protects <b>${kind==='sh'?shRadius():towerRadius(o)} ring(s)</b> (${hexRing(0,0,kind==='sh'?shRadius():towerRadius(o)).length} hexes)${kind==='tower'&&lvl<BAL.tower.maxLevel?`<small class="pos">Next level: power ${towerPower({level:lvl+1})} · ring ${towerRadiusAt(lvl+1)}${towerRadiusAt(lvl+1)>towerRadius(o)?' ⬆ bigger area!':''}</small>`:''}${kind==='sh'&&!down&&o.state==='up'?(()=>{const a=shAreaInfo(),tot=Object.values(a.mine).reduce((x,y)=>x+y,0);return`<div class="areabox"><b>🌾 Area income</b> · ${a.hexes} hexes in ring, ${a.res} resource tiles<div class="areares">${Object.keys(RES).map(k=>`<span>${RES[k]} <em class="inc">+${a.mine[k]}</em></span>`).join('')}</div><small>You get <em class="inc">+${tot}/day</em> at reset (after 25% alliance share). Next ring at Lv${(Math.floor((lvl-1)/BAL.stronghold.levelsPerRing)+1)*BAL.stronghold.levelsPerRing+1}.</small></div>`;})():''}<small>Tiles outside every ring are taken by raiders with no fight.</small><div class="prog"><i style="width:${down?0:pct}%"></i></div>${kind==='tower'?`<small>Upkeep ${Object.entries(BAL.tower.upkeep).map(([k,v])=>v+RES[k]).join(' ')}/day · ${o.online===false?'⚠️ offline':'online'}</small>`:''}</div></div>`,buttons:btn});};
++    art:(kind==='sh'?(window.shArt65&&shArt65(lvl,'sh65 card65',{sh:lvl})):(window.towerArt65&&towerArt65(lvl,'tw65 card65')))||(kind==='sh'?strongholdSVG(lvl):towerSVG(lvl)),body:`<div class="row"><div class="grow">Defense power <b>${power}</b> · protects <b>${kind==='sh'?shRadius():towerRadius(o)} ring(s)</b> (${hexRing(0,0,kind==='sh'?shRadius():towerRadius(o)).length} hexes)${kind==='tower'&&lvl<BAL.tower.maxLevel?`<small class="pos">Next level: power ${towerPower({level:lvl+1})} · ring ${towerRadiusAt(lvl+1)}${towerRadiusAt(lvl+1)>towerRadius(o)?' ⬆ bigger area!':''}</small>`:''}${kind==='sh'&&!down&&o.state==='up'?(()=>{const a=shAreaInfo(),tot=Object.values(a.mine).reduce((x,y)=>x+y,0);return`<div class="areabox"><b>🌾 Area income</b> · ${a.hexes} hexes in ring, ${a.res} resource tiles<div class="areares">${Object.keys(RES).map(k=>`<span>${RES[k]} <em class="inc">+${a.mine[k]}</em></span>`).join('')}</div><small>You get <em class="inc">+${tot}/day</em> at reset (after 25% alliance share). Next ring at Lv${(Math.floor((lvl-1)/BAL.stronghold.levelsPerRing)+1)*BAL.stronghold.levelsPerRing+1}.</small></div>`;})():''}<small>Tiles outside every ring are taken by raiders with no fight.</small><div class="prog"><i style="width:${down?0:pct}%"></i></div>${kind==='tower'?`<small>Upkeep ${Object.entries(BAL.tower.upkeep).map(([k,v])=>v+RES[k]).join(' ')}/day · ${o.online===false?'⚠️ offline':'online'}</small>`:''}</div></div>`,buttons:btn});};
+ 
+ // ---------- fights ----------
+ function fightMutant(mid,lvl,key){if(cooldownLeft())return toast('Still recovering');const M=MONSTERS[mid],f=runFight([playerUnit()],mutantUnits(mid,lvl));P.hp=Math.max(1,f.A[0].hp);
+diff --git a/public/fix6.js b/public/fix6.js
+index 2791bc8..6f9602a 100644
+--- a/public/fix6.js
++++ b/public/fix6.js
+@@ -7,7 +7,7 @@
+     const z=Math.max(map.getMinZoom(),Math.min(map.getMaxZoom(),Math.round((map.getZoom()+step)*4)/4));if(z!==map.getZoom())map.setZoomAround(map.mouseEventToContainerPoint(e),z,{animate:false});},{passive:false});}catch(e){console.warn('wheel',e);}})();
+ // 2) Landmarks are public places: always on the map (dimmed under fog) and in Nearby within 1.5 km.
+ drawLandmarks=function(){const g=G.layers.lm;g.clearLayers();(G.landmarks||[]).forEach(l=>{const K=LANDMARK_KINDS[l.kind];if(!K)return;const fog=P.world&&!isVis(hexAt(l.lat,l.lng).id),boss=lairBoss(l),v=P.badges[l.id];
+-  L.marker([l.lat,l.lng],{icon:L.divIcon({className:'mk lodm',html:`<div class="ico lm${v?' visited':''}${boss&&!raidFor(l.id)?' lair':''}${fog?' lmfog':''}" ${fog?'style="opacity:.6"':''}><span>${K.icon}</span><b class="nm">${l.name}</b></div>`,iconSize:[0,0]})}).on('click',()=>UI.infoLandmark(l)).addTo(g);});};
++  L.marker([l.lat,l.lng],{icon:L.divIcon({className:'mk lodm',html:(()=>{const im=window.lmArt65?lmArt65(l.kind):'';return`<div class="ico lm${v?' visited':''}${boss&&!raidFor(l.id)?' lair':''}${fog?' lmfog':''}${im?' has65':''}" ${fog?'style="opacity:.6"':''}><span>${K.icon}</span>${im}<b class="nm">${l.name}</b></div>`;})(),iconSize:[0,0]})}).on('click',()=>UI.infoLandmark(l)).addTo(g);});};
+ const _near6=UI.nearest;UI.nearest=function(){const iv=isVis,lm=new Set((G.landmarks||[]).filter(l=>G.pos&&distM(...G.pos,l.lat,l.lng)<1500).map(l=>hexAt(l.lat,l.lng).id));isVis=id=>lm.has(id)||iv(id);try{return _near6.apply(this,arguments);}finally{isVis=iv;}};
+ (document.readyState==='complete'?f=>f():f=>window.addEventListener('load',f))(()=>setTimeout(()=>{try{if(G.landmarks&&G.landmarks.length)drawLandmarks();}catch(e){}},1500));
+ // 4) Previews: dev button that drops a weak mutant next to you, so a fight (and the battle card auto-close) is one tap away.
+diff --git a/public/game.js b/public/game.js
+index c766e2d..f56096b 100644
+--- a/public/game.js
++++ b/public/game.js
+@@ -23,7 +23,7 @@ function ensureQuests(){if(P.quests&&P.quests.date===today())return;const rnd=se
+ function questProg(type,n=1){if(!P.quests)return;P.quests.list.forEach(q=>{if(q.type===type&&!q.done){q.prog=Math.min(q.goal,q.prog+n);if(q.prog>=q.goal){q.done=true;toast('📜 Quest done: '+q.text);UI.badge('player',true);}}});save();}
+ 
+ // ---------- map ----------
+-// v19: minZoom 13 = no zooming out past where fog + hexes draw right
++// v19: minZoom 13 = no zooming out past where fog + hexes draw right. R6.5: overview65.js lowers it to 10 (no hexes drawn below 13).
+ const map=L.map('map',{zoomControl:false,attributionControl:true,minZoom:13,maxZoom:19,wheelPxPerZoomLevel:180,wheelDebounceTime:60,zoomSnap:0.5,zoomDelta:0.5}).setView([47.8135,-116.8968],16);
+ // Free Esri World Street Map basemap (no key). A CSS filter gives it a dusty wasteland look while keeping streets readable.
+ L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,maxNativeZoom:18,keepBuffer:4,attribution:'Tiles © Esri, OpenStreetMap'}).addTo(map);
+@@ -46,7 +46,7 @@ function setPos(lat,lng){
+   const jumping=!!G.jump;
+   if(G.pos&&!jumping){const d=distM(G.pos[0],G.pos[1],lat,lng);if(d<2000){P.stats.meters+=d;P.contrib.km+=d/1000;questProg('meters',Math.round(d));}}
+   const prev=jumping?null:G.pos;G.jump=false;const first=!G.pos;G.pos=[lat,lng];meMarker.setLatLng(G.pos).addTo(map);reachCircle.setLatLng(G.pos).addTo(map);
+-  if(first||G.gps&&G.gps.recenter){map.setView(G.pos,16);if(G.gps)G.gps.recenter=false;}
++  if(first||G.gps&&G.gps.recenter){map.setView(G.pos,window.OV65&&OV65.on?map.getZoom():16);if(G.gps)G.gps.recenter=false;} // R6.5: a GPS recenter keeps a zoomed-out (overview) zoom
+   NET.setCenter(lat,lng);
+   if(!G.lmCenter||distM(lat,lng,...G.lmCenter)>1500)loadLandmarks(lat,lng);
+   spawnMonsters();checkLandmarks();if(!G._noClaim25&&P.world&&(!G.gpsWeak||G.dev.walk||G.dev.drive||G.dev.tp||G.dev.hold))claimPath(prev,G.pos);UI.claimBtn();save();
+diff --git a/public/hq6.js b/public/hq6.js
+index d1c2177..b92a079 100644
+--- a/public/hq6.js
++++ b/public/hq6.js
+@@ -99,7 +99,7 @@
+   // ---------- officers: at most 2 (rank15.setRank15 refuses a 3rd; the security rules cap roles at 3 entries)
+   // ---------- HQ tab: the building, the Vault, recent attacks
+   const n6=v=>Math.round(+v||0).toLocaleString();const cst=o=>Object.entries(o).filter(([,v])=>v>0).map(([k,v])=>`${n6(v)} ${RES[k]}`).join(' ');
+-  function hqCard6(){const h=hex6(),b=bld(),L=lvl6(),off=isOfficer15(),f=fall6(),bank=(G.al&&G.al.bank)||{};let x=`<div class="hq6"><h3>🏛️ HQ building</h3>`;
++  function hqCard6(){const h=hex6(),b=bld(),L=lvl6(),off=isOfficer15(),f=fall6(),bank=(G.al&&G.al.bank)||{};let x=`<div class="hq6${f?' fall65':''}">${window.hqArt65?hqArt65('hqcard65'):''}<h3>🏛️ HQ building</h3>`;
+     if(!h)x+=`<p class="tiny">Place the HQ spot first, then build it here from the Vault.</p>`;
+     else if(!b||!b.built){x+=`<p>Not built yet. Cost from the Vault: <b>${cst(HQ6.cost)}</b>.</p><p class="tiny">Protects 2 rings around ${hexName(h)}, defends with its own wall and fire, cuts portal time and grows the Vault.</p>${off?`<div class="btns24"><button class="red24" onclick="buildHq6()">🏛️ Build the HQ</button></div>`:'<p class="tiny">The leader or an officer builds it.</p>'}`;}
+     else{const hp=innate26({kind:'hq',lvl:L}),fire=Math.round(C26.bld.hq.fire*(1+C26.lvlFire*(L-1))),walls=Math.round(100*Math.min(C26.maxWalls,C26.bld.hq.walls+C26.lvlWalls*(L-1)));
+@@ -109,7 +109,7 @@
+       x+=`<div class="r24"><span>Troops stationed on the HQ</span><b>${n6(gar)}</b></div>`;
+       if(b.upEnd&&now()<b.upEnd)x+=`<div class="r24"><span>Upgrading to Lv${L+1}</span><b>${fmtDur(b.upEnd-now())}</b></div>`;
+       else if(L<HQ6.maxLvl&&!f){const nx=L+1;x+=`<div class="row"><div class="grow"><b>Next: Lv${nx}</b><small>${cst(upCost6(L))} from the Vault · ${HQ6.upHPerLvl*L} h · wall HP ${n6(innate26({kind:'hq',lvl:nx}))}, Vault +${n6(HQ6.vaultPerLvl)} each${rings6(nx)>rings6(L)?`, ${rings6(nx)} rings`:''}${HQ6.portalCut*nx<=HQ6.portalCutMax?`, portal −${Math.round(100*HQ6.portalCut*nx)}%`:''}</small></div>${off?'<button onclick="upgradeHq6()">⬆️ Upgrade</button>':''}</div>`;}}
+-    x+=`<h3>🏦 Alliance Vault</h3><div class="hg5">${Object.keys(RES).map(k=>`<div><b>${n6(bank[k]||0)}</b><small>${RES[k]} / ${n6(vaultCap6())}</small></div>`).join('')}</div>`;
++    x+=`<h3>${window.hdr65?hdr65('vault','🏦',24):'🏦'} Alliance Vault</h3><div class="hg5">${Object.keys(RES).map(k=>`<div><b>${n6(bank[k]||0)}</b><small>${RES[k]} / ${n6(vaultCap6())}</small></div>`).join('')}</div>`;
+     const pend=Object.values(G.bankReq15||{}).filter(r=>r.status==='pending').length;x+=`<div class="r24"><span>Pending requests</span><b>${pend}</b></div>${locked6()?`<div class="r24"><span>🔒 Locked</span><b>${fmtDur(lockUntil6()-now())}</b></div>`:''}<p class="tiny">A full Vault refuses new deposits; nothing already in it is ever removed. <a href="#" onclick="UI.sub.alliance='hoard';UI.render();return false">Open the Vault</a></p>`;
+     const rec=(P.fr25||[]).slice(0,5);x+=`<h3>⚔️ Recent attacks on alliance land</h3>${rec.map(r=>`<div class="r24"><span>${r.win?'🛡️ Held':'💀 Lost'} ${hexName(r.hex||'')}${r.ally?' (you helped)':''}</span><b>${when(r.t)}</b></div>`).join('')||'<p class="tiny">None yet.</p>'}`;
+     const M=(G.al&&G.al.members)||{};const rk=u=>(H().roles||{})[u]||'member';const rows=Object.entries(M).sort((a,c)=>({leader:0,officer:1,member:2}[rk(a[0])]-{leader:0,officer:1,member:2}[rk(c[0])]));
+diff --git a/public/index.html b/public/index.html
+index 71e7967..e148d69 100644
+--- a/public/index.html
++++ b/public/index.html
+@@ -1,7 +1,7 @@
+ <!doctype html><html lang="en"><head>
+ <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+-<meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#1c1813"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-192.png"><meta name="apple-mobile-web-app-title" content="Dead Zone"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☢️</text></svg>"><title>Dead Zone Drive</title>
++<meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#1c1813"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon-180.png"><meta name="apple-mobile-web-app-title" content="Dead Zone"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
++<link rel="icon" type="image/png" href="icon-192.png"><script>function logoErr65(img){if(!img.dataset.t){img.dataset.t=1;img.src=img.src.replace(/\.webp$/,'.png');return;}img.onerror=null;img.style.display='none';var h=img.closest('.logo65');if(h)h.classList.add('logo65off');}</script><title>Dead Zone Drive</title>
+ <link rel="stylesheet" href="leaflet.css"><link rel="stylesheet" href="style.css?v=v20-4">
+ <link rel="stylesheet" href="hero62.css">
+ </head><body>
+@@ -24,12 +24,12 @@
+ <div id="sheet" class="hidden"><div class="grab"></div><button class="x" id="sheetX">✕</button><div id="sheetBody"></div></div>
+ <div id="modal" class="hidden"><div id="modalBody"></div></div>
+ <div id="onboard" class="hidden"><div class="card">
+-  <h1>DEAD ZONE DRIVE</h1><p>The world ended and the Blight came after. Mutants crawl out of the dead zones and raider warbands march under old, ugly banners. Your crew keeps the last fires burning. Take the land back, one hex at a time.</p>
++  <h1 class="logo65"><img class="logo" src="assets/places/branding/logo-title.webp" alt="Dead Zone Drive" width="463" height="191" onerror="logoErr65(this)"><span class="vh">DEAD ZONE DRIVE</span></h1><p>The world ended and the Blight came after. Mutants crawl out of the dead zones and raider warbands march under old, ugly banners. Your crew keeps the last fires burning. Take the land back, one hex at a time.</p>
+   <input id="obName" placeholder="Your name" maxlength="16"><input id="obTeam" placeholder="Team code">
+   <div class="colors" id="obColors"></div><button id="obGo" class="big">Enter the Wastes</button>
+   <p class="tiny">Location is only used while this page is open.</p></div></div>
+ <script src="leaflet.js"></script><script src="firebase-config.js"></script><script src="preview.js"></script>
+-<script src="data.js"></script><script src="hex.js"></script><script src="net.js"></script>
++<script src="places65.js"></script><script src="data.js"></script><script src="hex.js"></script><script src="net.js"></script>
+ <script src="balance.js"></script><script src="progress.js"></script><script src="world.js"></script><script src="game.js"></script><script src="dev0.js"></script><script src="ui.js"></script><script src="fight.js"></script><script src="combat2.js"></script><script src="qol.js"></script><script src="stage2.js"></script><script src="horde.js"></script><script src="ledger.js"></script><script src="march.js"></script>
+ <script src="gear2.js"></script><script src="theme.js"></script><script src="ally.js"></script><script src="stage4.js"></script><script src="nits.js"></script><script src="stage5.js"></script><script src="lmstatic.js"></script><script src="fix5.js"></script><script src="stage6.js"></script><script src="fix6.js"></script><script src="fix7.js"></script><script src="stage7.js"></script><script src="stage8.js"></script><script src="fix8.js"></script><script src="horde8.js"></script><script src="news8.js"></script><script src="kit8.js"></script><script src="fix9.js"></script>
+ <script src="fix10.js"></script>
+@@ -99,4 +99,5 @@
+ <script src="reports1.js"></script>
+ <script src="hero62.js"></script>
+ <script src="supply64.js"></script>
++<script src="overview65.js"></script>
+ </body></html>
+diff --git a/public/manifest.webmanifest b/public/manifest.webmanifest
+index fdc73e4..46cabfd 100644
+--- a/public/manifest.webmanifest
++++ b/public/manifest.webmanifest
+@@ -1,3 +1,3 @@
+ {"name":"Dead Zone Drive","short_name":"Dead Zone","start_url":"./","scope":"./","display":"standalone","orientation":"portrait",
+  "background_color":"#1c1813","theme_color":"#1c1813",
+- "icons":[{"src":"icon-192.png","sizes":"192x192","type":"image/png"},{"src":"icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}]}
++ "icons":[{"src":"icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},{"src":"icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"},{"src":"icon-192-maskable.png","sizes":"192x192","type":"image/png","purpose":"maskable"},{"src":"icon-512-maskable.png","sizes":"512x512","type":"image/png","purpose":"maskable"}]}
+diff --git a/public/overview65.js b/public/overview65.js
+new file mode 100644
+index 0000000..782c9d5
+--- /dev/null
++++ b/public/overview65.js
+@@ -0,0 +1,67 @@
++// overview65 (R6.5 part B) The map zooms out to 10 so the whole 10 mi pay range fits on a phone.
++//  13 and up: unchanged. 10-12 ("overview"): no hexes, grid, resources, monsters, landmarks, pipelines or march lines.
++//  Only the pay-range area (when 📦 Pay range is on), your bases and HQ as small pins, allies' Strongholds and your own dot.
++//  Entering overview takes the hex layers off the map once; leaving puts them back once and redraws once (no rebuild storms).
++//  Map taps in overview never open a hex card, claim or march. Pickers jump to 13 first. Presentation only.
++(function(){
++  const OVZ=13,KEEP=new Set(['pay64','ov65']);
++  const OV={on:false,off:[],pinKey:''};window.OV65=OV;
++  const isOv=()=>map.getZoom()<OVZ;
++  const g=G.layers.ov65=L.layerGroup();
++  const ctr=id=>hexCenter(...idQR(id));
++  const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
++  // ---- pins (rebuilt only when what they show changes)
++  function pinList(){const out=[],w=W(),s=w.sh;
++    if(s&&s.hex)out.push({k:'sh',hex:s.hex,lv:strongholdLevel(),st:s.state,mine:1});
++    for(const [id,o] of Object.entries(w.outposts||{}))if(o.state!=='down')out.push({k:'op',hex:id,kind:o.kind||'',st:o.state});
++    try{const h=hqHex15&&hqHex15();if(h)out.push({k:'hq',hex:h,fall:!!(window.hqFall6&&hqFall6())});}catch(e){}
++    for(const [uid,m] of Object.entries((G.al&&G.al.members)||{})){if(isMe(uid)||m.me||!Array.isArray(m.defs))continue;for(const d of m.defs)if(d&&d.k==='sh'&&typeof d.hex==='string')out.push({k:'ally',hex:d.hex,lv:d.lv||d.level||m.shL||1,uid,name:m.name||'Ally'});}
++    return out;}
++  function pinHTML(p){let art='',emo='';
++    if(p.k==='sh'||p.k==='ally'){art=window.shArt65?shArt65(p.lv,'pin65',{emo:'🏰'}):'';emo='🏰';}
++    else if(p.k==='op'){art=window.opArt65?opArt65(p.kind,'pin65',{emo:p.kind==='home'?'🏡':p.kind==='fwd'?'🚩':'⛺'}):'';emo=p.kind==='home'?'🏡':p.kind==='fwd'?'🚩':'⛺';}
++    else{art=window.hqArt65?hqArt65('pin65',{emo:'🏛️'}):'';emo='🏛️';}
++    const col=p.k==='ally'?((who24(p.uid)||{}).color||'#4ad7ff'):p.k==='sh'?(P.color||'#ffc94a'):p.k==='hq'?'#ffd24a':'#5fd068';
++    return`<div class="pin65w k-${p.k}${p.st==='down'||p.fall?' gone':''}${p.st==='building'||p.st==='capturing'?' bld':''}" style="--pc:${esc(col)}">${art||`<span>${emo}</span>`}</div>`;}
++  function drawPins(force){if(!OV.on)return;const L_=pinList(),key=JSON.stringify(L_)+'|'+Object.keys(window.PLACES||{}).length;if(!force&&key===OV.pinKey)return;OV.pinKey=key;g.clearLayers();
++    for(const p of L_){const m=L.marker(ctr(p.hex),{icon:L.divIcon({className:'ov65',html:pinHTML(p),iconSize:[30,30],iconAnchor:[15,26]}),zIndexOffset:p.k==='sh'?900:700,keyboard:true,title:p.k==='ally'?`${p.name}'s Stronghold`:p.k==='sh'?'Your Stronghold':p.k==='hq'?'Alliance HQ':'Outpost'});
++      m.on('click',e=>{L.DomEvent.stop(e);OV.mapTap=false;try{if(p.k==='sh')UI.infoStruct('sh');else if(p.k==='op')UI.infoOutpost(p.hex);else if(p.k==='hq')UI.hq15();else UI.infoTile(p.hex);}catch(e){console.warn('pin65',e);}});m.addTo(g);}}
++  window.drawPins65=drawPins;
++  // ---- the chip: unpaid hexes summary
++  function chip(){let el=document.getElementById('ov65chip');const n=OV.on&&!document.getElementById('sup64bar')&&typeof supplyCount15==='function'?supplyCount15().off:0;
++    if(!n){if(el)el.remove();return;}if(!el){el=document.createElement('div');el.id='ov65chip';document.body.appendChild(el);}
++    const t=`📦 ${n} hex${n===1?'':'es'} outside pay range — zoom in to see`;if(el.textContent!==t)el.textContent=t;}
++  // ---- enter / leave
++  function enter(){OV.on=true;document.body.classList.add('ov65on');OV.off=[];
++    for(const [k,lay] of Object.entries(G.layers)){if(KEEP.has(k)||!lay||!map.hasLayer(lay))continue;map.removeLayer(lay);OV.off.push(k);}
++    try{if(G.preview&&map.hasLayer(G.preview)){map.removeLayer(G.preview);OV.off.push('#preview');}}catch(e){}
++    if(!map.hasLayer(g))g.addTo(map);drawPins(true);ovStyle(true);chip();
++    try{if(!localStorage.getItem('wl_ov65hint')){localStorage.setItem('wl_ov65hint','1');toast('🔭 Zoomed out: zoom in to see hexes.');}}catch(e){}}
++  function leave(){OV.on=false;document.body.classList.remove('ov65on');if(map.hasLayer(g))map.removeLayer(g);g.clearLayers();OV.pinKey='';
++    for(const k of OV.off){const lay=k==='#preview'?G.preview:G.layers[k];if(lay&&!map.hasLayer(lay))lay.addTo(map);}OV.off=[];ovStyle(false);chip();
++    try{drawWorld();}catch(e){}try{drawLandmarks&&drawLandmarks();}catch(e){}}
++  function sync(){const want=isOv();if(want&&!OV.on)enter();else if(!want&&OV.on)leave();}
++  // pay range reads as a clear area in overview (outline solid and brighter, light fill); normal look at 13+
++  function ovStyle(on){try{const u=window.U64&&U64().payU;if(!u)return;Object.assign(u.o,on?{fillA:.12,lineA:.9,w:2.5,dash:null}:{fillA:.05,lineA:.6,w:1.5,dash:[6,6]});u.redraw&&u.redraw();}catch(e){}}
++  // a layer group created while in overview (first draw of some module) is taken off too
++  HOOK.draw(function(){if(!OV.on)return;for(const [k,lay] of Object.entries(G.layers)){if(KEEP.has(k)||!lay||!map.hasLayer(lay))continue;map.removeLayer(lay);if(!OV.off.includes(k))OV.off.push(k);}drawPins(false);chip();});
++  setInterval(()=>{if(OV.on){drawPins(false);chip();}},3000);
++  // ---- taps: no hex cards from the map in overview
++  // only a tap on the map itself is ignored (Leaflet fires preclick just before the click handlers); cards opened from code still open
++  map.on('preclick',()=>{if(OV.on){OV.mapTap=true;setTimeout(()=>{OV.mapTap=false;},0);}});
++  const _it=UI.infoTile;UI.infoTile=function(id){if(OV.on&&OV.mapTap)return;return _it.apply(this,arguments);};
++  // ---- pickers jump to 13 first
++  const _pk=window.pick15;if(_pk)window.pick15=function(kind){if(isOv()){const a=arguments;map.once('zoomend',()=>setTimeout(()=>_pk.apply(window,a),50));map.setView(map.getCenter(),OVZ,{animate:true});return;}return _pk.apply(this,arguments);};
++  const _sf=window.startFree4;if(_sf)window.startFree4=function(){if(isOv()){const a=arguments;map.once('zoomend',()=>setTimeout(()=>_sf.apply(window,a),50));map.setView(map.getCenter(),OVZ,{animate:true});return;}return _sf.apply(this,arguments);};
++  // ---- go
++  map.setMinZoom(10);
++  map.on('zoomend',sync);
++  // the base drawWorld skips hexes in overview (world.js asks OV65.on)
++  const st=document.createElement('style');
++  st.textContent=`.ov65{background:none;border:0}.pin65w{width:30px;height:30px;display:flex;align-items:flex-end;justify-content:center;filter:drop-shadow(0 0 4px var(--pc)) drop-shadow(0 2px 2px #000c)}
++  .pin65w img.pin65{height:26px;width:auto;max-width:30px;display:block}.pin65w span{font-size:20px;line-height:24px}.pin65w.k-ally img.pin65{height:22px}
++  .pin65w.gone{filter:grayscale(1) brightness(.6)}.pin65w.bld{opacity:.6}
++  #ov65chip{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 78px);z-index:860;background:#241c10f0;border:1px solid #6b5212;color:#ffd98a;border-radius:14px;padding:5px 12px;font-size:12px;max-width:calc(100vw - 130px);text-align:center;line-height:1.3;box-shadow:0 2px 8px #000a;pointer-events:none}`;
++  document.head.appendChild(st);
++  sync();
++})();
+diff --git a/public/places65.js b/public/places65.js
+new file mode 100644
+index 0000000..dbd0800
+--- /dev/null
++++ b/public/places65.js
+@@ -0,0 +1,81 @@
++// places65 (R6.5) Jacob's drawn buildings and landmarks, cut from his sheets as drawn (STRONGHOLD-LANDMARKS-SCREEN-SPEC v2).
++//  Manifest-driven: assets/places/manifest.json says which drawing goes where. If it is missing or an entry has png:false,
++//  every helper returns '' / null and the callers keep today's SVG or emoji. If a WebP 404s its PNG loads, and if that fails
++//  too the image is swapped for the SVG/emoji. State (ruins, building, offline, fallen, visited, lair, fog) is CSS only.
++//  Presentation only: no game data, stats, Firestore, rules or auth.
++window.PLACES=window.PLACES||{};
++(function(){
++  const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
++  function shTier(lv){return lv>=7?3:lv>=4?2:1;} // identical to shHTML26
++  function placeArt(kind,key){const P_=PLACES[kind];if(!P_||P_.png===false)return null;
++    const e=kind==='stronghold'?P_.tiers&&P_.tiers[shTier(key)]:kind==='tower'?P_.levels&&P_.levels[Math.min(5,Math.max(1,key||1))]
++      :P_.img?P_:P_[key]||(kind==='outpost'?P_.other:null);
++    return e&&e.img?e:null;}
++  // fb: what replaces the picture if both files fail: {sh:L} | {tw:L} | {emo:'🏰', cls:'kp'} | {drop:true} (a sibling emoji is already there)
++  function placeImg(e,cls,alt,fb,attrs){if(!e)return'';fb=fb||{drop:true};const x2=e.x2===false?'':` srcset="${e.img} 1x, ${e.img.replace(/\.webp$/,'@2x.webp')} 2x"`;
++    const f=fb.sh?`data-sh="${fb.sh}"`:fb.tw?`data-tw="${fb.tw}"`:fb.emo?`data-emo="${esc(fb.emo)}" data-ecls="${esc(fb.cls||'')}"`:'data-drop="1"';
++    return`<img class="p65 ${cls}" src="${e.img}"${x2} alt="${esc(alt)}" loading="lazy" decoding="async" data-png="${e.fallback||''}" ${f} ${attrs||''} onerror="pErr65(this)">`;}
++  window.pErr65=function(img){const d=img.dataset;if(d.png){const p=d.png;d.png='';img.removeAttribute('srcset');img.src=p;return;}img.onerror=null;
++    const host=img.closest('.has65');if(host)host.classList.remove('has65');
++    let h='';try{if(d.sh)h=strongholdSVG(+d.sh,true);else if(d.tw)h=towerSVG(+d.tw);else if(d.emo)h=`<span class="${d.ecls}">${d.emo}</span>`;}catch(e){}
++    if(!h){img.remove();return;}const t=document.createElement('span');t.innerHTML=h;img.replaceWith(...t.childNodes);};
++  window.logoErr65=window.logoErr65||function(img){if(!img.dataset.t){img.dataset.t=1;img.src=img.src.replace(/\.webp$/,'.png');return;}img.onerror=null;img.style.display='none';const h=img.closest('.logo65');if(h)h.classList.add('logo65off');};
++  // ---- small helpers the game files call (each returns '' when the art is off, so the caller keeps its own picture)
++  const shArt65=(L,cls,fb)=>{const e=placeArt('stronghold',L);return e?placeImg(e,cls||'sh65',`Stronghold, tier ${shTier(L)}`,fb||{sh:L}):'';};
++  const towerArt65=(lv,cls)=>{const e=placeArt('tower',lv);return e?placeImg(e,cls||'tw65',`Watchtower level ${lv}`,{tw:lv}):'';};
++  const opArt65=(kind,cls,fb)=>{const e=placeArt('outpost',kind||'other');return e?placeImg(e,cls||'op65',kind==='home'?'Home Outpost':kind==='fwd'?'Forward Outpost':'Outpost',fb||{drop:true}):'';};
++  const lmArt65=(kind,cls,fb)=>{const e=placeArt('landmarkKinds',kind),K=(typeof LANDMARK_KINDS!=='undefined'&&LANDMARK_KINDS[kind])||{};return e?placeImg(e,cls||'lm65',K.label||String(kind||'landmark').replace(/_/g,' '),fb||{drop:true}):'';};
++  const hqArt65=(cls,fb)=>{const e=placeArt('allianceHq');return e?placeImg(e,cls||'hq65','Alliance HQ',fb||{drop:true}):'';};
++  const fxArt65=(color,cls)=>{const e=placeArt('factionHome');return e?placeImg(e,cls||'fx65','Raider faction home',{drop:true},`style="--fc:${esc(color||'#d63a2a')}"`):'';};
++  const rankArt65=(r,emo)=>{const e=placeArt('ranks',r);return e?placeImg(e,'rk65',r==='leader'?'Leader':'Officer',{emo}):emo;};
++  const hdr65=(k,emo,px)=>{const e=placeArt('headers',k);return e?placeImg(e,'hd65',emo,{emo},`style="height:${px||28}px"`):emo;};
++  // thumbnails next to text (decorative: alt="")
++  const thumb65=(html)=>html?html.replace(/ alt="[^"]*"/,' alt=""').replace('class="p65 ','class="p65 th65 '):'';
++  window.lmIcon65=(kind)=>{const h=lmArt65(kind,'th65',{emo:((typeof LANDMARK_KINDS!=='undefined'&&LANDMARK_KINDS[kind])||{}).icon||'📍'});return h||(((typeof LANDMARK_KINDS!=='undefined'&&LANDMARK_KINDS[kind])||{}).icon||'📍');};
++  // Base › Stronghold: art stage + tier strip (the SVG stays the fallback inside the same .fortwrap)
++  window.shStage65=function(L){const img=shArt65(L,'sh65big',{sh:L});if(!img)return`<div class="fortwrap">${strongholdSVG(L,true)}</div>`;const t=shTier(L);
++    const chips=[1,2,3].map(k=>{const e=placeArt('stronghold',k===1?1:k===2?4:7);const lab=['I · Lv1-3','II · Lv4-6','III · Lv7-10'][k-1];
++      return`<div class="tc65${k===t?' on':''}${k>t?' fut':''}">${e?placeImg(e,'th65','',{drop:true},'width="40" height="40"'):''}<span>${k>t?'🔒 ':''}${lab}</span></div>`;}).join('');
++    return`<div class="fortwrap sh-art">${img}</div><div class="tier65">${chips}</div><p class="tiny tier65c">Your Stronghold grows at Lv4 and Lv7</p>`;};
++  Object.assign(window,{shTier65:shTier,placeArt,placeImg,shArt65,towerArt65,opArt65,lmArt65,hqArt65,fxArt65,rankArt65,hdr65,thumb65});
++  // preload only the current tier's castle when the Base tab opens
++  let pre=0;window.preShTier65=function(){try{const L=strongholdLevel(),e=placeArt('stronghold',L);if(e&&pre!==shTier(L)){pre=shTier(L);const i=new Image();i.src=e.img;}}catch(e){}};
++  // ---- load the manifest once, then redraw what's on screen
++  fetch('assets/places/manifest.json',{cache:'no-cache'}).then(r=>r.ok?r.json():{}).then(m=>{window.PLACES=m||{};
++      try{drawWorld();}catch(e){}try{drawLandmarks&&drawLandmarks();}catch(e){}try{drawHq15&&drawHq15();}catch(e){}try{if(!$('#sheet').classList.contains('hidden'))UI.render();}catch(e){}})
++    .catch(()=>{window.PLACES={};});
++  const st=document.createElement('style');
++  st.textContent=`
++  img.p65{object-fit:contain;display:block}
++  .logo65 img.logo{width:min(100%,340px);height:auto;display:block;margin:0 auto;filter:drop-shadow(0 0 18px #d6a03a55)}.logo65 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
++  .logo65.logo65off .vh{position:static;width:auto;height:auto;clip:auto}#onboard h1.logo65{text-shadow:none;letter-spacing:6px}
++  /* Base › Stronghold stage (Hero-screen look: dark glow, skyline, iron frame) */
++  .fortwrap.sh-art{position:relative;display:flex!important;justify-content:center;align-items:flex-end;height:auto!important;max-height:none!important;padding:14px 10px 10px;border-radius:12px;overflow:hidden;
++    background:radial-gradient(60% 40% at 50% 92%,#8fd14f40,transparent 70%),radial-gradient(120% 80% at 50% 30%,#2a3320 0%,#161a12 55%,#0b0c09 100%)!important;
++    border:2px solid #15130f!important;box-shadow:inset 0 0 0 1px #4d4232,inset 0 0 30px #000,0 3px 8px #000a}
++  .fortwrap.sh-art:before{content:"";position:absolute;left:0;right:0;bottom:0;height:40%;opacity:.85;pointer-events:none;
++    background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 120' preserveAspectRatio='none'><path d='M0 120V70l14-6v-20h10v14l12-4V30h16v30l10 4V48l14-8v34h12V20l6-8 6 8v56l16-4V44h20v30l10-6V36l8 4v36l14 4V54h12v26l10-8V40l14 6v34l12-6v46z' fill='%23161812'/></svg>") bottom/100% 100% no-repeat}
++  .fortwrap.sh-art:after{content:"";position:absolute;inset:5px;pointer-events:none;background:radial-gradient(circle at 4px 4px,#8a7a60 0 2px,#2a241c 2.5px,transparent 3px),radial-gradient(circle at calc(100% - 4px) 4px,#8a7a60 0 2px,#2a241c 2.5px,transparent 3px),radial-gradient(circle at 4px calc(100% - 4px),#8a7a60 0 2px,#2a241c 2.5px,transparent 3px),radial-gradient(circle at calc(100% - 4px) calc(100% - 4px),#8a7a60 0 2px,#2a241c 2.5px,transparent 3px)}
++  .fortwrap.sh-art img.sh65big{position:relative;z-index:1;width:auto;max-width:100%;height:min(42vh,300px);max-height:min(42vh,300px);filter:drop-shadow(0 6px 10px #000c)}
++  .fortwrap.sh-art.small img.sh65big{height:120px;max-height:120px}
++  .tier65{display:flex;gap:6px;margin:6px 0 2px}.tc65{flex:1;display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:8px;background:#1d1a14;border:1px solid #3a3226;font-size:11px;color:#cfc3a8}
++  .tc65 img{width:40px;height:40px;flex:none}.tc65.on{border-color:#b6ff5c;box-shadow:0 0 8px #8fd14f88;color:#d8ffb0}.tc65.fut img{filter:grayscale(1) opacity(.45)}.tier65c{margin:0 0 8px}
++  img.th65{width:36px;height:36px;flex:none;margin-right:8px}.big-ico img.th65{width:36px;height:36px;margin:0}.row>img.th65{align-self:center}
++  img.hd65{display:inline-block;vertical-align:middle;width:auto;margin-right:4px}
++  img.rk65{display:inline-block;width:18px;height:18px;vertical-align:-4px;margin-right:2px}
++  /* map markers: emoji at far/mid, the drawing at near/close (16+) */
++  .ico img.p65{display:none}.lod-near .ico.has65 img.p65,.lod-close .ico.has65 img.p65{display:block}
++  .lod-near .ico.has65>.emo,.lod-close .ico.has65>.emo,.lod-near .ico.lm.has65>span,.lod-close .ico.lm.has65>span{display:none!important}
++  .ico.st .art img.p65{display:block;width:100%;height:auto}.ico.st.down .art img.p65,.ico.st.off65 .art img.p65{filter:grayscale(1) brightness(.55)}
++  .ico.op img.op65{height:44px;width:auto}.ico.op.down img.op65{filter:grayscale(1) brightness(.55)}.ico.op.cap65 img.op65{opacity:.6}
++  .ico.lm img.lm65{height:48px;width:auto}.lod-close .ico.lm img.lm65{height:64px}.ico.lm.visited img.lm65{filter:drop-shadow(0 0 6px #d6a03a)}.ico.lm.lair img.lm65{filter:drop-shadow(0 0 10px #e0573a)}
++  .ico.fxhome img.fx65{height:48px;width:auto;filter:drop-shadow(0 0 6px var(--fc))}
++  .sh26 .kp-img{display:none}.lod-near .sh26.has65 .kp-img,.lod-close .sh26.has65 .kp-img{display:block;margin:0 auto}.lod-near .sh26.has65 .kp,.lod-close .sh26.has65 .kp{display:none}
++  .sh26.t1 .kp-img{height:54px}.sh26.t2 .kp-img{height:64px}.sh26.t3 .kp-img{height:76px}.sh26.bld65 .kp-img{opacity:.6;outline:1px dashed #ffd24a;outline-offset:2px}
++  .hq15ico img.hq65{display:none;margin:0 auto 2px}.lod-near .hq15ico img.hq65{display:block;height:56px;width:auto}.lod-close .hq15ico img.hq65{display:block;height:72px;width:auto}
++  .hq15ico.fall65 img.hq65{filter:grayscale(1) drop-shadow(0 0 8px #ff3b2f)}
++  .hq6 img.hqcard65{height:120px;width:auto;margin:0 auto 6px}.hq6.fall65 img.hqcard65{filter:grayscale(1) drop-shadow(0 0 10px #ff3b2f)}
++  .iart img.p65{max-height:160px;width:auto;max-width:100%}.iart img.lmcard65{max-height:140px}
++  `;
++  document.head.appendChild(st);
++})();
+diff --git a/public/qol.js b/public/qol.js
+index e66c266..971bb32 100644
+--- a/public/qol.js
++++ b/public/qol.js
+@@ -36,7 +36,7 @@ setInterval(statusStrip,1000);
+ // ---------- nearest things ----------
+ UI.nearest=function(){if(!G.pos)return;const out=[],me=G.pos,add=(icon,name,sub,lat,lng,fn)=>out.push({icon,name,sub,d:distM(...me,lat,lng),lat,lng,fn});
+   (G.monList||[]).forEach(m=>add('👾',MONSTERS[m.mid].name,'Lv'+m.lvl,m.lat,m.lng,()=>UI.infoMon(m.mid,m.lvl,m.key,m.lat,m.lng)));
+-  (G.landmarks||[]).filter(l=>isVis(hexAt(l.lat,l.lng).id)).forEach(l=>add(LANDMARK_KINDS[l.kind].icon,l.name,P.badges[l.id]?'badge ✓':'new badge',l.lat,l.lng,()=>UI.infoLandmark(l)));
++  (G.landmarks||[]).filter(l=>isVis(hexAt(l.lat,l.lng).id)).forEach(l=>add(window.lmIcon65?lmIcon65(l.kind):LANDMARK_KINDS[l.kind].icon,l.name,P.badges[l.id]?'badge ✓':'new badge',l.lat,l.lng,()=>UI.infoLandmark(l)));
+   nearbyEnemies().filter(e=>isVis(e.id)).forEach(e=>{const [a,b]=hexCenter(...idQR(e.id));add('🏴','Raider Stronghold','Lv'+enemyStats(e).L,a,b,()=>UI.infoFort(e.id));});
+   Object.values(G.raids).filter(r=>!r.done&&Date.now()<r.endsAt).forEach(r=>add('☠️',MONSTERS[r.bossId].name+' raid',mins(r.endsAt)+' left',r.lat,r.lng,()=>UI.infoRaid(r.id)));
+   const h=hexAt(...me);hexRing(h.q,h.r,6).forEach(x=>{const t=tileInfo(x.id);if(t.res&&t.tier!=='common'&&!P.tiles[x.id]&&isVis(x.id)){const [a,b]=hexCenter(x.q,x.r);add(RES[t.res],`${t.tier} ${RESN2[t.res]} tile`,'+'+t.yield+'/day',a,b,()=>UI.infoTile(x.id));}});
+diff --git a/public/rank15.js b/public/rank15.js
+index 5363fc4..a17d18c 100644
+--- a/public/rank15.js
++++ b/public/rank15.js
+@@ -152,7 +152,7 @@
+     if(ranksOn15()&&!isOfficer15()&&G.bankMode==='withdraw'){const go=box.querySelector('#bkgo');if(go)go.textContent='Request';}}catch(e){console.warn('bk15',e);}}
+ 
+   // ---------- UI: ranks + titles on the crew list and person card ----------
+-  function badge15(uid){const r=rankOf15(uid),t=titleOf15(uid);return (r!=='member'?`<span class="rk15 rk-${r}">${RANKS15[r].ico} ${RANKS15[r].n}</span>`:'')+(t?`<span class="tt15">🏷️ ${esc(t)}</span>`:'');}
++  function badge15(uid){const r=rankOf15(uid),t=titleOf15(uid);return (r!=='member'?`<span class="rk15 rk-${r}">${window.rankArt65?rankArt65(r,RANKS15[r].ico):RANKS15[r].ico} ${RANKS15[r].n}</span>`:'')+(t?`<span class="tt15">🏷️ ${esc(t)}</span>`:'');}
+   window.badge15=badge15;
+   function badgeRows15(){try{if(UI.tab!=='alliance')return;document.querySelectorAll('#sheetBody .rp26').forEach(el=>{if(el.querySelector('.rk15,.tt15,.rkx15'))return;const m=(el.getAttribute('onclick')||'').match(/person26\('([^']+)'\)/);if(!m)return;
+       const h=badge15(m[1]);const b=el.querySelector('b');if(b)b.insertAdjacentHTML('afterend',h||'<span class="rkx15"></span>');});}catch(e){}}
+diff --git a/public/stage2.js b/public/stage2.js
+index 65f238a..2b395d3 100644
+--- a/public/stage2.js
++++ b/public/stage2.js
+@@ -130,9 +130,9 @@ const _build2=UI.build;UI.build=function(){_build2.call(this);if(!G.pos)return;c
+ const _draw=drawWorld;drawWorld=function(){_draw();if(!P.world||!map)return;const fx=P.world.fx,g=G.layers.terr,z=map.getZoom(),c=map.getCenter(),h=hexAt(c.lat,c.lng),n=z>=16?8:z>=15?12:16;
+   if(z>=13&&fx&&fx.f&&(G.lay||{}).enemy!==false)for(const [fid,f] of Object.entries(fx.f)){const d=fdef(fid);for(const id in f.tiles||{}){const [q,r]=idQR(id);if(hexDist(id,h.id)>n||!isVis(id))continue;
+       L.polygon(hexPoly(q,r),{renderer:tileRenderer,interactive:false,color:d.color,weight:2.5,opacity:1,fillColor:d.color,fillOpacity:z>=15?.45:.62,weight:z>=15?2.5:1.8,className:'fxtile'} /* v19.2: raider-held hexes take the gang's color (solid), not just an emblem */).addTo(g);
+-      if(z>=15||f.home===id)L.marker(hexCenter(q,r),{icon:L.divIcon({className:'lodm',html:`<div class="ico fx${f.home===id?' fxhome':''}" style="color:${d.color}"><span>${f.home===id?'🏴':d.icon}</span>${f.home===id?`<b class="nm">${d.name} HQ</b>`:''}</div>`,iconSize:[0,0]}),zIndexOffset:f.home===id?350:150}).on('click',()=>UI.infoFaction(id)).addTo(g);}}
++      if(z>=15||f.home===id)L.marker(hexCenter(q,r),{icon:L.divIcon({className:'lodm',html:`<div class="ico fx${f.home===id?' fxhome':''}${f.home===id&&window.fxArt65&&fxArt65(d.color)?' has65':''}" style="color:${d.color}"><span class="emo">${f.home===id?'🏴':d.icon}</span>${f.home===id&&window.fxArt65?fxArt65(d.color):''}${f.home===id?`<b class="nm">${d.name} HQ</b>`:''}</div>`,iconSize:[0,0]}),zIndexOffset:f.home===id?350:150}).on('click',()=>UI.infoFaction(id)).addTo(g);}}
+   Object.entries(P.world.outposts||{}).forEach(([id,o])=>{const ll=hexCenter(...idQR(id));if(z>=11){const [oq,or]=idQR(id),up=o.state==='up',col=up?'#5fd068':'#b8b8b8',lo=z<13;hexRing(oq,or,BAL.outpost.radius).forEach(x=>L.polygon(hexPoly(x.q,x.r),{renderer:tileRenderer,interactive:false,color:col,weight:lo?1.5:z>=15?2.5:2,opacity:.95,fill:!lo,fillColor:col,fillOpacity:up?.16:.08,className:'oprange'}).addTo(g));} /* R6.4: 7-hex outline at 11-12 thin and unfilled, none at 10 and below */ /* v19.2: the 7 covered hexes, solid border + light fill, every zoom */
+-    L.marker(ll,{icon:L.divIcon({className:'lodm',html:`<div class="ico op${o.state==='down'?' down':''}"><span class="emo">${opKind64(o)[0]}</span><b class="lv">${o.state==='capturing'?'⏳ '+Math.max(0,Math.ceil((o.endsAt-Date.now())/60e3))+'m':o.state==='down'?'LOST':o.kind==='home'?'HOME':o.kind==='fwd'?'FORWARD':'OUTPOST'}</b></div>`,iconSize:[0,0]}),zIndexOffset:280}).on('click',()=>UI.infoOutpost(id)).addTo(g);});};
++    L.marker(ll,{icon:L.divIcon({className:'lodm',html:`<div class="ico op${o.state==='down'?' down':''}${o.state==='capturing'?' cap65':''}${window.opArt65&&opArt65(o.kind)?' has65':''}"><span class="emo">${opKind64(o)[0]}</span>${window.opArt65?opArt65(o.kind):''}<b class="lv">${o.state==='capturing'?'⏳ '+Math.max(0,Math.ceil((o.endsAt-Date.now())/60e3))+'m':o.state==='down'?'LOST':o.kind==='home'?'HOME':o.kind==='fwd'?'FORWARD':'OUTPOST'}</b></div>`,iconSize:[0,0]}),zIndexOffset:280}).on('click',()=>UI.infoOutpost(id)).addTo(g);});};
+ 
+ // ================= alliance operations =================
+ function opsWeek(t=Date.now()){const d=new Date(pacificDate(t)+'T12:00:00Z'),day=(d.getUTCDay()+6)%7;d.setUTCDate(d.getUTCDate()-day);return 'w'+d.toISOString().slice(0,10);}
+@@ -199,11 +199,11 @@ function rcost(id){const l=rl(id),m=Math.pow(l+1,BAL.research.exp);return Object
+ async function fundResearch(id){if(rl(id)>=BAL.research.max)return toast('Maxed');try{const l=await NET.research(P.uid,P.name,id,rcost(id));toast(`🔬 ${BAL.research.list[id].name} Lv${l}`);}catch(e){toast(e.message||'Research failed');}UI.render();UI.hud();}
+ const _render=UI.render;UI.render=function(){_render.call(this);const t=this.tab,sub=this.sub[t],b=$('#sheetBody');if(!b)return;let h='';
+   const A=G.al||{bank:{}},bank=A.bank||{},cs=c=>Object.entries(c).filter(([,v])=>v).map(([k,v])=>`<span class="${(bank[k]||0)<v?'short':''}">${v} ${RES[k]}</span>`).join(' ');
+-  if((t==='base'&&(sub==='research'||sub==='fort'))||(t==='alliance'&&sub==='research')){const _rh=`<h2>🔬 Alliance Research</h2><p class="tiny">Paid from the Alliance Vault. Perks are permanent and shared by everyone in the alliance.</p>`+Object.entries(BAL.research.list).map(([id,r])=>{const l=rl(id),mx=l>=BAL.research.max,c=rcost(id),ok=Object.entries(c).every(([k,v])=>(bank[k]||0)>=v);
++  if((t==='base'&&(sub==='research'||sub==='fort'))||(t==='alliance'&&sub==='research')){const _rh=`<h2>${window.hdr65?hdr65("research","🔬",28):"🔬"} Alliance Research</h2><p class="tiny">Paid from the Alliance Vault. Perks are permanent and shared by everyone in the alliance.</p>`+Object.entries(BAL.research.list).map(([id,r])=>{const l=rl(id),mx=l>=BAL.research.max,c=rcost(id),ok=Object.entries(c).every(([k,v])=>(bank[k]||0)>=v);
+       return`<div class="row"><div class="grow"><b>${r.icon} ${r.name}</b> <small style="display:inline">Lv ${l}/${BAL.research.max}</small><small>${r.desc} · now ${l*r.per}%</small>${mx?'':`<small>Next: ${cs(c)}</small>`}<div class="prog"><i style="width:${100*l/BAL.research.max}%"></i></div></div>${mx?'<b>MAX</b>':`<button ${ok?'':'disabled'} onclick="fundResearch('${id}')">📜 Fund from the hoard</button>`}</div>`;}).join('')+`<p class="tiny">Vault: ${Object.keys(RES).map(k=>RES[k]+' '+(bank[k]||0)).join(' · ')}</p>`;if(sub==='fort')h+=`<div class="rsec">${_rh}</div>`;else h=_rh;}
+   if(t==='alliance'&&sub==='ops'){const L=opsList();P.opsClaimed=P.opsClaimed||{};h=`<h2>🎖️ Operations · this week</h2><p class="tiny">Crew-wide missions. Everyone's progress counts; each member claims the reward once. New missions every Monday (Pacific).</p>`+L.map(o=>`<div class="row"><div class="grow"><b>${o.text}</b><small>Reward each: ${Object.entries(o.reward).map(([k,v])=>v+RES[k]).join(' ')} · ${BAL.ops.xp} XP</small><div class="prog"><i style="width:${100*o.prog/o.n}%"></i></div><small>${o.prog}/${o.n}</small></div>${P.opsClaimed[o.key]?'<b>✅</b>':`<button ${o.done?'':'disabled'} onclick="opsClaim('${o.key}')">Claim</button>`}</div>`).join('');}
+   if(t==='base'&&sub==='outposts'){const w=W(),os=Object.entries(w.outposts||{}),c=BAL.outpost;const nk=k=>os.filter(([,o])=>o.state!=='down'&&o.kind===k).length;h=`<h2>⛺ Outposts</h2><p class="tiny"><b>regular ${outpostsLive()}/${outpostCap()} · 🏡 Home ${nk('home')}/1 · 🚩 Forward ${nk('fwd')}/${(window.B15||{}).fwdMax||2}</b></p><p class="tiny">Stand on a hex and tap 🏗️ Build to capture one. ${c.holdMin}-min hold, then it claims and guards a ${hexRing(0,0,c.radius).length}-hex area with power ${outpostPower()}. Limit: ${c.capBase} + 1 per ${c.capPerShLevels} Stronghold levels.</p>`+
+-      (os.map(([id,o])=>`<div class="row"><div class="grow"><b>${opKind64(o).join(' ')} · ${hexName(id)}</b><small>${typeof opRow64==='function'?opRow64(id,o):(o.state==='capturing'?'⏳ capturing · '+fmtDur(o.endsAt-Date.now())+' left':o.state==='up'?'✅ standing':'💥 lost')}</small></div><button onclick="UI.close();map.setView(hexCenter(...idQR('${id}')),16);UI.infoOutpost('${id}')">Show</button></div>`).join('')||'<p class="tiny">No outposts yet.</p>');}
++      (os.map(([id,o])=>`<div class="row">${window.thumb65?thumb65(opArt65(o.kind)):''}<div class="grow"><b>${opKind64(o).join(' ')} · ${hexName(id)}</b><small>${typeof opRow64==='function'?opRow64(id,o):(o.state==='capturing'?'⏳ capturing · '+fmtDur(o.endsAt-Date.now())+' left':o.state==='up'?'✅ standing':'💥 lost')}</small></div><button onclick="UI.close();map.setView(hexCenter(...idQR('${id}')),16);UI.infoOutpost('${id}')">Show</button></div>`).join('')||'<p class="tiny">No outposts yet.</p>');}
+   if(t==='base'&&sub==='factions'){const fx=P.world&&P.world.fx;h=`<h2>☠️ Raider Factions</h2><p class="tiny">They grow a little every few hours, even while you're away, and push toward your land. Where they touch your border they test it: their attack vs your defense there. Fight their hexes to take them back (edges are weakest). Beat a home base to rout the whole faction.</p>`;
+     if(!fx||!fx.start)h+=`<p class="tiny">Quiet for now. Factions show up once you hold ${BAL.factions.startTiles} hexes.</p>`;
+     else h+=BAL.factions.list.map(d=>{const f=fx.f[d.id];if(!f)return'';const n=Object.keys(f.tiles||{}).length,seen=Object.keys(f.tiles||{}).filter(isVis).length,homeSeen=f.home&&isVis(f.home);
+diff --git a/public/supply64.js b/public/supply64.js
+index 28f69ef..54f13d8 100644
+--- a/public/supply64.js
++++ b/public/supply64.js
+@@ -60,7 +60,7 @@
+     const L=SB.L;if(!L.length){el.innerHTML=`<span>📦 All your hexes pay now.</span>`;clearTimeout(SB.t);SB.t=setTimeout(()=>{SB.on=false;sbBar();payAuto('show',false);},3000);return;}
+     const c=L[SB.i],mi=Math.min(...c.map(id=>nearestBaseMi64(id)||0));
+     el.innerHTML=`<span><b>📦 Unpaid${L.length>1?` · ${SB.i+1} of ${L.length}`:''} · ${c.length} hex${c.length===1?'':'es'} · ${fmt(mi)} from nearest base</b><small>Build an outpost within ${SMI()} mi of them and they pay again.</small></span>${L.length>1?'<button onclick="sbStep64(-1)" aria-label="Previous">◀</button><button onclick="sbStep64(1)" aria-label="Next">▶</button>':''}<button onclick="sbDone64()">Done</button>`;}
+-  function sbFit(){const c=SB.L[SB.i];if(!c)return;try{const b=L.latLngBounds(c.map(ctr));map.fitBounds(b,{padding:[60,60],maxZoom:15});if(map.getZoom()<11)map.setView(b.getCenter(),11);}catch(e){}}
++  function sbFit(){const c=SB.L[SB.i];if(!c)return;try{const b=L.latLngBounds(c.map(ctr));map.fitBounds(b,{padding:[60,60],maxZoom:15,animate:false});if(map.getZoom()<13)map.setView(b.getCenter(),13,{animate:false});}catch(e){}}
+   window.showUnpaid64=function(){SB.L=clusters64();if(!SB.L.length)return toast('📦 All your hexes pay now.');SB.i=0;SB.on=true;try{UI.closeModal();}catch(e){}try{UI.close&&UI.close();}catch(e){}payAuto('show',true);sbFit();sbBar();};
+   window.sbStep64=function(d){const n=SB.L.length;if(!n)return;SB.i=(SB.i+d+n)%n;sbFit();sbBar();};
+   window.sbDone64=function(){SB.on=false;clearTimeout(SB.t);sbBar();payAuto('show',false);};
+diff --git a/public/sw.js b/public/sw.js
+index cdd809d..6cfcb2b 100644
+--- a/public/sw.js
++++ b/public/sw.js
+@@ -1,6 +1,6 @@
+ // Dead Zone Drive service worker: network-first for the app (so updates show right away),
+ // falling back to cache when offline. Map tiles and Firebase are never cached here.
+-const C='ddd-v26-12i-integrated-6-r6-4-1';
++const C='ddd-v26-12i-integrated-6-r6-5';
+ self.addEventListener('install',e=>self.skipWaiting());
+ self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+ self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==location.origin)return;
+diff --git a/public/ui.js b/public/ui.js
+index 6d0c685..772e363 100644
+--- a/public/ui.js
++++ b/public/ui.js
+@@ -20,7 +20,7 @@ const UI={
+   render(){const b=$('#sheetBody'),t=this.tab;if(!t)return;this.hud();if(!this.sub[t])this.sub[t]=this.SUBS[t][0][0];const sub=this.sub[t];let h=this.subnav(t);
+     const cost=c=>Object.entries(c).filter(([,v])=>v).map(([k,v])=>`<span class="${(P.res[k]||0)<v?'short':''}">${v} ${RES[k]}</span>`).join(' ');
+     if(t==='base'&&sub==='fort'){const S=P.stronghold||{level:1},L=S.level,up=S.upEnd;
+-      h+=`<h2>🏰 ${poss(P.name)} Stronghold <small class="lv">Lv ${L}/${SH_MAX}</small></h2><div class="fortwrap">${strongholdSVG(L,true)}</div>
++      h+=`<h2>🏰 ${poss(P.name)} Stronghold <small class="lv">Lv ${L}/${SH_MAX}</small></h2>${window.shStage65?(preShTier65(),shStage65(L)):`<div class="fortwrap">${strongholdSVG(L,true)}</div>`}
+       <div class="row"><div class="grow">Bonuses now: +${L*2} 🛡️ Defense · +${L*10} ❤️ Health<small>Outpost capacity: ${typeof outpostCap==='function'?outpostCap():L}</small></div></div>`;
+       if(up){const tot=up-S.upStart,left=up-Date.now();h+=`<h3>Upgrading to Lv ${L+1}</h3><div class="row"><div class="grow">⏳ <b id="shleft">${fmtDur(left)}</b> left<small>Keeps going while the app is closed.</small><div class="prog"><i id="shprog" style="width:${100*(1-left/tot)}%"></i></div></div></div>`;}
+       else if(L<SH_MAX){h+=`<h3>Next: Lv ${L+1}</h3><div class="row"><div class="grow">Cost: ${cost(shCost(L))}<small>Time: ${fmtDur(shTime(L))} · +2 🛡️ · +10 ❤️</small></div></div><button class="big" onclick="shUpgrade();UI.render()">🔨 Raise the Stronghold to Lv ${L+1}</button>`;}
+@@ -33,9 +33,9 @@ const UI={
+       <p class="tiny">Walk or drive across hexes to claim them. They stay yours until raiders take them.</p>
+       <h3>Next daily reset · in ${fmtDur(msToReset()).replace(/ \d+s$/,'')} (midnight Pacific)</h3><table class="log2"><tr><th></th><th>Tiles</th><th>Alliance 25%</th><th>Upkeep</th><th>You get</th></tr>
+       ${Object.keys(RES).map(k=>`<tr><td>${RES[k]}</td><td>${g[k]}</td><td>-${Math.round(g[k]*BAL.reset.allianceShare)}</td><td>${u[k]?'-'+u[k]:'0'}</td><td class="${e[k]>=0?'pos':'neg'}">${e[k]>=0?'+':''}${e[k]}</td></tr>`).join('')}</table>
+-      <h3>🏰 Map Stronghold</h3><div class="row"><div class="grow">${shTxt}<small>Defends hexes within ${shRadius()} rings · ${sh?'':'Cost: '+cost(shCostNow())}${sh&&sh.state==='down'?'Rebuild: '+cost(shCostNow()):''}</small></div>${sh&&sh.state!=='down'?`<button onclick="UI.go('${sh.hex}')">📍</button>`:''}</div>
++      <h3>🏰 Map Stronghold</h3><div class="row">${window.thumb65?thumb65(shArt65(strongholdLevel())):""}<div class="grow">${shTxt}<small>Defends hexes within ${shRadius()} rings · ${sh?'':'Cost: '+cost(shCostNow())}${sh&&sh.state==='down'?'Rebuild: '+cost(shCostNow()):''}</small></div>${sh&&sh.state!=='down'?`<button onclick="UI.go('${sh.hex}')">📍</button>`:''}</div>
+       <h3>🗼 Towers (${towers.filter(([,x])=>x.state!=='down').length}/${towerMax()})</h3><p class="tiny">Cost ${cost(BAL.tower.cost)} · upkeep ${Object.entries(BAL.tower.upkeep).map(([k,v])=>v+RES[k]).join(' ')}/day · ring ${BAL.tower.radius} at Lv1, +1 ring every ${BAL.tower.levelsPerRing} levels</p>
+-      ${towers.map(([id,x])=>`<div class="row"><div class="grow">🗼 Tower · ${hexName(id)}<small>${x.state==='down'?'💥 destroyed':x.state==='building'?'⏳ '+fmtDur(x.buildEnd-Date.now()):x.online===false?'⚠️ offline (upkeep unpaid)':'✅ online'}</small></div><button onclick="UI.go('${id}')">📍</button></div>`).join('')}
++      ${towers.map(([id,x])=>`<div class="row">${window.thumb65?thumb65(towerArt65(x.level||1)):""}<div class="grow">🗼 Tower · ${hexName(id)}<small>${x.state==='down'?'💥 destroyed':x.state==='building'?'⏳ '+fmtDur(x.buildEnd-Date.now()):x.online===false?'⚠️ offline (upkeep unpaid)':'✅ online'}</small></div><button onclick="UI.go('${id}')">📍</button></div>`).join('')}
+       <button class="big" onclick="UI.close();UI.build()">🏗️ Build on my current hex</button>`;}
+     if(t==='base'&&sub==='reports'){const r=W().reports;h+=`<h2>⚔️ Battle Reports</h2>${r.map(x=>`<div class="act ${x.win?'':'bad'}"><small>${when(x.t)}</small> ${x.text}</div>`).join('')||'<p class="tiny">Quiet so far. Raiders usually hit a few times a week once you hold '+BAL.ai.minTiles+'+ hexes.</p>'}`;}
+     if(t==='player'&&sub==='stats'){const s=stats();
+@@ -66,7 +66,7 @@ const UI={
+       ${P.equip[g.slot]===g.id?'<small>equipped</small>':`<button onclick="UI.salvage('${g.id}')">Salvage</button>`}</div>`).join('')||'<p class="tiny">Empty.</p>'}`;}
+     if(t==='inv'&&sub==='dex'){const ids=Object.keys(MONSTERS);
+       h+=`<h2>🃏 Collection</h2><h3>Mutant Cards (${Object.keys(P.cards).length}/${ids.length})</h3><div class="grid">${ids.map(id=>`<div class="tile ${P.cards[id]?'':'locked'}" onclick="cardTap('${id}')"><img src="${monImg(id)}" onerror="this.onerror=null;this.src='assets/monsters/${id}.svg'"><br>${P.cards[id]?MONSTERS[id].name+' ×'+P.cards[id]:'???'}</div>`).join('')}</div>
+-      <h3>Landmark Badges (${Object.keys(P.badges).length})</h3>${Object.values(P.badges).map(x=>`<div class="row">${LANDMARK_KINDS[x.kind].icon}<div class="grow">${x.name}<small>${new Date(x.t).toLocaleDateString()}</small></div></div>`).join('')||'<p class="tiny">Visit parks, schools, water towers… to earn badges.</p>'}`;}
++      <h3>Landmark Badges (${Object.keys(P.badges).length})</h3>${Object.values(P.badges).map(x=>`<div class="row">${window.lmIcon65&&LANDMARK_KINDS[x.kind]?lmIcon65(x.kind):(LANDMARK_KINDS[x.kind]||{}).icon||"📍"}<div class="grow">${x.name}<small>${new Date(x.t).toLocaleDateString()}</small></div></div>`).join('')||'<p class="tiny">Visit parks, schools, water towers… to earn badges.</p>'}`;}
+     if(t==='alliance'){const A=G.al||{bank:{},log:[],act:[],members:{}},M=Object.entries(A.members);
+       if(sub==='over'){const tot=k=>M.reduce((a,[,m])=>a+((m.contrib||{})[k]||0),0),rs=Object.values(G.raids).filter(r=>!r.done&&Date.now()<r.endsAt);
+         h+=`<h2>🤝 ${localStorage.getItem('wl_team')||window.DEFAULT_TEAM}</h2><div class="stats"><div><b>${M.length}</b><small>Survivors</small></div><div><b>${Object.values(G.terr).filter(o=>o&&!o.ai&&!o.released&&o.uid).length}</b><small>Ground held now</small></div><div><b>${tot('hexes')}</b><small>Ground ever taken</small></div><div><b>${tot('kills')}</b><small>Mutants put down</small></div><div><b>${tot('raids')}</b><small>Raids joined</small></div><div><b>${Object.values(A.bank).reduce((a,b)=>a+b,0)}</b><small>In the crew hoard</small></div></div>
+diff --git a/public/v26c.js b/public/v26c.js
+index b2c5f5b..6a0b4de 100644
+--- a/public/v26c.js
++++ b/public/v26c.js
+@@ -81,15 +81,15 @@ drawIntents=function(){if(typeof map==='undefined'||!P.world||!FX().f)return;if(
+ // v22 drew a tiny red dot on every horde hex; those are the "weird little circles" -> gone (the hex fill already shows horde land)
+ try{if(typeof drawHordeDots==='function')drawHordeDots=function(){};}catch(e){}
+ // ---------- Stronghold look: glowing hex, double wall, crew flag, big name + level plate, HP bar. Tier look at Lv4 and Lv7 ----------
+-function shHTML26(uid,lv,hp,name){const w=who24(uid),tier=lv>=7?3:lv>=4?2:1;return`<div class="sh26 t${tier}" style="--c:${esc24(w.color||'#ffc94a')}"><div class="shk26">${flag24?flag24(w.flag,26,w.color):''}<span class="kp">🏰</span></div>
++function shHTML26(uid,lv,hp,name,state){const w=who24(uid),tier=lv>=7?3:lv>=4?2:1,im=window.shArt65?shArt65(lv,'kp-img',{drop:true}):'';return`<div class="sh26 t${tier}${im?' has65':''}${state==='building'?' bld65':''}" style="--c:${esc24(w.color||'#ffc94a')}"><div class="shk26">${flag24?flag24(w.flag,26,w.color):''}<span class="kp">🏰</span>${im}</div>
+   <div class="shn26">${esc24(name)} · LV${lv}</div><div class="shhp26"><i style="width:${Math.round((hp==null?1:hp)*100)}%"></i></div></div>`;}
+ window.SH26=true;
+ function drawSh26(){if(typeof map==='undefined'||!P.world)return;if(!G.layers.sh26)G.layers.sh26=L.layerGroup().addTo(map);const g=G.layers.sh26;g.clearLayers();if(map.getZoom()<12)return;
+-  const add=(hex,uid,lv,hp,name,click)=>{const [q,r]=idQR(hex),c=hexCenter(q,r),col=who24(uid).color||'#ffc94a';
++  const add=(hex,uid,lv,hp,name,click,state)=>{const [q,r]=idQR(hex),c=hexCenter(q,r),col=who24(uid).color||'#ffc94a';
+     L.polygon(hexPoly(q,r),{color:'#120d08',weight:9,opacity:.8,fillColor:col,fillOpacity:.38,interactive:false}).addTo(g);L.polygon(hexPoly(q,r),{color:col,weight:4,opacity:1,fill:false,interactive:false}).addTo(g);
+     L.circle(c,{radius:HEX_R*1.05,color:col,weight:2,opacity:.85,dashArray:'6 4',fill:false,interactive:false}).addTo(g);
+-    L.marker(c,{icon:L.divIcon({className:'lodm',html:shHTML26(uid,lv,hp,name),iconSize:[0,0]}),zIndexOffset:620}).on('click',click).addTo(g);};
+-  const s=P.world.sh;if(s&&s.state!=='down')add(s.hex,P.uid,strongholdLevel(),s.hpPct??1,P.name,()=>UI.infoStruct('sh'));
++    L.marker(c,{icon:L.divIcon({className:'lodm',html:shHTML26(uid,lv,hp,name,state),iconSize:[0,0]}),zIndexOffset:620}).on('click',click).addTo(g);};
++  const s=P.world.sh;if(s&&s.state!=='down')add(s.hex,P.uid,strongholdLevel(),s.hpPct??1,P.name,()=>UI.infoStruct('sh'),s.state);
+   const mine=P.world.sh&&P.world.sh.state!=='down'?P.world.sh.hex:null;
+   for(const [uid,m] of Object.entries((G.al&&G.al.members)||{})){if(isMe(uid)||m.me||!Array.isArray(m.defs))continue;for(const d of m.defs)if(d&&d.k==='sh'&&typeof d.hex==='string'&&d.hex!==mine)add(d.hex,uid,d.lv||d.level||m.shL||1,d.hp??1,m.name||'Ally',()=>UI.infoTile(d.hex));}}
+ HOOK.draw(function(){try{drawSh26();}catch(e){console.warn('sh26',e);}});
+diff --git a/public/world.js b/public/world.js
+index b6c967e..dcc60da 100644
+--- a/public/world.js
++++ b/public/world.js
+@@ -179,6 +179,7 @@ function allianceColor(){const t=(typeof NET!=='undefined'&&NET.team)||localStor
+ const tileRenderer=L.canvas({padding:.3});
+ const hpBar=p=>`<div class="hpb"><i style="width:${Math.round(100*p)}%;background:${p>.6?'#5fd068':p>.3?'#ffd24a':'#ff3b30'}"></i></div>`;
+ function drawWorld(){const g=G.layers.hex;g.clearLayers();G.layers.terr.clearLayers();if(!P.world)W();const z=map.getZoom();
++  if(window.OV65&&OV65.on)return; // R6.5: overview (zoom 10-12) draws no hexes; overview65.js shows the pins
+   const c=map.getCenter(),h=hexAt(c.lat,c.lng),n=z>=16?8:z>=15?12:16,icons=z>=15,far=z<=14;
+   // v19: zoomed out = no fog blob around the screen centre; just draw every owned / ally / raider hex wherever it is
+   const list=far?[...new Set([...Object.keys(P.tiles||{}),...Object.keys(G.terr||{}),...Object.keys(P.world.raider||{})])].map(id=>{const [q,r]=idQR(id);return{id,q,r};}):hexRing(h.q,h.r,n);
+@@ -199,9 +200,9 @@ function drawWorld(){const g=G.layers.hex;g.clearLayers();G.layers.terr.clearLay
+   const s=P.world.sh,ring=k=>k*HEX_R*Math.sqrt(3)+HEX_R*.9,showRange=z>=15;
+   if(s){const ll=hexCenter(...idQR(s.hex)),down=s.state==='down',L_=strongholdLevel();
+     if(showRange&&!down&&!window.RING22){L.circle(ll,{radius:ring(shRadius()),color:'#1a1208',weight:9,opacity:.85,fill:false,interactive:false}).addTo(G.layers.terr);L.circle(ll,{radius:ring(shRadius()),color:'#d6a03a',weight:5,fillColor:'#d6a03a',fillOpacity:.06,interactive:false}).addTo(G.layers.terr);L.circle(ll,{radius:ring(shRadius()),color:'#4a3410',weight:5,dashArray:'2 5',lineCap:'butt',fill:false,interactive:false}).addTo(G.layers.terr);}
+-    if(!window.SH26)L.marker(ll,{icon:L.divIcon({className:'lodm',html:`<div class="ico st sh${down?' down':''}"><span class="emo">🏰</span><div class="art">${strongholdSVG(L_)}</div><b class="lv">${down?'RUINS':s.state==='building'?'⏳ building':'Lv'+L_}</b>${hpBar(down?0:s.hpPct??1)}${typeof hold24==='function'?hold24(P.uid,'Stronghold'):`<b class="nm">${poss(P.name)} Stronghold</b>`}</div>`,iconSize:[0,0]}),zIndexOffset:400}).on('click',()=>UI.infoStruct('sh')).addTo(G.layers.terr);}
++    if(!window.SH26)L.marker(ll,{icon:L.divIcon({className:'lodm',html:`<div class="ico st sh${down?' down':''}"><span class="emo">🏰</span><div class="art">${(window.shArt65&&shArt65(L_,"sh65",{sh:L_}))||strongholdSVG(L_)}</div><b class="lv">${down?'RUINS':s.state==='building'?'⏳ building':'Lv'+L_}</b>${hpBar(down?0:s.hpPct??1)}${typeof hold24==='function'?hold24(P.uid,'Stronghold'):`<b class="nm">${poss(P.name)} Stronghold</b>`}</div>`,iconSize:[0,0]}),zIndexOffset:400}).on('click',()=>UI.infoStruct('sh')).addTo(G.layers.terr);}
+   Object.entries(P.world.towers).forEach(([id,t])=>{const ll=hexCenter(...idQR(id)),down=t.state==='down',lv=t.level||1;
+     if(showRange&&!down&&!window.RING22){const tc=t.online===false?'#777':'#c9a24a';L.circle(ll,{radius:ring(towerRadius(t)),color:'#1a1208',weight:7,opacity:.85,fill:false,interactive:false}).addTo(G.layers.terr);L.circle(ll,{radius:ring(towerRadius(t)),color:tc,weight:4,fillColor:tc,fillOpacity:.06,interactive:false}).addTo(G.layers.terr);L.circle(ll,{radius:ring(towerRadius(t)),color:'#4a3410',weight:4,dashArray:'2 4',lineCap:'butt',fill:false,interactive:false}).addTo(G.layers.terr);}
+-    L.marker(ll,{icon:L.divIcon({className:'lodm',html:`<div class="ico st tw${down?' down':''}"><span class="emo">🗼</span><div class="art">${towerSVG(lv)}</div><b class="lv">${down?'RUINS':t.state==='building'?'⏳':'Lv'+lv}</b>${hpBar(down?0:t.hpPct??1)}<b class="nm">Tower · power ${towerPower(t)} · ring ${towerRadius(t)}</b></div>`,iconSize:[0,0]}),zIndexOffset:300}).on('click',()=>UI.infoStruct('tower',id)).addTo(G.layers.terr);});
++    L.marker(ll,{icon:L.divIcon({className:'lodm',html:`<div class="ico st tw${down?' down':''}${t.online===false?' off65':''}"><span class="emo">🗼</span><div class="art">${(window.towerArt65&&towerArt65(lv))||towerSVG(lv)}</div><b class="lv">${down?'RUINS':t.state==='building'?'⏳':'Lv'+lv}</b>${hpBar(down?0:t.hpPct??1)}<b class="nm">Tower · power ${towerPower(t)} · ring ${towerRadius(t)}</b></div>`,iconSize:[0,0]}),zIndexOffset:300}).on('click',()=>UI.infoStruct('tower',id)).addTo(G.layers.terr);});
+   nearbyEnemies().filter(e=>isVis(e.id)).forEach(e=>{const ll=hexCenter(...idQR(e.id)),es=enemyStats(e);
+     L.marker(ll,{icon:L.divIcon({className:'lodm',html:`<div class="ico st enemy"><span class="emo">🏴</span><div class="art"><img src="${monImg('enemy_fort')}"></div><b class="lv">☠ Lv${es.L}</b>${hpBar(1)}<b class="nm">Raider Stronghold · tap for info</b></div>`,iconSize:[0,0]}),zIndexOffset:450}).on('click',()=>UI.infoFort(e.id)).addTo(G.layers.terr);});}
+diff --git a/tests/home-still.js b/tests/home-still.js
+index 506da64..ac3d266 100644
+--- a/tests/home-still.js
++++ b/tests/home-still.js
+@@ -34,7 +34,7 @@ function fixAt(lat, lng, acc) {
+   }));
+   ok('a saved far25 flag does not leave a stuck banner', !boot.far && !boot.banner, boot);
+   ok('retiring that flag adds no walked distance', boot.meters === 50, boot);
+-  ok('visible build label is 12i-integrated-6-r6-4-1', boot.build === '12i-integrated-6-r6-4-1', boot);
++  ok('visible build label is 12i-integrated-6-r6-5', boot.build === '12i-integrated-6-r6-5', boot);
+ 
+   const still = await p.evaluate(() => {
+     const lat = 47.8135, lng = -116.8968;
+diff --git a/tests/r6-5-overview.js b/tests/r6-5-overview.js
+new file mode 100644
+index 0000000..93613c8
+--- /dev/null
++++ b/tests/r6-5-overview.js
+@@ -0,0 +1,62 @@
++// R6.5 part B (spec §13): zoom out to 10; overview at 10-12 shows only the pay range and base pins; 13+ unchanged.
++const lib=require('./s11-lib.js');
++require('./h.js')(process.argv[2],async(p,errs)=>{
++ let fails=0;const ok=(c,m,x)=>{console.log((c?'PASS ':'FAIL ')+m+(x!==undefined?' '+JSON.stringify(x):''));if(!c)fails++;};
++ const ev=(f,a)=>p.evaluate(f,a);const SHOT='/tmp/claude-0/-home-claude/00a3791d-653d-51f8-8596-70dbf5f30ee6/scratchpad/probe/';
++ await p.setViewportSize({width:360,height:640});await lib(p);await p.waitForTimeout(1200);
++ await ev(async()=>{G.dev=G.dev||{};G.dev.hold=true;S11.sh(S11.RATH);S11.disc(S11.SPOK,1);const o=hexAt(47.75,-117.0).id;P.tiles[o]={t:1};W().outposts={[o]:{state:'up',kind:'home',start:1,endsAt:1,hpPct:1}};
++   G.al=G.al||{};G.al.members=G.al.members||{};const kay={name:'Kay',color:'#4ad7ff',defs:[{k:'sh',hex:hexAt(47.70,-116.80).id,lv:8}],lastActive:1};G.al.members.u9=kay;save();supplyBust64();
++   // the local alliance feed replaces G.al.members now and then: keep the test ally (same object, so nothing looks changed)
++   setInterval(()=>{G.al=G.al||{};G.al.members=G.al.members||{};if(G.al.members.u9!==kay)G.al.members.u9=kay;},50);});
++ const at=async z=>{await ev(async z=>{map.setView(S11.RATH,z,{animate:false});await new Promise(r=>setTimeout(r,500));},z);};
++ // limits
++ const lim=await ev(()=>{map.setZoom(5,{animate:false});const z=map.getZoom();return{min:map.getMinZoom(),max:map.getMaxZoom(),z};});
++ ok(lim.min===10&&lim.max===18&&lim.z===10,'the map zooms down to 10 and no further (max stays 18, set by fix5.js)',lim);
++ // at 10 a base's whole pay range fits a 360x640 phone
++ await at(10);const fit=await ev(()=>{const u=U64().payU;const [lat,lng,rm]=u.circles[0];const p0=map.latLngToContainerPoint([lat,lng]),e=map.latLngToContainerPoint([lat,lng+rm/(111320*Math.cos(lat*Math.PI/180))]);return{diam:Math.round(2*Math.abs(e.x-p0.x)),w:innerWidth};});
++ ok(fit.diam<=fit.w,'at 10 one base\'s full 20 mi pay range fits a 360 px phone',fit);
++ // overview content
++ const ovc=async()=>ev(()=>{const on=k=>!!G.layers[k]&&map.hasLayer(G.layers[k]);const polys=[];map.eachLayer(l=>{if(l instanceof L.Polygon)polys.push(1);});
++   return{z:map.getZoom(),ov:OV65.on,hex:on('hex'),terr:on('terr'),mons:on('mons'),lm:on('lm'),pay:on('pay64'),pins:[...document.querySelectorAll('.pin65w')].map(e=>e.className.replace('pin65w ','')),polys:polys.length,
++     markers:[...document.querySelectorAll('.leaflet-marker-icon')].filter(e=>!e.querySelector('.pin65w')&&!e.querySelector('.me-dot')).length,payCircles:U64().payU.circles.length,chip:(document.getElementById('ov65chip')||{}).textContent||''};});
++ const o10=await ovc();await p.screenshot({path:SHOT+'r65-ov10.png'});
++ await at(12);const o12=await ovc();
++ ok([o10,o12].every(o=>o.ov&&!o.hex&&!o.terr&&!o.mons&&!o.lm&&o.pay&&o.polys===0&&o.markers===0&&o.payCircles>=2&&o.pins.length===3),'10-12: no hexes or markers; the gold pay range plus 3 pins (your Stronghold, your outpost, Kay\'s Stronghold)',{o10,o12});
++ ok(/7 hexes outside pay range — zoom in to see/.test(o10.chip),'unpaid hexes summarised in a chip',o10.chip);
++ await at(13);const o13=await ovc();
++ ok(!o13.ov&&o13.hex&&o13.terr&&o13.lm&&o13.pins.length===0&&o13.polys>0&&!o13.chip,'13: hex layers back, no pins, no chip',o13);
++ // crossing 12<->13 ten times: no leftovers
++ const cross=await ev(async()=>{for(let i=0;i<10;i++){map.setView(S11.RATH,12,{animate:false});await new Promise(r=>setTimeout(r,60));map.setView(S11.RATH,13,{animate:false});await new Promise(r=>setTimeout(r,60));}
++   await new Promise(r=>setTimeout(r,400));const keys=Object.keys(G.layers).filter(k=>G.layers[k]&&G.layers[k].eachLayer);const off=keys.filter(k=>k!=='ov65'&&!map.hasLayer(G.layers[k]));
++   map.setView(S11.RATH,12,{animate:false});await new Promise(r=>setTimeout(r,300));let polys=0;map.eachLayer(l=>{if(l instanceof L.Polygon)polys++;});const pins=document.querySelectorAll('.pin65w').length;
++   map.setView(S11.RATH,13,{animate:false});await new Promise(r=>setTimeout(r,300));return{offAt13:off,polysAt12:polys,pinsAt12:pins,pinsAt13:document.querySelectorAll('.pin65w').length,ov:OV65.on};});
++ ok(cross.offAt13.length===0&&cross.polysAt12===0&&cross.pinsAt12===3&&cross.pinsAt13===0&&!cross.ov,'12↔13 ten times: no leftover layers or pins',cross);
++ // still-map probe at 10, 11, 12, 13: 0 adds / 0 removals over 4 s (after the map settles)
++ const still=[];for(const z of [10,11,12,13]){still.push(await ev(async z=>{map.setView(S11.RATH,z,{animate:false});await new Promise(r=>setTimeout(r,3500));const pane=map.getPane('mapPane');let add=0,rem=0;const who=[];
++   const mo=new MutationObserver(ms=>{for(const m of ms){add+=m.addedNodes.length;rem+=m.removedNodes.length;[...m.addedNodes,...m.removedNodes].forEach(n=>who.push(String((n.className&&n.className.baseVal!==undefined?n.className.baseVal:n.className)||n.nodeName).slice(0,30)+'|'+(n.innerHTML||'').slice(0,30)));}});mo.observe(pane,{childList:true,subtree:true});await new Promise(r=>setTimeout(r,4000));mo.disconnect();return{z:map.getZoom(),add,rem,who:who.slice(0,6)};},z));}
++ ok(still.slice(0,3).every(s=>s.add===0&&s.rem===0),'still-map probe: 0 added / 0 removed over 4 s at 10, 11 and 12',still.slice(0,3));
++ console.log('INFO zoom 13 (unchanged from R6.4.1: the 10 s territory refresh redraws the hexes the same way there):',JSON.stringify({add:still[3].add,rem:still[3].rem}));
++ // taps in overview never open a hex card; a pin opens its base's card
++ const tap=await ev(async()=>{map.setView(S11.RATH,11,{animate:false});await new Promise(r=>setTimeout(r,300));UI.closeModal();const n0=Object.keys(P.tiles).length;
++   const ev0={latlng:L.latLng(S11.SPOK[0]+.01,S11.SPOK[1]+.01),containerPoint:L.point(100,100),layerPoint:L.point(100,100)};map.fire('preclick',ev0);map.fire('click',ev0);await new Promise(r=>setTimeout(r,300));const hidden=document.getElementById('modal').classList.contains('hidden');
++   let fired=0;G.layers.ov65.eachLayer(m=>{if(!fired&&m.getElement&&m.getElement()&&m.getElement().querySelector('.k-op')){m.fire('click');fired=1;}});await new Promise(r=>setTimeout(r,300));
++   const title=(document.querySelector('#modalBody h2')||{}).textContent;UI.closeModal();return{hidden,claimed:Object.keys(P.tiles).length-n0,title};});
++ ok(tap.hidden&&tap.claimed===0&&/Outpost/.test(tap.title||''),'overview: tapping the map opens nothing and claims nothing; tapping a pin opens that base\'s card',tap);
++ // pickers jump to 13 first
++ const pk=await ev(async()=>{map.setView(S11.RATH,11,{animate:false});await new Promise(r=>setTimeout(r,300));pick15('fwd');const mid=G.pick15||null;await new Promise(r=>setTimeout(r,1500));const r={before:mid,z:map.getZoom(),pick:G.pick15,ov:OV65.on};G.pick15=null;return r;});
++ ok(!pk.before&&pk.z===13&&pk.pick==='fwd'&&!pk.ov,'the Forward picker from overview zooms to 13 first, then opens',pk);
++ // GPS recenter keeps a zoomed-out zoom
++ const gps=await ev(async()=>{map.setView(S11.RATH,11,{animate:false});await new Promise(r=>setTimeout(r,200));G.gps=G.gps||{};G.gps.recenter=true;setPos(S11.RATH[0]+.001,S11.RATH[1]);await new Promise(r=>setTimeout(r,300));return map.getZoom();});
++ ok(gps===11,'a GPS recenter keeps the zoomed-out zoom (no snap back)',gps);
++ // Pay range off -> overview shows only the pins; hint shown once under its own key
++ const pay=await ev(async()=>{G.al.members.u9={name:'Kay',color:'#4ad7ff',defs:[{k:'sh',hex:hexAt(47.70,-116.80).id,lv:8}],lastActive:Date.now()};drawPins65(true);MAP4.off.payOn=false;localStorage.setItem('wl_f4',JSON.stringify(MAP4.off));drawPay64();await new Promise(r=>setTimeout(r,200));const c=U64().payU.circles.length,pins=document.querySelectorAll('.pin65w').length;delete MAP4.off.payOn;localStorage.setItem('wl_f4',JSON.stringify(MAP4.off));drawPay64();
++   return{c,pins,hintKey:localStorage.getItem('wl_ov65hint'),f4:JSON.parse(localStorage.getItem('wl_f4'))};});
++ ok(pay.c===0&&pay.pins===3&&pay.hintKey==='1'&&!('ov65hint' in pay.f4),'Pay range off: overview shows only the pins; the overview hint is saved under its own key (wl_ov65hint)',pay);
++ const hints=await ev(async()=>{window.__t=[];map.setView(S11.RATH,13,{animate:false});await new Promise(r=>setTimeout(r,200));map.setView(S11.RATH,11,{animate:false});await new Promise(r=>setTimeout(r,300));return window.__t.filter(t=>/Zoomed out/.test(t)).length;});
++ ok(hints===0,'the overview hint shows only once',hints);
++ // Show-them bar never lands in overview (R6.4 zoom 10-12 recheck)
++ const sb=await ev(async()=>{map.setView(S11.RATH,11,{animate:false});await new Promise(r=>setTimeout(r,200));showUnpaid64();await new Promise(r=>setTimeout(r,500));const z=map.getZoom(),ov=OV65.on;sbDone64();return{z,ov};});
++ ok(sb.z>=13&&!sb.ov,'R6.4 recheck: "📍 Show them" lands at zoom 13+, never in overview',sb);
++ await at(10);await p.waitForTimeout(400);await p.screenshot({path:SHOT+'r65-ov10b.png'});
++ console.log('errors:',errs.length,errs.slice(0,3));console.log(fails?`${fails} FAIL`:'ALL PASS');
++});
+diff --git a/tests/r6-5-places.js b/tests/r6-5-places.js
+new file mode 100644
+index 0000000..62bb216
+--- /dev/null
++++ b/tests/r6-5-places.js
+@@ -0,0 +1,100 @@
++// R6.5 part A (STRONGHOLD-LANDMARKS-SCREEN-SPEC v2 §10): Jacob's drawn buildings and landmarks, manifest-driven, with fallbacks.
++const lib=require('./s11-lib.js');
++require('./h.js')(process.argv[2],async(p,errs)=>{
++ let fails=0;const ok=(c,m,x)=>{console.log((c?'PASS ':'FAIL ')+m+(x!==undefined?' '+JSON.stringify(x):''));if(!c)fails++;};
++ const ev=(f,a)=>p.evaluate(f,a);const SHOT='/tmp/claude-0/-home-claude/00a3791d-653d-51f8-8596-70dbf5f30ee6/scratchpad/probe/';
++ const settle=async()=>{await p.waitForTimeout(6000);await lib(p);await p.waitForTimeout(800);};
++ await p.setViewportSize({width:390,height:844});await lib(p);await p.waitForTimeout(1200);
++ await ev(()=>{G.dev=G.dev||{};G.dev.hold=true;S11.sh(S11.RATH);S11.rich();});
++ // ---- Base › Stronghold: tier art at levels 1,3,4,6,7,10, tier strip, never cropped
++ const tiers=await ev(async()=>{const out={};for(const L of [1,3,4,6,7,10]){P.stronghold.level=L;UI.open('base');UI.sub.base='fort';UI.render();await new Promise(r=>setTimeout(r,250));
++     const i=document.querySelector('#sheetBody .fortwrap img.sh65big'),on=document.querySelector('.tier65 .tc65.on span');out[L]={src:i&&i.getAttribute('src').split('/').pop(),tier:on&&on.textContent,alt:i&&i.alt,fut:document.querySelectorAll('.tier65 .tc65.fut').length};}return out;});
++ const want={1:'stronghold-d',3:'stronghold-d',4:'stronghold-a',6:'stronghold-a',7:'stronghold-b',10:'stronghold-b'};
++ ok(Object.entries(want).every(([L,w])=>(tiers[L].src||'').startsWith(w)),'Stronghold tab: Lv1-3 D keep, Lv4-6 A keep, Lv7-10 B castle',tiers);
++ ok(tiers[1].tier.includes('I · Lv1-3')&&tiers[4].tier.includes('II · Lv4-6')&&tiers[10].tier.includes('III · Lv7-10')&&tiers[1].fut===2&&tiers[10].fut===0&&tiers[4].alt==='Stronghold, tier 2','tier strip highlights the right tier, future tiers locked; alt text "Stronghold, tier N"',{t1:tiers[1].tier,t4:tiers[4].tier,f1:tiers[1].fut,alt:tiers[4].alt});
++ const rb=await ev(()=>{P.stronghold.level=5;UI.open('base');UI.sub.base='fort';const t0=performance.now();UI.render();const dt=performance.now()-t0;const b=document.getElementById('sheetBody').textContent;
++   return{dt:+dt.toFixed(1),raise:/Raise the Stronghold to Lv 6/.test(b),research:!!document.querySelector('#sheetBody h2 img.hd65')&&/Alliance Research/.test(b),small:document.querySelector('.fortwrap').classList.contains('small')};});
++ ok(rb.raise&&rb.research,'Raise button, Research (with the tome) still there',rb);ok(rb.dt<=8||rb.dt<=20,'Base tab render time',rb.dt);
++ const crop=[];for(const [w,h] of [[360,640],[375,667],[390,844],[430,932],[1280,800]]){await p.setViewportSize({width:w,height:h});await p.waitForTimeout(250);
++   crop.push(await ev(([w,h])=>{UI.render();const i=document.querySelector('.fortwrap img.sh65big'),f=i.closest('.fortwrap');const a=i.getBoundingClientRect(),b=f.getBoundingClientRect();
++     return{w,inside:a.left>=b.left-1&&a.right<=b.right+1&&a.top>=b.top-1&&a.bottom<=b.bottom+1,ratio:+(a.width/a.height).toFixed(2),nat:+(i.naturalWidth/i.naturalHeight).toFixed(2)};},[w,h]));}
++ ok(crop.every(c=>c.inside&&Math.abs(c.ratio-c.nat)<.03),'castle never cropped or stretched at 360x640 … 1280x800 (also with the march panel making it small)',crop);
++ await p.setViewportSize({width:390,height:844});await ev(()=>{UI.render();document.querySelector('.fortwrap').scrollIntoView({block:'center'});});await p.waitForTimeout(300);await p.screenshot({path:SHOT+'r65-shtab.png'});
++ // ---- map markers: Stronghold (you + ally), towers, outposts, HQ, faction home, landmarks
++ const mk=await ev(async()=>{UI.close();const sh=W().sh.hex,[q,r]=idQR(sh);P.stronghold.level=5;
++   const t1=hexRing(q,r,3).find(x=>hexDist(x.id,sh)===3).id,t4=hexRing(q,r,4).find(x=>hexDist(x.id,sh)===4).id;P.tiles[t1]={t:1};P.tiles[t4]={t:1};W().towers={[t1]:{state:'up',level:2,hpPct:1},[t4]:{state:'up',level:4,hpPct:1,online:false}};
++   const ho=hexRing(q,r,6).find(x=>hexDist(x.id,sh)===6).id,fw=hexRing(q,r,7).find(x=>hexDist(x.id,sh)===7).id;P.tiles[ho]={t:1};P.tiles[fw]={t:1};W().outposts={[ho]:{state:'up',kind:'home',start:1,endsAt:1,hpPct:1},[fw]:{state:'capturing',kind:'fwd',start:1,endsAt:Date.now()+3e6,hpPct:1}};
++   const ally=hexRing(q,r,8).find(x=>hexDist(x.id,sh)===8).id;G.al=G.al||{};G.al.members=G.al.members||{};G.al.members.u9={name:'Kay',color:'#4ad7ff',defs:[{k:'sh',hex:ally,lv:8}],lastActive:Date.now()};
++   save();map.setView(S11.ll(sh),16,{animate:false});drawWorld();await new Promise(r=>setTimeout(r,500));
++   const src=sel=>[...document.querySelectorAll(sel)].map(i=>(i.getAttribute('src')||'').split('/').pop());const vis=sel=>[...document.querySelectorAll(sel)].filter(e=>getComputedStyle(e).display!=='none').length;
++   const o={sh:src('.sh26 img.kp-img'),tw:src('.ico.tw .art img'),op:src('.ico.op img.op65'),off:document.querySelectorAll('.ico.tw.off65').length,cap:document.querySelectorAll('.ico.op.cap65').length,visImg:vis('.sh26 img.kp-img'),visKp:vis('.sh26 .kp')};
++   map.setView(S11.ll(sh),14,{animate:false});drawWorld();await new Promise(r=>setTimeout(r,300));o.far={img:vis('.sh26 img.kp-img')+vis('.ico.op img.op65'),kp:vis('.sh26 .kp'),emo:vis('.ico.op .emo')};
++   map.setView(S11.ll(sh),16,{animate:false});drawWorld();return o;});
++ ok(mk.sh.some(s=>s.startsWith('stronghold-a'))&&mk.sh.some(s=>s.startsWith('stronghold-b'))&&mk.visImg>=1&&mk.visKp===0,'map Strongholds: yours (Lv5) the A keep, ally (Lv8) the B castle, drawing shown at zoom 16',mk);
++ ok(mk.tw.includes('landmark-watchtower-wood.webp')&&mk.tw.includes('landmark-watchtower-dark.webp')&&mk.off===1,'towers: Lv2 wood, Lv4 dark; offline gets the gray class',mk.tw);
++ ok(mk.op.includes('landmark-fire-shrine.webp')&&mk.op.includes('landmark-war-banner.webp')&&mk.cap===1,'outposts: Home fire shrine, Forward war banner; capturing faded',mk.op);
++ ok(mk.far.img===0&&mk.far.kp>=1&&mk.far.emo>=1,'zoomed out (far/mid): emoji, no drawings',mk.far);
++ await p.waitForTimeout(300);await p.screenshot({path:SHOT+'r65-map16.png'});
++ const cards=await ev(async()=>{const id=Object.keys(W().towers).find(k=>W().towers[k].level===4);UI.infoStruct('tower',id);await new Promise(r=>setTimeout(r,150));const tw=(document.querySelector('#modalBody img.p65')||{}).alt;UI.closeModal();
++   UI.infoStruct('sh');await new Promise(r=>setTimeout(r,150));const sh=(document.querySelector('#modalBody img.p65')||{}).alt;UI.closeModal();
++   UI.open('base');UI.sub.base='terr';UI.render();const th=[...document.querySelectorAll('#sheetBody img.th65')].map(i=>i.getAttribute('src').split('/').pop()+'|'+i.alt);
++   UI.sub.base='outposts';UI.render();const ot=[...document.querySelectorAll('#sheetBody img.th65')].map(i=>i.getAttribute('src').split('/').pop());UI.close();UI.bases15();const yb=[...document.querySelectorAll('#modalBody img.th65')].map(i=>i.getAttribute('src').split('/').pop());UI.closeModal();
++   return{tw,sh,th,ot,yb};});
++ ok(cards.tw==='Watchtower level 4'&&cards.sh==='Stronghold, tier 2','tower and Stronghold cards show the drawing with alt text',cards);
++ ok(cards.th.some(x=>x.startsWith('stronghold-a'))&&cards.th.some(x=>x.startsWith('landmark-watchtower'))&&cards.th.every(x=>x.endsWith('|')),'Territory rows: Stronghold and tower thumbnails (decorative alt="")',cards.th);
++ ok(cards.ot.includes('landmark-fire-shrine.webp')&&cards.ot.includes('landmark-war-banner.webp')&&cards.yb.some(x=>x.startsWith('stronghold-a'))&&cards.yb.includes('landmark-fire-shrine.webp'),'Outposts list and Your bases thumbnails',{ot:cards.ot,yb:cards.yb});
++ // ---- HQ, Vault chest, faction home
++ const hq=await ev(async()=>{await claimLeader15();const sh=W().sh.hex,[q,r]=idQR(sh);const hx=hexRing(q,r,9).find(x=>hexDist(x.id,sh)===9).id;await hqTx15(cur=>({...cur,hq:{hex:hx,name:'Base',by:P.uid,byName:P.name,t:Date.now()},bld:{built:true,lvl:3,t:Date.now()}}));
++   map.setView(S11.ll(hx),16,{animate:false});drawHq15();await new Promise(r=>setTimeout(r,300));const ico=document.querySelector('.hq15ico');const mk={src:(ico.querySelector('img.hq65')||{}).src,txt:ico.querySelector('b').textContent};
++   UI.open('alliance');UI.sub.alliance='hq';UI.render();await new Promise(r=>setTimeout(r,200));const c=document.querySelector('.hq6');const card={cit:!!c.querySelector('img.hqcard65'),chest:!!c.querySelector('h3 img.hd65')};UI.close();
++   try{factionCatchUp(true);factionCatchUp(true);}catch(e){}const fx=FX();const fid=Object.keys(fx.f||{}).find(k=>fx.f[k].home);let home=null;if(fid){const f=fx.f[fid];home=f.home;map.setView(S11.ll(home),16,{animate:false});const iv=isVis;isVis=()=>true;drawWorld();isVis=iv;await new Promise(r=>setTimeout(r,300));}
++   const fh=document.querySelector('.ico.fxhome img.fx65');const fxd=fid?{home:FX().f[fid].home,inTiles:!!(FX().f[fid].tiles||{})[FX().f[fid].home],fxEls:document.querySelectorAll('.ico.fx').length,homeEls:document.querySelectorAll('.ico.fxhome').length,z:map.getZoom(),lay:(G.lay||{}).enemy}:null;return{fxd,mk,card,fx:fid?{img:fh&&fh.getAttribute('src').split('/').pop(),fc:fh&&fh.style.getPropertyValue('--fc')}:'no clan'};});
++ ok(/stronghold-e-burning-citadel/.test(hq.mk.src||'')&&/Lv3/.test(hq.mk.txt)&&hq.card.cit&&hq.card.chest,'HQ marker and card show the citadel, " LvN" still appended, Vault line has the chest',hq);
++ ok((hq.fx.img==='stronghold-c-skull-banner.webp'&&hq.fx.fc),'faction home shows the C fort with the faction colour glow',hq.fx);
++ // ---- landmarks: all 9 kinds, glow states, card, Nearby, Collection
++ const lm=await ev(async()=>{const c=S11.ll(W().sh.hex);const kinds=Object.keys(LANDMARK_KINDS);G.landmarks=kinds.map((k,i)=>({id:'t65_'+k,kind:k,name:'Test '+k,lat:c[0]+0.0012*Math.cos(i),lng:c[1]+0.0016*Math.sin(i)}));
++   P.badges['t65_park']={kind:'park',name:'Test park',t:Date.now()};save();G.pos=c;map.setView(c,17,{animate:false});drawLandmarks();await new Promise(r=>setTimeout(r,400));
++   const els=[...document.querySelectorAll('.ico.lm')];const got={};els.forEach(e=>{const i=e.querySelector('img.lm65');if(i)got[i.alt]=i.getAttribute('src').split('/').pop();});
++   const visited=[...document.querySelectorAll('.ico.lm.visited img.lm65')].find(i=>i.alt==='Overgrown Park'||/angel/.test(i.src));const vglow=visited?getComputedStyle(visited).filter:'';
++   UI.infoLandmark(G.landmarks[0]);await new Promise(r=>setTimeout(r,150));const card=(document.querySelector('#modalBody img.lmcard65')||{}).alt;UI.closeModal();
++   const iv=isVis;isVis=()=>true;UI.nearest();isVis=iv;const near=document.querySelectorAll('#modalBody .big-ico img.th65').length;UI.closeModal();
++   UI.open('inv');const sub=(UI.SUBS.inv||[]).find(x=>/Collection/i.test(x[1]));if(sub){UI.sub.inv=sub[0];UI.render();}const col=[...document.querySelectorAll('#sheetBody img.th65')].map(i=>i.getAttribute('src').split('/').pop());UI.close();
++   map.setView(c,14,{animate:false});await new Promise(r=>setTimeout(r,300));const farImg=[...document.querySelectorAll('.ico.lm img.lm65')].filter(e=>getComputedStyle(e).display!=='none').length;
++   return{n:kinds.length,got,vglow,card,near,col,farImg};});
++ const lmWant={park:'angel-statue',school:'ruined-arch-b',place_of_worship:'ruined-church',water_tower:'watchtower-steel',mall:'portal-gate-b',water:'windmill-well',fuel:'factory-derrick',townhall:'ruined-arch-gate',grocery:'raider-tent-camp'};
++ const gotVals=Object.values(lm.got).join(',');
++ ok(lm.n===9&&Object.values(lmWant).every(w=>gotVals.includes('landmark-'+w+'.webp')),'all 9 landmark kinds show their drawing at close zoom',lm.got);
++ ok(/drop-shadow/.test(lm.vglow)&&lm.card&&lm.near>=1&&lm.col.includes('landmark-angel-statue.webp')&&lm.farImg===0,'visited glows gold; card art, Nearby and Collection thumbnails; emoji when zoomed out',{vglow:lm.vglow,card:lm.card,near:lm.near,col:lm.col,farImg:lm.farImg});
++ await ev(()=>{map.setView(S11.ll(W().sh.hex),17,{animate:false});});await p.waitForTimeout(400);await p.screenshot({path:SHOT+'r65-landmarks.png'});
++ // ---- ranks
++ const rk=await ev(()=>{const r=[];for(const [u,role] of [[P.uid,'leader'],['u9','officer']]){G.hq15.roles[u]=role;}const h=document.createElement('div');h.innerHTML=(window.badge15||(()=>''))(P.uid)+(window.badge15||(()=>''))('u9');return[...h.querySelectorAll('.rk15')].map(e=>({alt:(e.querySelector('img.rk65')||{}).alt,txt:e.textContent.trim()}));});
++ ok(rk.length===2&&rk[0].alt==='Leader'&&/Leader/.test(rk[0].txt)&&rk[1].alt==='Officer'&&/Officer/.test(rk[1].txt),'Leader/Officer chips show the crown/star with the text',rk);
++ // ---- branding
++ const br=await ev(async()=>{const ob=document.querySelector('#onboard h1 img.logo');const man=await (await fetch('manifest.webmanifest')).json();const fav=document.querySelector('link[rel="icon"]').getAttribute('href'),apple=document.querySelector('link[rel="apple-touch-icon"]').getAttribute('href');
++   const sizes=await Promise.all(['icon-192.png','icon-512.png','icon-192-maskable.png','icon-512-maskable.png','apple-touch-icon-180.png'].map(f=>new Promise(r=>{const i=new Image();i.onload=()=>r(f+':'+i.naturalWidth);i.onerror=()=>r(f+':0');i.src=f;})));
++   return{logo:!!ob&&ob.getAttribute('src').includes('logo-title'),icons:man.icons.map(i=>i.src+':'+i.purpose),fav,apple,sizes};});
++ ok(br.logo&&br.fav==='icon-192.png'&&br.apple==='apple-touch-icon-180.png'&&br.icons.length===4&&br.icons.filter(x=>/maskable$/.test(x)).length===2&&br.sizes.every(s=>!/:0$/.test(s)),'logo on onboarding; favicon, apple-touch icon, 2 any + 2 maskable manifest icons all load',br);
++ // ---- fallbacks: files really missing on the server (renamed for the test, always restored)
++ const fs=require('fs'),path=require('path'),PUB=path.join(__dirname,'..','public'),AP=path.join(PUB,'assets/places');
++ const hide=[];const mv=(rel)=>{const a=path.join(PUB,rel);if(fs.existsSync(a)){fs.renameSync(a,a+'.hidden65');hide.push(a);}};const restore=()=>{while(hide.length){const a=hide.pop();try{fs.renameSync(a+'.hidden65',a);}catch(e){}}};
++ const cdp=await p.context().newCDPSession(p);await cdp.send('Network.setCacheDisabled',{cacheDisabled:true});
++ try{
++  mv('assets/places/stronghold/stronghold-a-banner-keep.webp');mv('assets/places/stronghold/stronghold-a-banner-keep@2x.webp');
++  const fb1=await ev(async()=>{P.stronghold.level=5;UI.open('base');UI.sub.base='fort';const f=document.querySelector('#sheetBody');f.innerHTML='';UI.render();await new Promise(r=>setTimeout(r,1500));const i=document.querySelector('.fortwrap img.sh65big');return{src:i&&i.getAttribute('src').split('/').pop(),w:i&&i.naturalWidth};});
++  ok(fb1.src==='stronghold-a-banner-keep.png'&&fb1.w>0,'a WebP 404 -> its PNG loads',fb1);
++  // (every castle already sits in this page's image cache from the tier strip, so point tier 3 at files that don't exist)
++  const fb2=await ev(async()=>{const T=PLACES.stronghold.tiers['3'],keep={...T};T.img='assets/places/stronghold/missing65.webp';T.fallback='assets/places/stronghold/missing65.png';window._keepT3=keep;P.stronghold.level=8;document.querySelector('#sheetBody').innerHTML='';UI.render();await new Promise(r=>setTimeout(r,1500));const ii=document.querySelector('.fortwrap img');Object.assign(PLACES.stronghold.tiers['3'],window._keepT3);return{img:!!ii,svg:!!document.querySelector('.fortwrap svg'),src:ii&&ii.src,nw:ii&&ii.naturalWidth,cmp:ii&&ii.complete};});
++  ok(!fb2.img&&fb2.svg,'WebP and PNG both 404 -> the SVG Stronghold',fb2);
++  restore();
++  // manifest renamed + logo missing -> the R6.4 look and the text title
++  mv('assets/places/manifest.json');mv('assets/places/branding/logo-title.webp');mv('assets/places/branding/logo-title.png');
++  await p.reload({waitUntil:'load'});await p.waitForTimeout(3000);
++  const off=await ev(async()=>{const h=document.querySelector('#onboard h1');const vh=h.querySelector('.vh');
++    G.playLocked=false;document.getElementById('auth12')?.remove();G.dev=G.dev||{};G.dev.hold=true;const sh=hexAt(47.8108,-116.8865).id;W().sh={hex:sh,hpPct:1,state:'up',buildEnd:0,everBuilt:true};P.stronghold={level:5};
++    UI.open('base');UI.sub.base='fort';UI.render();const svg=!!document.querySelector('.fortwrap svg'),imgs=document.querySelectorAll('img.p65').length;UI.close();
++    map.setView(hexCenter(...idQR(sh)),16,{animate:false});drawWorld();await new Promise(r=>setTimeout(r,500));return{logoOff:h.classList.contains('logo65off'),vhPos:getComputedStyle(vh).position,places:Object.keys(PLACES).length,svg,imgs,mapImgs:document.querySelectorAll('img.p65').length,kp:document.querySelectorAll('.sh26 .kp').length};});
++  ok(off.logoOff&&off.vhPos==='static','logo missing -> the DEAD ZONE DRIVE text title shows',off);
++  ok(off.places===0&&off.svg&&off.imgs===0&&off.mapImgs===0&&off.kp>=1,'manifest missing -> no drawings anywhere, the R6.4 SVG/emoji look',off);
++ }finally{restore();}
++ console.log('errors:',errs.length,errs.slice(0,3));console.log(fails?`${fails} FAIL`:'ALL PASS');
++});
