@@ -26,7 +26,7 @@
   const NAME4={threat:'Threat',march:'March',building:'Building',alliance:'Alliance',resource:'Resource',monster:'Monster',pin:'Pin',other:'Marker'};
   let groups=new Map();const badges=new Map();
   function tidy4(){try{if(typeof map==='undefined'||!map._loaded)return;const z=map.getZoom(),cats=catMap();const all=[];
-      map.eachLayer(l=>{if(!(l instanceof L.Marker)||l._b4)return;const el=l.getElement&&l.getElement();if(!el)return;const ci=cats.get(l);if(!ci||ci.c==='skip'){if(el.dataset.h4||el.dataset.top4){el.dataset.h4='';el.dataset.top4='';}return;}all.push({l,el,c:ci.c,k:ci.k,mv:ci.mv,ll:l.getLatLng()});}); // not in a known layer (your own dot), zone names, rings: left alone // zone names and ring markers are area labels, not things on a hex
+      map.eachLayer(l=>{if(!(l instanceof L.Marker)||l._b4)return;const el=l.getElement&&l.getElement();if(!el)return;const ci=cats.get(l);if(!ci||ci.c==='skip'){if(el.dataset.h4||el.dataset.top4){el.dataset.h4='';el.dataset.top4='';}return;}all.push({l,el,c:ci.c,k:ci.k,mv:ci.mv||(l.options&&l.options.truck62!=null),ll:l.getLatLng()});}); // not in a known layer (your own dot), zone names, rings: left alone // zone names and ring markers are area labels, not things on a hex
       // filters
       for(const x of all){const hide=off[x.c]&&x.c!=='threat';x.el.dataset.f4=hide?'1':'';}
       const vis=all.filter(x=>x.el.dataset.f4!=='1'&&!(x.mv&&(x.el.dataset.h4='',x.el.dataset.top4='',1))); // moving things: filters only, never grouped
@@ -62,10 +62,15 @@
     d.querySelectorAll('#f4c button[data-k]').forEach(b=>b.onclick=e=>{e.stopPropagation();const k=b.dataset.k;if(k==='threat')return;off[k]=!off[k];b.classList.toggle('off',!!off[k]);saveOff();tidy4();});}
   // bottom-left, just above the march list arrow (the right side has Drive and the base rail)
   const place4=()=>{try{const d=document.getElementById('f4');if(!d)return;const mc=document.getElementById('mcToggle'),tabs=document.getElementById('tabs');
-      const navTop=tabs?tabs.getBoundingClientRect().top:innerHeight-64;let bottom=innerHeight-navTop+12,left=10;
-      const box=document.getElementById('mcards'),shut=!box||box.classList.contains('mc-shut')||getComputedStyle(box).display==='none';
-      if(mc&&shut){const r=mc.getBoundingClientRect();if(r.width){bottom=innerHeight-r.top+8;left=Math.round(r.left);}} // march list open: stay in the corner above the tabs
-      d.style.bottom=Math.round(bottom)+'px';d.style.left=left+'px';}catch(e){}};
+      const phone=innerWidth<1100;let bottom,left;
+      if(phone){const navTop=tabs?tabs.getBoundingClientRect().top:innerHeight-64;bottom=innerHeight-navTop+12;left=10;
+        const box=document.getElementById('mcards'),shut=!box||box.classList.contains('mc-shut')||getComputedStyle(box).display==='none';
+        if(mc&&shut){const r=mc.getBoundingClientRect();if(r.width){bottom=innerHeight-r.top+8;left=Math.round(r.left);}}}
+      else{ // desktop rail is a full-height left column (top=0). tabs.top would park this off-screen.
+        left=76;const lg=document.getElementById('legend21'),on=lg&&getComputedStyle(lg).display!=='none';
+        bottom=innerHeight-(on?lg.getBoundingClientRect().top:innerHeight-16)+8;}
+      bottom=Math.max(8,Math.min(Math.round(bottom),innerHeight-60));
+      d.style.bottom=bottom+'px';d.style.left=Math.round(left)+'px';}catch(e){}};
   setInterval(()=>{chips4();place4();tidy4();},900);
   document.addEventListener('pointerdown',e=>{const d=document.getElementById('f4');if(d&&d.classList.contains('open')&&!d.contains(e.target)){d.classList.remove('open');d.querySelector('#f4t').setAttribute('aria-expanded','false');}},true);
   try{HOOK.draw(function(){tidy4();});}catch(e){} // same tick as the redraw, so new markers never paint untidied
