@@ -5,14 +5,14 @@ require('./h.js')(process.argv[2],async(p,errs)=>{
  await ev(()=>{G.playLocked=false;document.getElementById('auth12')?.remove();G.pos=[47.7796,-116.8923];const c=hexAt(47.7796,-116.8923);claimTile(c.id);W().sh={hex:c.id,hpPct:1,state:'up',buildEnd:0,everBuilt:true};P.stronghold={level:2};P.startSh26=1;P.startShMoved26=1;
    const ring=hexRing(...idQR(c.id),1);for(const x of ring)claimTile(x.id);TP().home=3000;P.lvl=1;P.xp=0;P.fr25=[];P.rp1=[];save();G._c=c.id;});
  await p.waitForTimeout(800);
- // 1) a defense we win: XP = (40 + beaten/5) x 1.5 + 20 for the owner
+ // 1) a defense we win: R6.7 formula from the Horde troops and my own troops (no owner bonus)
  const d1=await ev(()=>{const xp0=P.xp,l0=P.lvl;const defs=activeDefs(G._c);squadReplay(defs,defPower(defs),40,'Rust Dogs');const row=P.fr25[0],x=row.r26;
-   const exp=Math.round((40+x.att.lost*0.02/5)*1.5)+20;return{win:row.win,beaten:x.att.lost,xp1:row.xp1,exp,gained:P.xp-xp0+(P.lvl>l0?99999:0)};});
- ok(d1.win&&d1.xp1===d1.exp,'defense win: (40 + beaten power/5) x 1.5 + 20 owner bonus',d1);
+   const my=x.players.filter(q=>q.key==='home'||String(q.key).startsWith('me:')).reduce((a,q)=>a+q.n,0);const exp=xpOf2(x.att.n,my,true);return{win:row.win,beaten:x.att.lost,xp1:row.xp1,exp,gained:P.xp-xp0+(P.lvl>l0?99999:0)};});
+ ok(d1.win&&d1.xp1===d1.exp,'defense win: xpNeed/9 x clamp(enemy/mine, .5, 2)',d1);
  // 2) a defense we lose: 25%
  const d2=await ev(()=>{TP().home=50;save();const defs=activeDefs(G._c);squadReplay(defs,defPower(defs),3000,'Rust Dogs');const row=P.fr25[0],x=row.r26;
-   return{win:row.win,beaten:x.att.lost,xp1:row.xp1,exp:Math.max(1,Math.round((40+x.att.lost*0.02/5)*1.5*.25))};});
- ok(!d2.win&&d2.xp1===d2.exp,'defense loss gives 25%',d2);
+   return{win:row.win,beaten:x.att.lost,xp1:row.xp1,exp:xpOf2(x.att.n,x.players.filter(q=>q.key==='home'||String(q.key).startsWith('me:')).reduce((a,q)=>a+q.n,0),false)};});
+ ok(!d2.win&&d2.xp1===d2.exp,'defense loss gives 25% of the sized win',d2);
  // 3) a march that beats a raider holdout on the way: capture XP, shown on the report
  const m=await ev(async()=>{TP().home=4000;save();const [q,r]=idQR(G._c);const to=hexRing(q,r,3).find(x=>hexDist(x.id,G._c)===3&&!P.tiles[x.id]).id;W().raider=W().raider||{};W().raider[to]=1;
    G._mto=to;G.troopSend=3000;const xp0=P.xp;await sendMarch(to);G._xp0=xp0;return{to,away:Object.values(TP().away)[0]};});

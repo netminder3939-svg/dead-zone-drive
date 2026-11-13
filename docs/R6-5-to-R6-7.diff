@@ -1,0 +1,198 @@
+diff --git a/public/bal14.js b/public/bal14.js
+index a072cdc..ac4c4b9 100644
+--- a/public/bal14.js
++++ b/public/bal14.js
+@@ -39,5 +39,5 @@
+   bankOf=function(f){try{const s=scale14();HE.capBase=BASE14.cap*s;HE.convPerH=BASE14.conv*s;HE.resPerH=BASE14.res*s;}catch(e){}return _bank14.apply(this,arguments);};
+   window.bankOf=bankOf;
+   // Visible label for this combined build. The service worker cache is ddd-v26-12h-integrated, not Claude's ddd-v26-12h.
+-  try{document.documentElement.dataset.build='12i-integrated-6-r6-5';const who=document.querySelector('#hud .who');if(who&&!document.getElementById('build14')){const el=document.createElement('span');el.id='build14';el.textContent='12i-integrated-6-r6-5';el.title='Build 12i-integrated-6';el.style.cssText='display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#2a241c;color:#e7d7c1;font:600 10px system-ui;letter-spacing:.02em;vertical-align:middle';who.appendChild(el);}}catch(e){}
++  try{document.documentElement.dataset.build='12i-integrated-6-r6-7';const who=document.querySelector('#hud .who');if(who&&!document.getElementById('build14')){const el=document.createElement('span');el.id='build14';el.textContent='12i-integrated-6-r6-5';el.title='Build 12i-integrated-6';el.style.cssText='display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#2a241c;color:#e7d7c1;font:600 10px system-ui;letter-spacing:.02em;vertical-align:middle';who.appendChild(el);}}catch(e){}
+ })();
+diff --git a/public/fight.js b/public/fight.js
+index 133b34c..fb973c9 100644
+--- a/public/fight.js
++++ b/public/fight.js
+@@ -111,7 +111,7 @@ function fightMutant(mid,lvl,key){if(cooldownLeft())return toast('Still recoveri
+   let res,good=f.win;if(f.win){const g=battleWin(mid,lvl,key);res=`🏆 Victory! +${Object.entries(M.drops).map(([k,v])=>v+RES[k]).join(' ')} · 🃏 card${g?'<br>Loot: '+gearLine(g):''}`;}
+   else{const lost=lossPenalty();res=`💀 Defeated by ${M.name}. You dropped ${lost}🔩 and are knocked out: rest ${BAL.fight.lossCooldownMin} min before your next fight.`;}save();
+   UI.replay({title:`${M.name} · Lv${lvl}`,f,result:res,good,buttons:[['Continue',()=>UI.closeModal(),'big']]});}
+-function fightFort(id){if(cooldownLeft())return toast('Still recovering');const f=runFight([playerUnit()],fortUnits(id));P.hp=Math.max(1,f.A[0].hp);let res;
++function fightFort(id){if(cooldownLeft())return toast('Still recovering');const A0=[playerUnit()],B0=fortUnits(id),f=runFight(A0,B0);P.hp=Math.max(1,f.A[0].hp);let res;if(typeof fightXP2==='function')fightXP2(f,A0,B0);
+   if(f.win){const c=captureEnemy(id);res=`🏴 Stronghold captured! +${c.hexes} hexes · ${Object.entries(c.loot).map(([k,v])=>v+RES[k]).join(' ')}<br>Loot: ${gearLine(c.gear)}`;}
+   else{const lost=lossPenalty();res=`💀 The raiders held their fort. You dropped ${lost}🔩 and are knocked out: rest ${BAL.fight.lossCooldownMin} min before your next fight.`;report(`💀 ${P.name} lost an attack on a Raider Stronghold`,false);}
+   save();UI.replay({title:'Assault: Raider Stronghold',f,result:res,good:f.win,buttons:[['Continue',()=>{UI.closeModal();drawWorld();},'big']]});}
+@@ -130,7 +130,7 @@ UI.attackAlert=function(rep){if(!rep)return;const d=rep.detail||{};W().unseen=(W
+   const fights=(rep.fights||[]).filter(x=>x.f);
+   this.info({title:'⚠️ RAIDERS ATTACKED!',sub:new Date(rep.t).toLocaleString([], {weekday:'short',hour:'numeric',minute:'2-digit'})+` · raid power ${d.power}`,art:imgTag('assets/monsters/raider.svg'),diff:rep.win?['DEFENDED','#5fd068']:['LOSSES','#ff3b30'],
+     body:`<div class="chips"><span class="chip ok">🛡️ ${d.held?.length||0} held</span><span class="chip bad">🚩 ${d.lost?.length||0} lost</span>${(d.destroyed||[]).map(x=>`<span class="chip bad">💥 ${x} destroyed</span>`).join('')}</div>
+-      ${(rep.fights||[]).map(x=>`<div class="row"><div class="grow">Hex ${x.tile}<small>${x.f?(x.f.win?'Defenders won':'Defenders fell'):'No defense in range: tile lost'}</small></div></div>`).join('')}`,
++      ${(rep.fights||[]).map(x=>`<div class="row"><div class="grow">Hex ${x.tile}<small>${x.f?(x.f.win?'Defenders won':'Defenders fell')+(typeof x.f.xp2==='number'?` · +${x.f.xp2.toLocaleString()} XP`:''):'No defense in range: tile lost'}</small></div></div>`).join('')}`,
+     buttons:[...(fights.length?[['▶️ Watch battle',()=>playFights(rep,0),'fight']]:[]),['🗺️ View on map',()=>{UI.closeModal();flashTiles([...(d.held||[]),...(d.lost||[])]);}]]});};
+ function playFights(rep,k){const fs=rep.fights.filter(x=>x.f),x=fs[k];if(!x)return UI.attackAlert(rep);
+   UI.replay({title:`Defense of ${hexName(x.tile)}`,sub:`Battle ${k+1} of ${fs.length}`,f:x.f,good:x.f.win,result:x.f.win?'🛡️ Raiders driven off. Tile held.':'🚩 Defenders fell. Tile lost.'+(x.destroyed?.length?' 💥 '+x.destroyed.join(', ')+' destroyed.':''),
+diff --git a/public/reports1.js b/public/reports1.js
+index 2a1e9dc..7dcb4f8 100644
+--- a/public/reports1.js
++++ b/public/reports1.js
+@@ -66,7 +66,7 @@
+     (P.op64||[]).forEach(r=>{const ico=r.kind==='home'?'🏡':r.kind==='fwd'?'🚩':'⛺';const kn=r.kind==='home'?'Home Outpost':r.kind==='fwd'?'Forward Outpost':'Outpost';
+       L.push({k:'o',t:r.t,ico,title:r.ok?`${kn} up · ${hexName(r.hex)}`:`${kn} capture failed · ${hexName(r.hex)}`,
+         sub:r.ok?[`claimed ${r.claimed}`,...(r.skipped||[]).map(s=>`skipped ${s.n} (${s.why==='teammate'?'teammate':s.why==='fort'?'raider fort':s.why==='locked'?'not signed in':'raiders'})`),`${r.keeps} hexes paying`].join(' · '):'the hex was taken during the hold',r});});
+-    L.forEach(x=>{if(x.k==='f'&&x.r&&x.r.xp1)x.sub=(x.sub||'')+` · +${n1(x.r.xp1)} XP`;});
++    L.forEach(x=>{if(x.k==='f'&&x.r&&!x.r.none&&typeof x.r.xp1==='number')x.sub=(x.sub||'')+` · +${n1(x.r.xp1)} XP`;});
+     L.forEach(x=>{x.cats=catOf(x);});return L.sort((a,b)=>b.t-a.t);};
+   window.reportItems26=reportItems26;
+   // ---------- delete, select, clear
+@@ -114,7 +114,7 @@
+   window.details1=details1;
+   const _rep26=UI.report26;
+   UI.report26=function(k,r){if(k==='o'){if(typeof opCard64==='function')opCard64([r]);return;}if(k==='a'){this.modal(duelHTML1(r));$('#modal').classList.add('rpm26');}else _rep26.apply(this,arguments);
+-    try{if(k==='f'){const b=$('#modalBody .btns26');const extra=(r.xp1?`<div class="r24"><span>XP earned</span><b>+${n1(r.xp1)}</b></div>`:'')+details1(r.r26&&r.r26.rounds);if(b&&extra)b.insertAdjacentHTML('beforebegin',extra);}}catch(e){}
++    try{if(k==='f'){const b=$('#modalBody .btns26');const extra=(!r.none&&typeof r.xp1==='number'?`<div class="r24"><span>XP earned</span><b>+${n1(r.xp1)}</b></div>`:'')+details1(r.r26&&r.r26.rounds);if(b&&extra)b.insertAdjacentHTML('beforebegin',extra);}}catch(e){}
+     try{const b=$('#modalBody .btns26')||$('#modalBody');if(b&&!b.querySelector('.rdel1')){const d=document.createElement('button');d.className='rdel1';d.textContent='🗑️ Delete';
+       d.onclick=()=>{const x=(reportItems26()||[]).find(y=>y.r===r);if(x)del1([x]);toast('🗑️ Report deleted');UI.reports26();};b.appendChild(d);}}catch(e){}};
+   // ---------- 14 days, newest 60 per list
+diff --git a/public/stage2.js b/public/stage2.js
+index 2b395d3..2415a50 100644
+--- a/public/stage2.js
++++ b/public/stage2.js
+@@ -81,10 +81,10 @@ UI.infoFaction=function(id){const x=factionAt(id),B=BAL.factions;if(!x)return;co
+     body:D.html+cdBlock()+`<div class="row"><div class="grow">${x.home?`Beat the home base to rout the whole faction: all ${n} hexes go free and they stay away ${B.respawnDays} days.`:'Win to retake this hex. Hexes with more faction neighbors are better guarded: hit the edges first.'}<small>Their attack power on your border: <b>${factionAttack(x.f)}</b>. Your defense there must be at least that to hold.</small></div></div>`+
+       units.map(u=>`<div class="row"><div class="grow">🔍 <b>${u.name}</b><small>${statLine(u)}</small></div></div>`).join(''),
+     buttons:[['⚔️ Attack',()=>fightFaction(id),'fight',far||cooldownLeft()>0]]});if(far)toast(`Get within ${B.attackRangeM} m to attack (${Math.round(dist)} m)`);};
+-function fightFaction(id){if(cooldownLeft())return toast('Still recovering');const x=factionAt(id);if(!x)return;const B=BAL.factions,d=fdef(x.fid),f=runFight([playerUnit()],factionUnits(id));P.hp=Math.max(1,f.A[0].hp);let res;
+-  if(f.win){if(x.home){const n=Object.keys(x.f.tiles).length;x.f.tiles={};x.f.hq=null;x.f.squads=[];x.f.outposts={};x.f.routedUntil=Date.now()+B.respawnDays*864e5;fxDirty();addRes(B.homeLoot,1,true);addXP(B.homeXP);claimTile(id);
++function fightFaction(id){if(cooldownLeft())return toast('Still recovering');const x=factionAt(id);if(!x)return;const B=BAL.factions,d=fdef(x.fid),A0=[playerUnit()],B0=factionUnits(id),f=runFight(A0,B0);P.hp=Math.max(1,f.A[0].hp);let res;if(typeof fightXP2==='function')fightXP2(f,A0,B0);
++  if(f.win){if(x.home){const n=Object.keys(x.f.tiles).length;x.f.tiles={};x.f.hq=null;x.f.squads=[];x.f.outposts={};x.f.routedUntil=Date.now()+B.respawnDays*864e5;fxDirty();addRes(B.homeLoot,1,true);claimTile(id);
+       res=`🏴 ${d.name} routed! ${n} hexes freed · ${Object.entries(B.homeLoot).map(([k,v])=>v+RES[k]).join(' ')}`;report(`🏴 ${P.name} routed the ${d.name}`,true);allianceLog(`🏴 ${P.name} routed the ${d.name}!`);opsBump('retakes',1);}
+-    else{delete x.f.tiles[id];if(x.f.outposts)delete x.f.outposts[id];fxDirty();claimTile(id);addRes(B.retakeLoot,1,true);addXP(B.retakeXP);opsBump('retakes',1);res=`🚩 Hex retaken from the ${d.name}. +${B.retakeXP} XP`;}}
++    else{delete x.f.tiles[id];if(x.f.outposts)delete x.f.outposts[id];fxDirty();claimTile(id);addRes(B.retakeLoot,1,true);opsBump('retakes',1);res=`🚩 Hex retaken from the ${d.name}.`;}}
+   else{if(x.home){x.f.hq=f.B.map(u=>u.hp);x.f.hqT=Date.now();}const lost=lossPenalty();res=`💀 The ${d.name} held${x.home?` (HQ damage sticks: ${f.B.reduce((a,u)=>a+u.hp,0)}/${f.B.reduce((a,u)=>a+u.max,0)} HP left, heals ${Math.round(BAL.factions.home.regenPerDay*100)}%/day)`:''}. You dropped ${lost}🔩 and are knocked out: rest ${BAL.fight.lossCooldownMin} min before your next fight.`;}
+   save();UI.replay({title:`${d.name}${x.home?' home base':' garrison'}`,f,result:res,good:f.win,buttons:[['Continue',()=>{UI.closeModal();drawWorld();},'big']]});}
+ const _infoTile=UI.infoTile;UI.infoTile=function(id){if(factionAt(id)&&isVis(id))return UI.infoFaction(id);const o=(W().outposts||{})[id];if(o)return UI.infoOutpost(id);return _infoTile.call(this,id);};
+diff --git a/public/sw.js b/public/sw.js
+index 6cfcb2b..cf57d21 100644
+--- a/public/sw.js
++++ b/public/sw.js
+@@ -1,6 +1,6 @@
+ // Dead Zone Drive service worker: network-first for the app (so updates show right away),
+ // falling back to cache when offline. Map tiles and Firebase are never cached here.
+-const C='ddd-v26-12i-integrated-6-r6-5';
++const C='ddd-v26-12i-integrated-6-r6-7';
+ self.addEventListener('install',e=>self.skipWaiting());
+ self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+ self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==location.origin)return;
+diff --git a/public/xp2.js b/public/xp2.js
+index ff0257a..112a871 100644
+--- a/public/xp2.js
++++ b/public/xp2.js
+@@ -1,47 +1,79 @@
+-// xp2 (R2) XP for every fight, and what a level gives. Approved table (design doc, Nov 9):
+-//  XP for a win = (base + 1 per 5 power of enemy troops beaten, i.e. 1 per 250 T1 troops) x multiplier. A loss gives 25% of that.
+-//  Capture a hex (march vs raider holdout) base 25 x1 · Horde / fort fight you start base 40 x1 · defend a hex base 40 x1.5 ·
+-//  defend a pipeline base 40 x1.5. Small monsters keep their own XP (15 + 5 x level). Shared defenses split the beaten
+-//  troops by each player's share of the defenders; the hex owner gets +20 when their land holds.
+-//  Each level: +3% hero HP/ATK/DEF and +100 march size.
++// xp2 (R2, payout replaced in R6.7 by XP-SPEC.md) XP for Horde and defense fights, and what a level gives.
++//  One formula for every real Horde / raider fight, attack or defense, win or loss:
++//    typical = xpNeed(P.lvl) / 9 · sizeFactor = clamp(enemyTroops / myTroops, 0.5, 2)
++//    win = max(1, round(typical x sizeFactor)) · loss = max(1, round(win x 0.25))
++//  About 9 typical wins per level at every level; a group twice your size pays double, half your size pays half.
++//  myTroops = your own troops in that fight (never the hero, never teammates'); 0 counts as 1 (hero-only assault).
++//  enemyTroops = the Horde / raider troop count of that fight; 0 means sizeFactor 0.5.
++//  Each player with troops in a fight gets their own payout on their own phone. Owning the hex gives nothing extra.
++//  Little monsters keep 15 + 5 x level (battleWin), never this formula. Simulations (predict) never pay.
++//  The amount is written onto the fight's report in the same write: f.xp2 (march / walk-up) or xp1 (defense rows).
++//  Each level: +3% hero HP/ATK/DEF and +100 march size (unchanged).
+ (function(){
+-  const XP2={perTroops:5,loss:.25,owner:20,base:{capture:25,attack:40,defend:40,pipe:40},mult:{capture:1,attack:1,defend:1.5,pipe:1.5},heroPerLvl:.03,marchPerLvl:100};
++  const XP2={perLevelWins:9,minF:.5,maxF:2,loss:.25,heroPerLvl:.03,marchPerLvl:100};
+   window.XP2=XP2;
+-  // beaten troops are counted as power (troops x power-per-troop): Horde squads field tens of thousands of troops, so 1 XP per 5
+-  // troops would give a whole level per fight. 1 XP per 5 power = 1 XP per 250 T1 troops.
+-  function xpOf2(kind,beaten,win){const b=XP2.base[kind]||40,m=XP2.mult[kind]||1,pw=Math.max(0,beaten)*((typeof _tr2_basePower!=='undefined'?_tr2_basePower:0.02)||0.02),full=(b+pw/XP2.perTroops)*m;return Math.max(1,Math.round(win?full:full*XP2.loss));}
++  function xpOf2(enemyTroops,myTroops,win){const typical=xpNeed(Math.max(1,P.lvl||1))/XP2.perLevelWins;const e=Math.max(0,+enemyTroops||0),m=Math.max(1,+myTroops||0);
++    const f=e>0?Math.min(XP2.maxF,Math.max(XP2.minF,e/m)):XP2.minF;const w=Math.max(1,Math.round(typical*f));return win?w:Math.max(1,Math.round(w*XP2.loss));}
+   window.xpOf2=xpOf2;
+-  function give2(n,why){if(!(n>0))return 0;try{addXP(n);}catch(e){return 0;}try{save();}catch(e){}return n;}
+-  // ---------- marches: fights during one march resolution
++  function give2(n){if(!(n>0))return 0;try{addXP(n);}catch(e){return 0;}return n;}
++  window.give2=give2;
++  // ---------- troop counts of a fight you start (march or walk-up)
++  const powN=u=>{const m=/\(power (\d+)\)/.exec(u&&u.name||'');return m?+m[1]:0;};
++  function hordeNames2(){try{return BAL.factions.list.map(d=>String(d.name||'').split(' · ')[0]).filter(Boolean);}catch(e){return [];}}
++  // a Horde / raider fight (squad, holdout, clan garrison or home, raider Stronghold) and not a little monster
++  function isHordeFight2(B0){const L=B0||[];if(!L.length)return false;if(L.some(u=>u&&u.fort))return true;if(L.some(u=>powN(u)))return true;
++    const names=L.map(u=>String(u&&u.name||'')).join(' | ');if(/Raider holdout/i.test(names))return true;const hn=hordeNames2();return L.some(u=>hn.some(h=>String(u&&u.name||'').startsWith(h)));}
++  window.isHordeFight2=isHordeFight2;
++  // enemy troops: the army-row total (the same rows the battle uses); my troops: my own troop rows, never the hero
++  //  a raider unit with no troop count (a Stronghold, a clan garrison or boss) counts as its HP in basic raider troops
++  const tHp2=()=>{try{return C26.types.raider.hp||2;}catch(e){return 2;}};
++  function countsOf2(f,A0,B0){const R=f&&f.army2&&f.army2.r;
++    if(R){const us=f.army2.us==='att'?R.att:R.def,th=f.army2.us==='att'?R.def:R.att;
++      return{enemy:th.rows.reduce((a,o)=>a+(o.custom?Math.max(1,Math.round((+o.hp||0)/tHp2())):(+o.n||0)),0),mine:us.rows.filter(o=>!o.uid||o.uid===P.uid).reduce((a,o)=>a+(+o.n||0),0)};}
++    const bp=TROOP.powerPer||1;
++    const enemy=(B0||[]).reduce((a,u)=>a+(powN(u)?Math.max(1,Math.round(powN(u)/bp)):Math.max(1,Math.round((+u.max||+u.hp||0)/tHp2()))),0);
++    const mine=(A0||[]).filter(u=>u&&u.troop>0&&(!u.uid||u.uid===P.uid)).reduce((a,u)=>a+(+u.troop||0),0);return{enemy,mine};}
++  window.countsOf2=countsOf2;
++  // a real fight you started: work out the payout, grant it once, put it on the fight (the report reads f.xp2)
++  window.fightXP2=function(f,A0,B0){try{if(!f||!isHordeFight2(B0))return 0;if(G._xp2){const i=G._xp2.indexOf(f);if(i>=0)G._xp2.splice(i,1);} // a march resolving at the same moment does not also count it
++    if(f._xp2paid)return f.xp2||0;f._xp2paid=1;const c=countsOf2(f,A0,B0);const n=xpOf2(c.enemy,c.mine,!!f.win);f.xp2=give2(n);f.xp2c=c;return f.xp2;}catch(e){console.warn('xp2 fight',e);return 0;}};
++  // ---------- marches: each real Horde fight during one march resolution (intercept, path defenders, holdouts, forts)
++  //  Each fight's own payout is f.xp2one; f.xp2 is the running march total, so the fight handed to the replay / report
++  //  (always the last one) carries exactly what the march grants. Granted once, when the march first resolves.
+   G._xp2=null;
+-  const _af=window.army2Fight;
+-  function beatenOf(f){const r=f.army2&&f.army2.r;if(!r)return 0;const them=f.army2.us==='att'?r.def:r.att;
+-    return them.rows.reduce((a,o)=>a+(o.custom?(o.lost?Math.round(o.hp/(C26.types.raider.hp||2)):0):o.lost),0);}
+   const _rf=runFight;runFight=function(A0,B0){const f=_rf.apply(this,arguments);
+-    try{if(G._xp2&&f&&f.army2&&f.army2.us==='att'){const names=(B0||[]).map(u=>u.name||'').join(' ');const mob=!(B0||[]).some(u=>u.fort)&&!/\(power \d+\)/.test(names);
+-      if(!mob){const kind=/Raider holdout/i.test(names)?'capture':'attack',xp=xpOf2(kind,beatenOf(f),f.win);f.xp2=xp;G._xp2.push(xp);}}}catch(e){}return f;};
++    try{if(G._xp2&&!G._xp2sim&&f&&isHordeFight2(B0)&&!(f.army2&&f.army2.us&&f.army2.us!=='att')){const c=countsOf2(f,A0,B0);f.xp2one=xpOf2(c.enemy,c.mine,!!f.win);f.xp2c=c;
++      G._xp2.push(f);f.xp2=G._xp2.reduce((a,x)=>a+(x.xp2one||0),0);}}catch(e){}return f;};
+   window.runFight=runFight;
+-  const _rm=resolveMarch;resolveMarch=async function(id,m){const was=!!(P.marchDone||{})[id];G._xp2=[];let got=[];
+-    try{const r=await _rm.apply(this,arguments);got=G._xp2||[];return r;}
+-    finally{G._xp2=null;try{if(!was&&(P.marchDone||{})[id]&&got.length){const n=got.reduce((a,x)=>a+x,0);give2(n,'march');
+-      const row=(P.rp1||[]).find(x=>x.kind==='march'&&Date.now()-x.t<120e3&&!x.xp);if(row){row.xp=n;save();}}}catch(e){}}};
++  // a forecast never pays, even while a march is resolving in the background
++  try{const _pr=predict;predict=function(){const was=G._xp2sim;G._xp2sim=1;try{return _pr.apply(this,arguments);}finally{G._xp2sim=was;}};window.predict=predict;}catch(e){}
++  const _rm=resolveMarch;resolveMarch=async function(id,m){const was=!!(P.marchDone||{})[id];const mine2=[];G._xp2=mine2;
++    try{return await _rm.apply(this,arguments);}
++    finally{if(G._xp2===mine2)G._xp2=null;try{const n=mine2.reduce((a,x)=>a+(x.xp2one||0),0);if(!was&&(P.marchDone||{})[id]&&n>0){give2(n);save();}}catch(e){}}};
+   window.resolveMarch=resolveMarch;
+-  // ---------- defense of your hexes (your share of the defenders)
++  // ---------- defense of your hexes: your own troops there (home garrison + your stationed guards)
+   const mine=k=>k==='home'||String(k||'').startsWith('me:');
++  G._xp2def=null;
+   const _ap=apply25;apply25=function(defs,s,r){const before=(P.fr25||[])[0];const out=_ap.apply(this,arguments);
+-    try{const x=r&&r.r26;const top=(P.fr25||[])[0];if(x&&top&&top!==before){const tot=x.players.reduce((a,p)=>a+p.n,0)||1,myN=x.players.filter(p=>mine(p.key)).reduce((a,p)=>a+p.n,0);
+-      let xp=0;if(myN>0)xp=xpOf2('defend',(x.att.lost||0)*myN/tot,x.win);
+-      const own=x.win&&P.tiles&&P.tiles[top.hex]?XP2.owner:0;xp+=own;top.xp1=give2(xp,'defend');save();}}catch(e){console.warn('xp2 defend',e);}return out;};
++    try{const x=r&&r.r26;const top=(P.fr25||[])[0];if(x&&top&&top!==before&&!top.none){const myN=x.players.filter(p=>mine(p.key)).reduce((a,p)=>a+(+p.n||0),0);
++      top.xp1=myN>0?give2(xpOf2((x.att&&x.att.n)||0,myN,!!x.win)):0;G._xp2def=top.xp1;save();}}catch(e){console.warn('xp2 defend',e);}return out;};
+   window.apply25=apply25;
+-  // ---------- your troops helping on a teammate's hex (the note between phones carries result, power and your share)
++  // the defense replay (Watch battle) carries the same number for its end-of-fight summary
++  try{const _sr=squadReplay;squadReplay=function(){G._xp2def=null;const f=_sr.apply(this,arguments);try{if(f&&G._xp2def!=null)f.xp2=G._xp2def;}catch(e){}G._xp2def=null;return f;};window.squadReplay=squadReplay;}catch(e){}
++  // ---------- your troops helping on a teammate's hex (the note between phones carries the enemy power and your troops)
+   const _gl=applyGl25;applyGl25=function(){const before=new Set(P.fr25||[]);const out=_gl.apply(this,arguments);
+-    try{for(const row of P.fr25||[]){if(before.has(row)||!row.ally||row.xp1!=null)continue;const n=(row.me&&row.me[0]&&row.me[0].n)||0;if(!n)continue;
+-      const enemyN=Math.round((row.sp||0)/TROOP.powerPer);row.xp1=give2(xpOf2('defend',row.win?Math.min(enemyN,n):0,row.win),'ally');}save();}catch(e){console.warn('xp2 ally',e);}return out;};
++    try{for(const row of P.fr25||[]){if(before.has(row)||!row.ally||row.xp1!=null)continue;const n=(row.me&&row.me[0]&&row.me[0].n)||0;if(!n){row.xp1=0;continue;}
++      const enemyN=Math.round((row.sp||0)/(TROOP.powerPer||1));row.xp1=give2(xpOf2(enemyN,n,!!row.win));}save();}catch(e){console.warn('xp2 ally',e);}return out;};
+   window.applyGl25=applyGl25;
+   // ---------- pipeline guards
+   try{const _rc=reconcile26;reconcile26=function(){const before=new Set(P.fr25||[]);const out=_rc.apply(this,arguments);
+-    try{for(const row of P.fr25||[]){if(before.has(row)||!row.pipe||row.xp1!=null||!row.r26)continue;row.xp1=give2(xpOf2('pipe',row.r26.att.lost||0,row.win),'pipe');}save();}catch(e){console.warn('xp2 pipe',e);}return out;};
++    try{for(const row of P.fr25||[]){if(before.has(row)||!row.pipe||row.none||row.xp1!=null||!row.r26)continue;const x=row.r26,myN=(x.players||[]).filter(p=>mine(p.key)||p.uid===P.uid).reduce((a,p)=>a+(+p.n||0),0);
++      row.xp1=myN>0?give2(xpOf2((x.att&&x.att.n)||0,myN,!!row.win)):0;}save();}catch(e){console.warn('xp2 pipe',e);}return out;};
+     window.reconcile26=reconcile26;}catch(e){}
++  // ---------- end-of-fight summary for hero fights (the troop replay in combat2 already prints f.xp2)
++  //  reports1 wraps UI.replay later, so it records the report before this line is added: the report keeps its own XP row
++  try{const _rp=UI.replay;UI.replay=function(o){try{if(o&&o.f&&typeof o.f.xp2==='number'&&!(o.f.army2&&o.f.army2.r))
++      o={...o,result:(o.result||'')+`<div class="xp67">XP earned <b>+${o.f.xp2.toLocaleString()}</b></div>`};}catch(e){}return _rp.call(this,o);};}catch(e){}
+   // ---------- what a level gives
+   const _st=stats;stats=function(){const s=_st.apply(this,arguments);try{const k=1+XP2.heroPerLvl*Math.max(0,(P.lvl||1)-1);if(s&&typeof s==='object'){s.hp=Math.round(s.hp*k);s.atk=Math.round(s.atk*k);s.def=Math.round(s.def*k);}}catch(e){}return s;};
+   window.stats=stats;

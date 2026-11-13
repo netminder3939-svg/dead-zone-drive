@@ -111,7 +111,7 @@ function fightMutant(mid,lvl,key){if(cooldownLeft())return toast('Still recoveri
   let res,good=f.win;if(f.win){const g=battleWin(mid,lvl,key);res=`🏆 Victory! +${Object.entries(M.drops).map(([k,v])=>v+RES[k]).join(' ')} · 🃏 card${g?'<br>Loot: '+gearLine(g):''}`;}
   else{const lost=lossPenalty();res=`💀 Defeated by ${M.name}. You dropped ${lost}🔩 and are knocked out: rest ${BAL.fight.lossCooldownMin} min before your next fight.`;}save();
   UI.replay({title:`${M.name} · Lv${lvl}`,f,result:res,good,buttons:[['Continue',()=>UI.closeModal(),'big']]});}
-function fightFort(id){if(cooldownLeft())return toast('Still recovering');const f=runFight([playerUnit()],fortUnits(id));P.hp=Math.max(1,f.A[0].hp);let res;
+function fightFort(id){if(cooldownLeft())return toast('Still recovering');const A0=[playerUnit()],B0=fortUnits(id),f=runFight(A0,B0);P.hp=Math.max(1,f.A[0].hp);let res;if(typeof fightXP2==='function')fightXP2(f,A0,B0);
   if(f.win){const c=captureEnemy(id);res=`🏴 Stronghold captured! +${c.hexes} hexes · ${Object.entries(c.loot).map(([k,v])=>v+RES[k]).join(' ')}<br>Loot: ${gearLine(c.gear)}`;}
   else{const lost=lossPenalty();res=`💀 The raiders held their fort. You dropped ${lost}🔩 and are knocked out: rest ${BAL.fight.lossCooldownMin} min before your next fight.`;report(`💀 ${P.name} lost an attack on a Raider Stronghold`,false);}
   save();UI.replay({title:'Assault: Raider Stronghold',f,result:res,good:f.win,buttons:[['Continue',()=>{UI.closeModal();drawWorld();},'big']]});}
@@ -130,7 +130,7 @@ UI.attackAlert=function(rep){if(!rep)return;const d=rep.detail||{};W().unseen=(W
   const fights=(rep.fights||[]).filter(x=>x.f);
   this.info({title:'⚠️ RAIDERS ATTACKED!',sub:new Date(rep.t).toLocaleString([], {weekday:'short',hour:'numeric',minute:'2-digit'})+` · raid power ${d.power}`,art:imgTag('assets/monsters/raider.svg'),diff:rep.win?['DEFENDED','#5fd068']:['LOSSES','#ff3b30'],
     body:`<div class="chips"><span class="chip ok">🛡️ ${d.held?.length||0} held</span><span class="chip bad">🚩 ${d.lost?.length||0} lost</span>${(d.destroyed||[]).map(x=>`<span class="chip bad">💥 ${x} destroyed</span>`).join('')}</div>
-      ${(rep.fights||[]).map(x=>`<div class="row"><div class="grow">Hex ${x.tile}<small>${x.f?(x.f.win?'Defenders won':'Defenders fell'):'No defense in range: tile lost'}</small></div></div>`).join('')}`,
+      ${(rep.fights||[]).map(x=>`<div class="row"><div class="grow">Hex ${x.tile}<small>${x.f?(x.f.win?'Defenders won':'Defenders fell')+(typeof x.f.xp2==='number'?` · +${x.f.xp2.toLocaleString()} XP`:''):'No defense in range: tile lost'}</small></div></div>`).join('')}`,
     buttons:[...(fights.length?[['▶️ Watch battle',()=>playFights(rep,0),'fight']]:[]),['🗺️ View on map',()=>{UI.closeModal();flashTiles([...(d.held||[]),...(d.lost||[])]);}]]});};
 function playFights(rep,k){const fs=rep.fights.filter(x=>x.f),x=fs[k];if(!x)return UI.attackAlert(rep);
   UI.replay({title:`Defense of ${hexName(x.tile)}`,sub:`Battle ${k+1} of ${fs.length}`,f:x.f,good:x.f.win,result:x.f.win?'🛡️ Raiders driven off. Tile held.':'🚩 Defenders fell. Tile lost.'+(x.destroyed?.length?' 💥 '+x.destroyed.join(', ')+' destroyed.':''),

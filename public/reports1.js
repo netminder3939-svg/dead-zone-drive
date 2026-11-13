@@ -66,7 +66,7 @@
     (P.op64||[]).forEach(r=>{const ico=r.kind==='home'?'🏡':r.kind==='fwd'?'🚩':'⛺';const kn=r.kind==='home'?'Home Outpost':r.kind==='fwd'?'Forward Outpost':'Outpost';
       L.push({k:'o',t:r.t,ico,title:r.ok?`${kn} up · ${hexName(r.hex)}`:`${kn} capture failed · ${hexName(r.hex)}`,
         sub:r.ok?[`claimed ${r.claimed}`,...(r.skipped||[]).map(s=>`skipped ${s.n} (${s.why==='teammate'?'teammate':s.why==='fort'?'raider fort':s.why==='locked'?'not signed in':'raiders'})`),`${r.keeps} hexes paying`].join(' · '):'the hex was taken during the hold',r});});
-    L.forEach(x=>{if(x.k==='f'&&x.r&&x.r.xp1)x.sub=(x.sub||'')+` · +${n1(x.r.xp1)} XP`;});
+    L.forEach(x=>{if(x.k==='f'&&x.r&&!x.r.none&&typeof x.r.xp1==='number')x.sub=(x.sub||'')+` · +${n1(x.r.xp1)} XP`;});
     L.forEach(x=>{x.cats=catOf(x);});return L.sort((a,b)=>b.t-a.t);};
   window.reportItems26=reportItems26;
   // ---------- delete, select, clear
@@ -114,7 +114,7 @@
   window.details1=details1;
   const _rep26=UI.report26;
   UI.report26=function(k,r){if(k==='o'){if(typeof opCard64==='function')opCard64([r]);return;}if(k==='a'){this.modal(duelHTML1(r));$('#modal').classList.add('rpm26');}else _rep26.apply(this,arguments);
-    try{if(k==='f'){const b=$('#modalBody .btns26');const extra=(r.xp1?`<div class="r24"><span>XP earned</span><b>+${n1(r.xp1)}</b></div>`:'')+details1(r.r26&&r.r26.rounds);if(b&&extra)b.insertAdjacentHTML('beforebegin',extra);}}catch(e){}
+    try{if(k==='f'){const b=$('#modalBody .btns26');const extra=(!r.none&&typeof r.xp1==='number'?`<div class="r24"><span>XP earned</span><b>+${n1(r.xp1)}</b></div>`:'')+details1(r.r26&&r.r26.rounds);if(b&&extra)b.insertAdjacentHTML('beforebegin',extra);}}catch(e){}
     try{const b=$('#modalBody .btns26')||$('#modalBody');if(b&&!b.querySelector('.rdel1')){const d=document.createElement('button');d.className='rdel1';d.textContent='🗑️ Delete';
       d.onclick=()=>{const x=(reportItems26()||[]).find(y=>y.r===r);if(x)del1([x]);toast('🗑️ Report deleted');UI.reports26();};b.appendChild(d);}}catch(e){}};
   // ---------- 14 days, newest 60 per list
