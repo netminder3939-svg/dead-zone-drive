@@ -1,6 +1,6 @@
 # R6.7 — Horde and defense XP, shown on reports
 
-- Branch `build-r6-7`, one commit on top of `360b495` (R6.5).
+- Branch `build-r6-7`: 63a036d on top of `360b495` (R6.5), plus a one-line follow-up that bumps the visible HUD label (63a036d still showed r6-5 in the HUD; the cache name was right).
 - Label `12i-integrated-6-r6-7`. Service-worker cache `ddd-v26-12i-integrated-6-r6-7`.
 - Hosting only. No changes to rules, Firestore, auth or Cloud Functions.
 - TEST only. LIVE stays on 9745fd7.
@@ -55,10 +55,10 @@ Every case below pays once per player, and the amount is written onto the report
 - **Raid alert:** each fight row shows `· +N XP`.
 - The old 120-second "find the march report" lookup is removed.
 
-## Calls I made (please confirm)
+## Calls I made (Jacob confirmed 1 and 3 on Nov 12)
 1. **Walk-up enemy count.** The hero duel engine has no troop rows. A unit with no troop count (Stronghold, clan garrison or boss) counts as its HP in basic raider troops (`C26.types.raider.hp`). The same applies to "custom" rows in a troop fight. In practice, walk-ups and hero-only assaults land on the 2× cap, as the spec expected.
-2. **Fort capture bonus kept.** `captureEnemy` still adds its `120 + 40 × fort level` capture bonus on top of the fight payout. The spec only names `retakeXP` and `homeXP` for removal. If Jacob wants it gone too, it's a one-line change.
-3. **Owner rows with 0 troops** show "+0 XP" on the list and card. The spec says every real fight report shows the number, and the owner gets 0.
+2. **Fort capture bonus kept.** `captureEnemy` still adds its `120 + 40 × fort level` capture bonus on top of the fight payout. The spec only names `retakeXP` and `homeXP` for removal. **Confirmed by Jacob: keep the extra XP for taking raider buildings.**
+3. **Owner rows with 0 troops** show "+0 XP" on the list and card. The spec says every real fight report shows the number, and the owner gets 0. **Confirmed by Jacob.**
 4. **Hexes claimed on a march** still give their normal claim XP, separately. In the march test that was 703 fight XP + 60 claim XP.
 
 ## Tests
