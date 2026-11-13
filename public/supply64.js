@@ -175,12 +175,12 @@
   window.opDone64=function(list){const recs=list.map(x=>opRecord(x.id,x.o,x.ok));P.op64=[...recs.slice().reverse(),...(P.op64||[])].slice(0,60);save();
     if(window.cardBusy1&&cardBusy1())cardWait1('info64',recs,recs.length>1?`⛺ ${recs.length} outposts`:recs[0].ok?`${kindOf(recs[0])[0]} ${kindOf(recs[0])[1]} up`:'⛺ Outpost capture failed');else opCard64(recs);};
   window.opCard64=function(recs){if(!recs||!recs.length)return;
-    if(recs.length>1){UI._op64=recs;return UI.info({title:`⛺ ${recs.length} outposts finished while you were away`,art:'<span class="bigemo">⛺</span>',
+    if(recs.length>1){UI._op64=recs;return UI.info({title:`⛺ ${recs.length} outposts finished while you were away`,art:(window.opArt65&&opArt65('other','op65 card65',{emo:'⛺',cls:'bigemo'}))||'<span class="bigemo">⛺</span>',
       body:recs.map((r,i)=>{const [ic]=kindOf(r);const sk=(r.skipped||[]).reduce((a,s)=>a+s.n,0);return`<div class="row"><div class="grow"><b>${ic} ${hexName(r.hex)}</b><small>${r.ok?`claimed ${r.claimed}${sk?` · skipped ${sk}`:''}`:'capture failed'}</small></div><button onclick="UI.closeModal();setTimeout(()=>opShow64('${r.hex}'),60)">📍</button></div>`;}).join(''),buttons:[]});}
     const r=recs[0],[ic,kn]=kindOf(r);
-    if(!r.ok)return UI.info({title:`${ic} ${kn} capture failed`,sub:hexName(r.hex),art:`<span class="bigemo">${ic}</span>`,body:`<p>${hexName(r.hex)}: the hex was taken during the 60-min hold. Retake the hex, then rebuild from the outpost's card.</p>`,buttons:[['🗺️ Show on map',()=>{UI.closeModal();setTimeout(()=>opShow64(r.hex),60);}]]});
+    if(!r.ok)return UI.info({title:`${ic} ${kn} capture failed`,sub:hexName(r.hex),art:(window.opArt65&&opArt65(r.kind||'other','op65 card65',{emo:ic,cls:'bigemo'}))||`<span class="bigemo">${ic}</span>`,body:`<p>${hexName(r.hex)}: the hex was taken during the 60-min hold. Retake the hex, then rebuild from the outpost's card.</p>`,buttons:[['🗺️ Show on map',()=>{UI.closeModal();setTimeout(()=>opShow64(r.hex),60);}]]});
     const holds=r.claimed+(r.already||0);
-    UI.info({title:`${ic} ${kn} up`,sub:hexName(r.hex),art:`<span class="bigemo">${ic}</span>`,
+    UI.info({title:`${ic} ${kn} up`,sub:hexName(r.hex),art:(window.opArt65&&opArt65(r.kind||'other','op65 card65',{emo:ic,cls:'bigemo'}))||`<span class="bigemo">${ic}</span>`,
       body:`<div class="big26"><div><b>${r.claimed}</b><small>new hex${r.claimed===1?'':'es'}</small></div><div><b>${holds} of 7</b><small>holds</small></div><div><b>${r.keeps}</b><small>paying</small></div></div>
         <p>Claimed ${r.claimed} new hex${r.claimed===1?'':'es'}.</p>${(r.skipped||[]).map(s=>`<p class="tiny">${skipLine(s)}</p>`).join('')}${r.revived>0?`<p>Brought ${r.revived} unpaid hex${r.revived===1?'':'es'} back into pay.</p>`:''}`,
       buttons:[['🗺️ Show on map',()=>{UI.closeModal();setTimeout(()=>opShow64(r.hex),60);}]]});};

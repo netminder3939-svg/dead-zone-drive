@@ -1,0 +1,328 @@
+diff --git a/public/bal14.js b/public/bal14.js
+index 0e23c3b..e84d307 100644
+--- a/public/bal14.js
++++ b/public/bal14.js
+@@ -39,5 +39,5 @@
+   bankOf=function(f){try{const s=scale14();HE.capBase=BASE14.cap*s;HE.convPerH=BASE14.conv*s;HE.resPerH=BASE14.res*s;}catch(e){}return _bank14.apply(this,arguments);};
+   window.bankOf=bankOf;
+   // Visible label for this combined build. The service worker cache is ddd-v26-12h-integrated, not Claude's ddd-v26-12h.
+-  try{document.documentElement.dataset.build='12i-integrated-6-r6-7';const who=document.querySelector('#hud .who');if(who&&!document.getElementById('build14')){const el=document.createElement('span');el.id='build14';el.textContent='12i-integrated-6-r6-7';el.title='Build 12i-integrated-6';el.style.cssText='display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#2a241c;color:#e7d7c1;font:600 10px system-ui;letter-spacing:.02em;vertical-align:middle';who.appendChild(el);}}catch(e){}
++  try{document.documentElement.dataset.build='12i-integrated-6-r6-6';const who=document.querySelector('#hud .who');if(who&&!document.getElementById('build14')){const el=document.createElement('span');el.id='build14';el.textContent='12i-integrated-6-r6-6';el.title='Build 12i-integrated-6';el.style.cssText='display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#2a241c;color:#e7d7c1;font:600 10px system-ui;letter-spacing:.02em;vertical-align:middle';who.appendChild(el);}}catch(e){}
+ })();
+diff --git a/public/base15.js b/public/base15.js
+index 00ddfaa..e03169f 100644
+--- a/public/base15.js
++++ b/public/base15.js
+@@ -186,7 +186,7 @@
+     if(h){const d=s?kmBetween(h.hex,s):null;x+=`<div class="row"><div class="grow"><b>${esc15(h.name)}</b><small>${hexName(h.hex)} · set by ${esc15(h.byName||'the leader')}${d!=null?` · your Stronghold is ${fmtMi(d)} away`:''}</small></div><button onclick="jumpHq15()">🧭 Jump</button></div>`;
+       if(!s||d>B15.hqMi*MI/1000)x+=`<div class="row"><div class="grow"><b>Play next to the crew</b><small>Build your Stronghold within ${B15.hqMi} mi of the HQ. ${s?'Your current spot becomes your 🏡 Home Outpost so driving, pipelines and resources keep working there.':''}</small></div><button class="red24" onclick="jumpHq15();setTimeout(()=>pick15('sh'),300)">🏰 Pick a spot</button></div>`;}
+     else x+=`<p class="tiny">No HQ yet.${isOfficer15()?'':' The leader or an officer places it.'}</p>`;
+-    if(isOfficer15()&&!(G.hq15&&G.hq15.bld&&G.hq15.bld.built))x+=`<div class="btns24"><button onclick="pick15('hq')">🏛️ ${h?'Move':'Place'} HQ (tap the map)</button></div>`;
++    if(isOfficer15()){const b15=!!(G.hq15&&G.hq15.bld&&G.hq15.bld.built);x+=`<div class="btns24"><button onclick="pick15('hq')">🏛️ ${h?'Move':'Place'} HQ (tap the map)</button></div>${b15&&window.HQ6&&HQ6.moveCost?`<p class="tiny">Moving the built HQ costs ${Object.entries(HQ6.moveCost).map(([k,v])=>v+' '+RES[k]).join(' ')} from the Vault (proposed — Jacob to confirm). It keeps its level.</p>`:''}`;}
+     const lu=leaderUid15(),lm=M[lu]||{};if(rk==='officer'&&lu&&Date.now()-(lm.lastActive||0)>=14*864e5)x+=`<button class="ghost24" onclick="takeOver15()">👑 Take over (leader inactive 14+ days)</button>`;
+     // ranks
+     const rows=Object.entries(M).sort((a,c)=>({leader:0,officer:1,member:2}[rankOf15(a[0])]-{leader:0,officer:1,member:2}[rankOf15(c[0])]));
+@@ -212,7 +212,8 @@
+       mb.insertAdjacentHTML('beforeend',`<div class="btns24 fw15"><button onclick="map.setView(hexCenter(...idQR('${d.hex}')),14);UI.closeModal();try{UI.close()}catch(e){}">🧭 Jump to their base</button><button ${ops15('fwd').length>=B15.fwdMax?'disabled':''} onclick="map.setView(hexCenter(...idQR('${d.hex}')),13);pick15('fwd')">🚩 Forward Outpost near them</button></div>`);}catch(e){}return r;};
+   // outpost card: kind + troops + portal
+   const _io15=UI.infoOutpost;UI.infoOutpost=function(id){const r=_io15.apply(this,arguments);try{const o=(W().outposts||{})[id];const mb=$('#modalBody');if(!o||!mb||mb.querySelector('.op15'))return r;
+-      mb.insertAdjacentHTML('afterbegin',`<div class="op15"><b>${baseLabel15(id)}</b> · 🪖 ${poolOf15(id).toLocaleString()} troops here${o.state==='up'?`<div class="btns24"><button onclick="UI.portal15('${id}')">🌀 Portal troops here</button>${opHex15()===id?'':`<button onclick="setOp15('${id}')">Operate from here</button>`}</div>`:''}</div>`);}catch(e){}return r;};
++      const nm15=o.kind==='home'?'Home Outpost':o.kind==='fwd'?'Forward Outpost':'Outpost',th15=(window.thumb65&&window.opArt65&&thumb65(opArt65(o.kind||'other')))||'';
++      mb.insertAdjacentHTML('afterbegin',`<div class="op15"><b>${th15?th15+' ':baseLabel15(id).split(' ')[0]+' '}${nm15}</b> · 🪖 ${poolOf15(id).toLocaleString()} troops here${o.state==='up'?`<div class="btns24"><button onclick="UI.portal15('${id}')">🌀 Portal troops here</button>${opHex15()===id?'':`<button onclick="setOp15('${id}')">Operate from here</button>`}</div>`:''}</div>`);}catch(e){}return r;};
+ 
+   // ---------- operating bar ----------
+   function bar15(force){let el=document.getElementById('op15');const L=myBases15();if(!P.name||!L.length){if(el)el.remove();return;}
+diff --git a/public/fight.js b/public/fight.js
+index fb973c9..59fdfe1 100644
+--- a/public/fight.js
++++ b/public/fight.js
+@@ -103,6 +103,7 @@ UI.infoStruct=function(kind,id){const w=W(),o=kind==='sh'?w.sh:w.towers[id];if(!
+     if(kind==='sh'&&G.pos&&P.tiles[hexAt(...G.pos).id]&&hexAt(...G.pos).id!==o.hex)btn.push([`🚚 Relocate here (${cost(BAL.stronghold.relocateCost)})`,()=>{relocateStronghold();UI.closeModal();}]);
+     if(kind==='sh')btn.push(['⬆️ Upgrade',()=>{UI.closeModal();UI.open('base');UI.sub.base='fort';UI.render();}]);
+     else if(lvl<BAL.tower.maxLevel)btn.push([`⬆️ Upgrade (${cost(towerUpCost(o))})`,()=>{upgradeTower(id);UI.infoStruct(kind,id);}]);}
++  if(kind==='tower'&&window.demolish66)btn.push(['🧨 Demolish',()=>demolish66(id),'fight dm66b']); // R6.6 (never on the Stronghold)
+   this.info({title:kind==='sh'?`${poss(P.name)} Stronghold`:'Watchtower',sub:`Level ${lvl} · ${down?'💥 DESTROYED':o.state==='building'?'⏳ building '+fmtDur(o.buildEnd-Date.now()):'condition '+pct+'%'}`,
+     art:(kind==='sh'?(window.shArt65&&shArt65(lvl,'sh65 card65',{sh:lvl})):(window.towerArt65&&towerArt65(lvl,'tw65 card65')))||(kind==='sh'?strongholdSVG(lvl):towerSVG(lvl)),body:`<div class="row"><div class="grow">Defense power <b>${power}</b> · protects <b>${kind==='sh'?shRadius():towerRadius(o)} ring(s)</b> (${hexRing(0,0,kind==='sh'?shRadius():towerRadius(o)).length} hexes)${kind==='tower'&&lvl<BAL.tower.maxLevel?`<small class="pos">Next level: power ${towerPower({level:lvl+1})} · ring ${towerRadiusAt(lvl+1)}${towerRadiusAt(lvl+1)>towerRadius(o)?' ⬆ bigger area!':''}</small>`:''}${kind==='sh'&&!down&&o.state==='up'?(()=>{const a=shAreaInfo(),tot=Object.values(a.mine).reduce((x,y)=>x+y,0);return`<div class="areabox"><b>🌾 Area income</b> · ${a.hexes} hexes in ring, ${a.res} resource tiles<div class="areares">${Object.keys(RES).map(k=>`<span>${RES[k]} <em class="inc">+${a.mine[k]}</em></span>`).join('')}</div><small>You get <em class="inc">+${tot}/day</em> at reset (after 25% alliance share). Next ring at Lv${(Math.floor((lvl-1)/BAL.stronghold.levelsPerRing)+1)*BAL.stronghold.levelsPerRing+1}.</small></div>`;})():''}<small>Tiles outside every ring are taken by raiders with no fight.</small><div class="prog"><i style="width:${down?0:pct}%"></i></div>${kind==='tower'?`<small>Upkeep ${Object.entries(BAL.tower.upkeep).map(([k,v])=>v+RES[k]).join(' ')}/day · ${o.online===false?'⚠️ offline':'online'}</small>`:''}</div></div>`,buttons:btn});};
+ 
+diff --git a/public/hq6.js b/public/hq6.js
+index b92a079..4f33c2f 100644
+--- a/public/hq6.js
++++ b/public/hq6.js
+@@ -41,7 +41,7 @@
+       const add=g=>{if(!seen.has(g.key)&&g.pow>0){seen.add(g.key);s.guards.push(g);}};const k=stationedAt(d.id);if(k>0)add({key:'me:'+d.id,uid:P.uid,hex:d.id,n:k,pow:k*T()});
+       for(const g of allyGarAt(d.id))add({key:'al:'+g.uid+':'+g.hex,uid:g.uid,hex:g.hex,n:g.n,pow:g.power||g.n*T()});}}catch(e){}return s;};window.defSides25=defSides25;
+   // ---------- the HQ area counts in the spacing rule (space4.others4 lists it with a 2-ring footprint; protection can grow past that)
+-  function hqSpaceWhy6(h){const need=(o,r)=>2+r+(o?S4.enemyGap:S4.allyGap);
++  function hqSpaceWhy6(h){const G4=window.S4&&window.S4.allyGap!=null?window.S4:{allyGap:1,enemyGap:2};const need=(o,r)=>2+(+r||0)+(o?G4.enemyGap:G4.allyGap); // R6.6: stage4.js has its own global S4 (no gaps) that hid space4's
+     for(const o of others4()){if(o.k==='ahq')continue;if(hexDist(h,o.hex)<need(o.enemy,o.r))return o.enemy?`Too close to ${o.who}'s base.`:`Too close to ${o.who}'s ${o.k==='sh'?'Stronghold':o.k==='tower'?'tower':'outpost'} area.`;}
+     try{for(const d of ownDefStructs())if(d&&d.hex&&hexDist(h,d.hex)<need(false,+d.r||0))return'Too close to your own building area.';}catch(e){}return null;}
+   window.hqSpaceWhy6=hqSpaceWhy6;
+@@ -93,8 +93,8 @@
+       if(Object.keys(back).length){try{addRes(back);save();toast(`🏦 The Vault is full: ${Object.entries(back).map(([k,v])=>v+' '+RES[k]).join(' ')} stayed with you`);}catch(e){}}
+       if(Object.values(send).some(v=>v>0))return _bm(uid,name,send,kind);};}
+   // decideReq15 (approve) and collect15 wait while the Vault is locked (rank15.js)
+-  // the HQ can't be moved once it is built (it's a building now)
+-  try{const _sh=window.setHq15;window.setHq15=function(){if(bld()&&bld().built)return toast('🚫 The HQ is built here. It can\'t be moved.');return _sh.apply(this,arguments);};}catch(e){}
++  // R6.6: a built HQ is moved by build66.moveBuiltHq6 (paid from the Vault through vaultTx6); setHq15 stays the free unbuilt-spot move
++  window.vaultTx6=vaultTx6;
+   try{AT26.hoard.n='🏦 Vault';UI.SUBS.alliance=Object.entries(AT26).map(([k,v])=>[k,v.n]);}catch(e){}
+   // ---------- officers: at most 2 (rank15.setRank15 refuses a 3rd; the security rules cap roles at 3 entries)
+   // ---------- HQ tab: the building, the Vault, recent attacks
+diff --git a/public/index.html b/public/index.html
+index e148d69..1a41906 100644
+--- a/public/index.html
++++ b/public/index.html
+@@ -2,7 +2,7 @@
+ <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+ <meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#1c1813"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon-180.png"><meta name="apple-mobile-web-app-title" content="Dead Zone"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+ <link rel="icon" type="image/png" href="icon-192.png"><script>function logoErr65(img){if(!img.dataset.t){img.dataset.t=1;img.src=img.src.replace(/\.webp$/,'.png');return;}img.onerror=null;img.style.display='none';var h=img.closest('.logo65');if(h)h.classList.add('logo65off');}</script><title>Dead Zone Drive</title>
+-<link rel="stylesheet" href="leaflet.css"><link rel="stylesheet" href="style.css?v=v20-4">
++<link rel="stylesheet" href="leaflet.css"><link rel="stylesheet" href="style.css?v=r6-6">
+ <link rel="stylesheet" href="hero62.css">
+ </head><body>
+ <div id="map"></div><div id="tint"></div>
+@@ -100,4 +100,5 @@
+ <script src="hero62.js"></script>
+ <script src="supply64.js"></script>
+ <script src="overview65.js"></script>
++<script src="build66.js"></script>
+ </body></html>
+diff --git a/public/pipes.js b/public/pipes.js
+index 899cf5e..9e86c15 100644
+--- a/public/pipes.js
++++ b/public/pipes.js
+@@ -61,7 +61,7 @@ HOOK.draw(function(){try{drawPipes();}catch(e){console.warn('pipes',e);}});
+ setInterval(()=>{try{if(document.visibilityState==='visible'&&pipes().some(p=>pipeState(p)==='online')){if(typeof slideTrucks62==='function')slideTrucks62();else drawPipes();}}catch(e){}},30e3); // R6.3: slide the truck, don't rebuild the line
+ function pipeCard(p){const st=p.st||pipeState(p),line={pin:`Waiting for a drive · ${p._dist?Math.round(p._dist)+' m away · ':''}pin expires in ${fmtDur(Math.max(0,(p.pinExp||0)-Date.now())).replace(/ \d+s$/,'')}`,online:`Online · +${PIPE.perHour[p.res]}${RES[p.res]}/hr · ${p.total||0} delivered so far`,cut:'✂️ CUT: the horde holds a hex on the route. Retake it to restore the flow.',dark:'🕯️ Dark until the next reset (upkeep unpaid)',expired:'Pin expired'}[st]||st;
+   UI.info({title:`⛓️ ${p.name}`,sub:`${p.own===false?p.owner+"'s pipeline · ":''}${RES[p.res]} ${p.res} · ${p.route.length} hexes`,body:`<p>${line}</p>`,
+-    buttons:[['🗺️ Show',()=>{UI.closeModal();map.setView(hexCenter(...idQR(p.route[p.route.length-1])),15);}],...(p.own!==false?[['🗑️ Remove',()=>UI.ask('Remove pipeline',`Remove the ${p.name} pipeline? The build cost is not refunded.`,'Remove').then(ok=>{if(ok){removePipe(p.id);UI.closeModal();}})]]:[]),['Close',()=>UI.closeModal()]]});}
++    buttons:[['🗺️ Show',()=>{UI.closeModal();map.setView(hexCenter(...idQR(p.route[p.route.length-1])),15);}],...(p.own!==false?[['🧨 Demolish',()=>demolishPipe66(p.id),'fight dm66p']]:[]),['Close',()=>UI.closeModal()]]});}
+ // ---- landmark card: supply site row
+ const _pp_il=UI.infoLandmark;UI.infoLandmark=function(l){_pp_il.apply(this,arguments);try{const s=siteOf(l);if(!s)return;const box=$('#modalBody .ibtns');if(!box)return;const mine=pipes().find(p=>p.site===s.id&&pipeState(p)!=='expired'),why=mine?null:canBuildPipe(s);
+   box.insertAdjacentHTML('beforebegin',`<div class="row pipesite"><div class="grow"><b>⛓️ Supply site · ${RES[s.res]} ${s.res}</b><small>${mine?`Your pipeline: ${pipeState(mine)}`:`A pipeline from your Stronghold pays +${PIPE.perHour[s.res]}${RES[s.res]}/hr and +${PIPE.tileBoost*100}% ${s.res} from your hexes. You must DRIVE to it once to switch it on.`}${!mine&&why?`<br>🔒 ${why}`:''}</small></div>${mine?`<button onclick="UI.closeModal();pipeCard(pipes().find(x=>x.id==='${mine.id}'))">Line</button>`:`<button class="btn-primary" ${why?'disabled':''} onclick="buildPipe('${s.id}')">Build ${Object.entries(PIPE.cost).map(([k,v])=>v+RES[k]).join(' ')}</button>`}</div>`);}catch(e){console.warn('site row',e);}};
+diff --git a/public/stage2.js b/public/stage2.js
+index 2415a50..caebb94 100644
+--- a/public/stage2.js
++++ b/public/stage2.js
+@@ -120,8 +120,9 @@ function outpostTick(){const w=W();let ch=false;const done=[];Object.entries(w.o
+   if(ch){save();drawWorld();try{if(done.length&&typeof opDone64==='function')opDone64(done);}catch(e){console.warn('op64',e);}}}
+ setInterval(()=>{if(P.world)outpostTick();},10e3);
+ UI.infoOutpost=function(id){const o=W().outposts[id],c=BAL.outpost;const [oi,on]=opKind64(o);const st=o.state==='capturing'?`⏳ capturing · ${fmtDur(o.endsAt-Date.now())} left`:o.state==='up'?`✅ standing · condition ${Math.round(100*(o.hpPct??1))}%`:'💥 lost';
+-  this.info({title:`${oi} ${on}`,sub:`${hexName(id)} · ${st}`,art:'<span class="bigemo">⛺</span>',body:`<div class="row"><div class="grow">Defense power <b>${outpostPower()}</b> · ${typeof opHoldLine64==='function'?opHoldLine64(id):'guards and collects '+hexRing(0,0,c.radius).length+' hexes'}<small>Capture hold: ${c.holdMin} min. If the hex is lost during the hold, the capture fails.</small>${o.state==='capturing'?`<div class="prog"><i style="width:${100*(1-(o.endsAt-Date.now())/(c.holdMin*60e3))}%"></i></div>`:''}</div></div>`,
+-    buttons:o.state==='down'&&P.tiles[id]?[['🔧 Rebuild',()=>{placeOutpost(id);UI.closeModal();},'fight']]:[]});};
++  const art=(window.opArt65&&opArt65(o.kind||'other','op65 card65',{emo:oi,cls:'bigemo'}))||`<span class="bigemo">${oi}</span>`; // R6.6: Jacob's drawing, emoji only if it fails
++  this.info({title:on,sub:`${hexName(id)} · ${st}`,art,body:`<div class="row"><div class="grow">Defense power <b>${outpostPower()}</b> · ${typeof opHoldLine64==='function'?opHoldLine64(id):'guards and collects '+hexRing(0,0,c.radius).length+' hexes'}<small>Capture hold: ${c.holdMin} min. If the hex is lost during the hold, the capture fails.</small>${o.state==='capturing'?`<div class="prog"><i style="width:${100*(1-(o.endsAt-Date.now())/(c.holdMin*60e3))}%"></i></div>`:''}</div></div>`,
++    buttons:[...(o.state==='down'&&P.tiles[id]?[['🔧 Rebuild',()=>{placeOutpost(id);UI.closeModal();},'fight']]:[]),...(window.demolish66?[['🧨 Demolish',()=>demolish66(id),'fight dm66b']]:[])]});};
+ const _build2=UI.build;UI.build=function(){_build2.call(this);if(!G.pos)return;const id=hexAt(...G.pos).id,c=outpostCost(),cost=Object.entries(c).map(([k,v])=>`<span class="${(P.res[k]||0)<v?'short':''}">${v} ${RES[k]}</span>`).join(' '),fa=factionAt(id);
+   const row=`<div class="row"><div class="grow"><b>⛺ Outpost</b><small>${cost}</small><small>${outpostsLive()}/${outpostCap()} · ${BAL.outpost.holdMin}-min capture hold · claims + guards ${hexRing(0,0,BAL.outpost.radius).length} hexes</small>${typeof buildLines64==='function'?buildLines64(id,'op'):''}${fa?'<small>❌ Faction hex: retake it first</small>':''}</div><button ${fa||outpostsLive()>=outpostCap()?'disabled':''} onclick="placeOutpost('${id}');UI.closeModal()">Capture</button></div>`;
+   const b=$('#modalBody'),btns=b.querySelectorAll('button[onclick="UI.closeModal()"]'),last=btns[btns.length-1];if(last)last.insertAdjacentHTML('beforebegin',row);else b.insertAdjacentHTML('beforeend',row);};
+diff --git a/public/style.css b/public/style.css
+index a497029..95db578 100644
+--- a/public/style.css
++++ b/public/style.css
+@@ -603,3 +603,13 @@ body.night .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) grayscale(.55)
+ /* (#mode, #status and the base rail are placed under the real bottom of the top bar by terr15.js layout15) */
+ /* 12i QA: long toasts were one line and ran off both sides of a phone screen. */
+ #toast div{white-space:normal;max-width:min(560px,calc(100vw - 24px));text-align:center;line-height:1.3;box-sizing:border-box}
++/* R6.6: the landmark Supply site row is a full-width card row, even in a narrow flex context or with a long button label */
++.row.pipesite{width:100%;min-width:0;box-sizing:border-box;flex-wrap:wrap;align-items:flex-start;flex:1 1 100%}
++.row.pipesite>.grow{flex:1 1 12rem;min-width:0}
++.row.pipesite>button{flex:1 1 8rem;min-width:0;max-width:100%;white-space:normal;text-align:center}
++/* R6.6: kit drawings inside the teal building box on a marker stats card */
++.bi24 img.p65,.bi24 img.th65{width:44px;height:44px;object-fit:contain;margin:0}
++/* R6.6: demolish / move confirm lines */
++.dm66{margin:8px 0 0}.dm66 .r24 b{white-space:nowrap}
++.prop66{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;color:#ffcf5a;border:1px solid #ffcf5a66;border-radius:6px;padding:1px 6px;margin-left:4px}
++#kitModal p{white-space:pre-line}
+diff --git a/public/supply64.js b/public/supply64.js
+index 54f13d8..29e393f 100644
+--- a/public/supply64.js
++++ b/public/supply64.js
+@@ -175,12 +175,12 @@
+   window.opDone64=function(list){const recs=list.map(x=>opRecord(x.id,x.o,x.ok));P.op64=[...recs.slice().reverse(),...(P.op64||[])].slice(0,60);save();
+     if(window.cardBusy1&&cardBusy1())cardWait1('info64',recs,recs.length>1?`⛺ ${recs.length} outposts`:recs[0].ok?`${kindOf(recs[0])[0]} ${kindOf(recs[0])[1]} up`:'⛺ Outpost capture failed');else opCard64(recs);};
+   window.opCard64=function(recs){if(!recs||!recs.length)return;
+-    if(recs.length>1){UI._op64=recs;return UI.info({title:`⛺ ${recs.length} outposts finished while you were away`,art:'<span class="bigemo">⛺</span>',
++    if(recs.length>1){UI._op64=recs;return UI.info({title:`⛺ ${recs.length} outposts finished while you were away`,art:(window.opArt65&&opArt65('other','op65 card65',{emo:'⛺',cls:'bigemo'}))||'<span class="bigemo">⛺</span>',
+       body:recs.map((r,i)=>{const [ic]=kindOf(r);const sk=(r.skipped||[]).reduce((a,s)=>a+s.n,0);return`<div class="row"><div class="grow"><b>${ic} ${hexName(r.hex)}</b><small>${r.ok?`claimed ${r.claimed}${sk?` · skipped ${sk}`:''}`:'capture failed'}</small></div><button onclick="UI.closeModal();setTimeout(()=>opShow64('${r.hex}'),60)">📍</button></div>`;}).join(''),buttons:[]});}
+     const r=recs[0],[ic,kn]=kindOf(r);
+-    if(!r.ok)return UI.info({title:`${ic} ${kn} capture failed`,sub:hexName(r.hex),art:`<span class="bigemo">${ic}</span>`,body:`<p>${hexName(r.hex)}: the hex was taken during the 60-min hold. Retake the hex, then rebuild from the outpost's card.</p>`,buttons:[['🗺️ Show on map',()=>{UI.closeModal();setTimeout(()=>opShow64(r.hex),60);}]]});
++    if(!r.ok)return UI.info({title:`${ic} ${kn} capture failed`,sub:hexName(r.hex),art:(window.opArt65&&opArt65(r.kind||'other','op65 card65',{emo:ic,cls:'bigemo'}))||`<span class="bigemo">${ic}</span>`,body:`<p>${hexName(r.hex)}: the hex was taken during the 60-min hold. Retake the hex, then rebuild from the outpost's card.</p>`,buttons:[['🗺️ Show on map',()=>{UI.closeModal();setTimeout(()=>opShow64(r.hex),60);}]]});
+     const holds=r.claimed+(r.already||0);
+-    UI.info({title:`${ic} ${kn} up`,sub:hexName(r.hex),art:`<span class="bigemo">${ic}</span>`,
++    UI.info({title:`${ic} ${kn} up`,sub:hexName(r.hex),art:(window.opArt65&&opArt65(r.kind||'other','op65 card65',{emo:ic,cls:'bigemo'}))||`<span class="bigemo">${ic}</span>`,
+       body:`<div class="big26"><div><b>${r.claimed}</b><small>new hex${r.claimed===1?'':'es'}</small></div><div><b>${holds} of 7</b><small>holds</small></div><div><b>${r.keeps}</b><small>paying</small></div></div>
+         <p>Claimed ${r.claimed} new hex${r.claimed===1?'':'es'}.</p>${(r.skipped||[]).map(s=>`<p class="tiny">${skipLine(s)}</p>`).join('')}${r.revived>0?`<p>Brought ${r.revived} unpaid hex${r.revived===1?'':'es'} back into pay.</p>`:''}`,
+       buttons:[['🗺️ Show on map',()=>{UI.closeModal();setTimeout(()=>opShow64(r.hex),60);}]]});};
+diff --git a/public/sw.js b/public/sw.js
+index cf57d21..c91d8d1 100644
+--- a/public/sw.js
++++ b/public/sw.js
+@@ -1,6 +1,6 @@
+ // Dead Zone Drive service worker: network-first for the app (so updates show right away),
+ // falling back to cache when offline. Map tiles and Firebase are never cached here.
+-const C='ddd-v26-12i-integrated-6-r6-7';
++const C='ddd-v26-12i-integrated-6-r6-7-6';
+ self.addEventListener('install',e=>self.skipWaiting());
+ self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+ self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==location.origin)return;
+diff --git a/public/v25b.js b/public/v25b.js
+index fdbc3a4..7c9fbde 100644
+--- a/public/v25b.js
++++ b/public/v25b.js
+@@ -202,11 +202,11 @@ bldCard=function(hex){const b=bldAt(hex);if(!b)return'';const o=b.o,tp=TPOW(),lv
+   bp=b.own?(b.k==='sh'?Math.round(BAL.stronghold.basePower+strongholdLevel()*BAL.stronghold.powerPerLevel):b.k==='tower'?towerPower(o):outpostPower()):(o.power||0),
+   mine=(stationed()[hex]||{}),allies=(typeof allyGarAt==='function'?allyGarAt(hex):[]),tot=(mine.n||0)+allies.reduce((a,g)=>a+g.n,0),cap=typeof hexGarCap==='function'?hexGarCap(hex):0;
+   const ouid=b.own?P.uid:(Object.entries((G.al&&G.al.members)||{}).find(([u,m])=>m.name===b.owner)||[])[0];
+-  const nm={sh:'STRONGHOLD',tower:'WATCHTOWER',op:'OUTPOST'}[b.k]||'STRUCTURE',ic={sh:'🏰',tower:'🗼',op:'⛺'}[b.k]||'🛡️',hpP=b.own&&o.hpPct!=null?o.hpPct:b.own&&o.state==='down'?0:1;
++  const nm={sh:'STRONGHOLD',tower:'WATCHTOWER',op:'OUTPOST'}[b.k]||'STRUCTURE',ic0={sh:'🏰',tower:'🗼',op:'⛺'}[b.k]||'🛡️',ic=(b.k==='sh'?(window.thumb65&&window.shArt65&&thumb65(shArt65(lv))):b.k==='tower'?(window.thumb65&&window.towerArt65&&thumb65(towerArt65(lv||1))):b.k==='op'?(window.thumb65&&window.opArt65&&thumb65(opArt65((o&&o.kind)||'other'))):'')||ic0,hpP=b.own&&o.hpPct!=null?o.hpPct:b.own&&o.state==='down'?0:1;
+   const up=b.own&&b.k==='tower'&&typeof towerUpCost==='function'&&lv<BAL.tower.maxLevel?Object.entries(towerUpCost(o)).map(([k,v])=>RES[k]+' '+v).join(' · '):b.own&&b.k==='sh'?'Base › Stronghold':'—';
+   const home=TP().home,u=typeof poolUse==='function'?poolUse():{sup:0},full=u.sup>=SLOTS.sup&&!mine.n,room=cap?Math.max(0,cap-tot):home,max=Math.min(home,room),opts=[500,1000,5000].filter(x=>x<max);if(max>0)opts.push(max);
+   const row=(a,v)=>`<div class="r24"><span>${a}</span><b>${v}</b></div>`,w=who24(ouid);
+-  const parts=[[ic+' '+({sh:'Stronghold',tower:'Watchtower',op:'Outpost'}[b.k]||'Building'),bp,'#3ae0c8',null]];
++  const parts=[[ic0+' '+({sh:'Stronghold',tower:'Watchtower',op:'Outpost'}[b.k]||'Building'),bp,'#3ae0c8',null]];
+   if(mine.n>0)parts.push([`You · 🪖 ${kf24(mine.n)}${mine.at>Date.now()?' (arriving '+fmtDur(mine.at-Date.now())+')':''}`,Math.round(mine.n*tp),P.color||'#ffc94a',P.uid]);
+   for(const g of allies){const gu=g.uid||(Object.entries((G.al&&G.al.members)||{}).find(([u2,m])=>m.name===g.owner)||[])[0];parts.push([`${esc24(g.owner)} · 🪖 ${kf24(g.n)}`,g.power||Math.round(g.n*tp),who24(gu).color,gu]);}
+   if(b.k==='sh'&&b.own&&home>0)parts.push([`Home garrison · 🪖 ${kf24(home)}`,Math.round(home*tp),'#c9a24a',null]);
+@@ -218,7 +218,7 @@ bldCard=function(hex){const b=bldAt(hex);if(!b)return'';const o=b.o,tp=TPOW(),lv
+    ${row('Building HP',`${Math.round(bp*F25.bHP*hpP)} / ${bp*F25.bHP} (${Math.round(hpP*100)}%)`)}${row('Guards',`🪖 ${kf24(tot+(b.k==='sh'&&b.own?home:0))}${cap?' · room for '+kf24(Math.max(0,cap-tot)):''}`)}
+    ${row('Range',`${r} ring${r>1?'s':''} · protects ${hexRing(0,0,r).length} hexes${b.k==='tower'?' · early warning 1 ring further':''}`)}${row('Fight order',`building hits, attacker hits back, troops hit, attacker hits back · up to ${F25.rounds} rounds`)}
+    <div class="sec24">Reinforcements</div><div class="sec24">ECONOMY</div>${row('Upkeep',b.k==='tower'?(Object.values(BAL.tower.upkeep||{}).some(v=>v)?Object.entries(BAL.tower.upkeep).map(([k,v])=>v+RES[k]).join(' ')+'/day':'free'):'none')}${row('Upgrade cost',up)}${lv?row('Upgrade to Lv'+(lv+1),up):''}
+-   <div class="btns24">${home>0&&!full&&max>0?opts.map(x=>`<button class="red24" onclick="stationTroops('${hex}',${x});UI.closeModal()">🛡 ${x===max?'Reinforce all '+kf24(x):'+'+kf24(x)}</button>`).join(''):`<span class="tiny warn25">${full?'All support slots in use.':home<=0?'🪖 No troops at home. Train some in Base › Barracks to reinforce.':'Garrison full.'}</span>`}${mine.n?`<button class="ghost24" onclick="recallStation('${hex}');UI.closeModal()">↩ Recall mine</button>`:''}</div>
++   <div class="btns24">${home>0&&!full&&max>0?opts.map(x=>`<button class="red24" onclick="stationTroops('${hex}',${x});UI.closeModal()">🛡 ${x===max?'Reinforce all '+kf24(x):'+'+kf24(x)}</button>`).join(''):`<span class="tiny warn25">${full?'All support slots in use.':home<=0?'🪖 No troops at home. Train some in Base › Barracks to reinforce.':'Garrison full.'}</span>`}${mine.n?`<button class="ghost24" onclick="recallStation('${hex}');UI.closeModal()">↩ Recall mine</button>`:''}${b.own&&(b.k==='tower'||b.k==='op')&&window.dmBtn66?dmBtn66(hex):''}</div>
+    <p class="tiny">Uses 1 support slot (${u.sup}/${SLOTS.sup} in use). Troops trade hits with the attacker turn by turn. Beaten troops march home, and you can recall yours any time.</p></div>`;};
+ // no predictions: strip "likely holds/lost" from the squad card, march previews and risky prompts
+ const _isq25=UI.infoSquad;UI.infoSquad=function(fid,sid){_isq25.apply(this,arguments);try{document.querySelectorAll('#modalBody .row').forEach(r=>{if(/likely (holds|lost)/.test(r.textContent)){const f=FX().f[fid],s=f&&(f.squads||[]).find(x=>x.id===sid);r.classList.remove('warn');r.querySelector('.grow').innerHTML=`🗺️ Their target is ${s&&s.target?hexName(s.target):'not picked'}.<small>Check the building there to see your combined defense. Fights are worked out turn by turn when they arrive.</small>`;}});
+diff --git a/public/v26c.js b/public/v26c.js
+index 6a0b4de..41e6048 100644
+--- a/public/v26c.js
++++ b/public/v26c.js
+@@ -15,7 +15,7 @@ function cleanCard26(kind,ctx){const mb=$('#modalBody');if(!mb||mb.querySelector
+   mb.querySelectorAll('.mreq22').forEach(e=>e.remove());
+   const seenB=new Set();[...btnBox.querySelectorAll('button')].forEach(b=>{const t=b.textContent.trim();if(/^📌 Mark$/.test(t)){if(seenB.has(t))b.remove();seenB.add(t);}});
+   if(kind==='tile'){const id=ctx,t=tileInfo(id),mine=!!P.tiles[id],b=typeof bldAt==='function'?bldAt(id):null;
+-    if(b){const r=garrison26(id),lv=b.k==='sh'?strongholdLevel():b.k==='tower'?(b.o.level||1):1;bTitle=`${{sh:'🏰 Stronghold',tower:'🗼 Watchtower',op:'⛺ Outpost'}[b.k]||'Building'} Lv${lv}`;bSub=`${b.own?P.name+' (you)':esc24(b.owner||'Ally')} · ${hexName(id)}`;
++    if(b){const r=garrison26(id),lv=b.k==='sh'?strongholdLevel():b.k==='tower'?(b.o.level||1):1;bTitle=`${{sh:'Stronghold',tower:'Watchtower',op:'Outpost'}[b.k]||'Building'} Lv${lv}`;bSub=`${b.own?P.name+' (you)':esc24(b.owner||'Ally')} · ${hexName(id)}`;
+       if(r){facts=[[nn26(r.D)+'⚔','damage'],[nn26(r.H)+'❤','troop HP'],[Math.round(r.walls*100)+'%','walls block']];
+         const pk=Object.entries(r.perks).filter(([,v])=>v>0).map(([k])=>k.charAt(0).toUpperCase()+k.slice(1));
+         extra=`<div class="sec26">GARRISON · ${r.nTypes} OF 5 TYPES</div>${r.players.map(p=>`<div class="pl26"><span>${(C26.types[p.type]||{}).ico||'🪖'}</span><div class="grow"><b>${esc24(p.name)}</b> · ${(CLASSES.list[p.type]||{}).name||p.type} · ${nn26(p.n)}</div><b>${nn26(p.dmg)}⚔</b></div>`).join('')||'<p class="tiny">No troops inside. The walls and fire still fight.</p>'}
+@@ -168,7 +168,7 @@ const _ilPipe26=UI.infoLandmark;UI.infoLandmark=function(l){_ilPipe26.apply(this
+   const small=box.querySelector('small');if(small)small.innerHTML=mine?`Your pipeline: ${pipeState(mine)}`
+     :unlocked?`Unlocked · build from your Stronghold for +${PIPE.perHour[s.res]}${RES[s.res]}/hr and +${PIPE.tileBoost*100}% ${s.res} from your hexes. Cap: 1 ${s.res} line.${why?`<br>🔒 ${why}`:''}`
+     :`Drive past this site to unlock it, then build in Base › Pipelines. Cap: 1 pipeline per resource type.`;
+-  const btn=box.querySelector('button.btn-primary');if(btn&&!mine){btn.disabled=!!why;btn.textContent=unlocked?(why||`Build ${Object.entries(PIPE.cost).map(([k,v])=>v+RES[k]).join(' ')}`):'🔒 Drive past to unlock';}}catch(e){}};
++  const btn=box.querySelector('button.btn-primary');if(btn&&!mine){btn.disabled=!!why;btn.textContent=unlocked?`Build ${Object.entries(PIPE.cost).map(([k,v])=>v+RES[k]).join(' ')}`:'🔒 Drive past to unlock';}}catch(e){}};
+ HOOK.render(function(){try{if(this.tab!=='base'||this.sub.base!=='pipes')return;const b=$('#sheetBody');if(!b)return;
+   const h=b.querySelector('h2');if(h){const mine=pipes().filter(p=>pipeState(p)!=='expired');const by={};mine.forEach(p=>by[p.res]=1);h.innerHTML=`⛓️ Pipelines <small class="lv">${Object.keys(by).length} / ${pipeCap()} types</small>`;}
+   const tip=b.querySelector('p.tiny');if(tip&&/drive to the pin|Drive mode/i.test(tip.textContent))tip.innerHTML=`Drive past a supply site to <b>unlock</b> it, then build here. No map pin. Online lines pay every hour and boost that resource from your hexes. <b>Cap: 1 pipeline per resource type</b> (fuel, water, food, scrap, parts). Upkeep ${PIPE.upkeep.parts}⚙️/day each. If the horde takes a hex on the route, the line is cut.`;
+diff --git a/public/build66.js b/public/build66.js
+new file mode 100644
+index 0000000..d8fa705
+--- /dev/null
++++ b/public/build66.js
+@@ -0,0 +1,105 @@
++// build66 (R6.6, Jacob's FIXES.md §3 and §4): demolish your own buildings, and move a built Alliance HQ.
++//  Demolish: every player-built structure except the Stronghold and the Alliance HQ (watchtowers, outposts of every kind,
++//   pipelines). Instant after a confirm that lists the refund: 50% of what was paid to build and upgrade, floored per resource.
++//   The record is removed (no ruins), the slot and the cap are freed, your hexes stay yours. Your troops there march home
++//   through sendHome25. Teammates' troops are sent home by their own phone (sweeper below), never by a write to their doc.
++//  Move HQ: leader or officers, a built HQ only, paid from the Alliance Vault through vaultTx6 (same as build / upgrade /
++//   repair), no cooldown. Only the `hq` key changes; `bld` is left exactly as it is, so the level, an upgrade in progress,
++//   a fall and the Vault lock all stay. Same picker (pick15('hq')) and same placement checks (hqSpaceWhy6, not a Horde hex).
++(function(){
++  const now=()=>Date.now();
++  const n66=v=>Math.round(+v||0).toLocaleString();
++  const resLine=o=>{const L=Object.entries(o||{}).filter(([,v])=>v>0).map(([k,v])=>`${n66(v)} ${RES[k]}`);return L.length?L.join(' · '):'nothing (it rounds down to 0)';};
++  const add=(a,b)=>{for(const k in b||{})a[k]=(a[k]||0)+(+b[k]||0);return a;};
++  function refundHalf66(paid){const o={};for(const k of Object.keys(paid||{})){const n=Math.floor((paid[k]||0)*0.5);if(n>0)o[k]=n;}return o;}
++  window.refundHalf66=refundHalf66;
++
++  // ---------- what was paid
++  // watchtower: Lv1 build cost + every upgrade paid (towerUpCost going from L to L+1). Repairs and patches are not counted.
++  function towerPaid66(t){const lv=Math.max(1,(t&&t.level)||1),paid=add({},BAL.tower.cost);for(let L=1;L<lv;L++)add(paid,towerUpCost({level:L}));return paid;}
++  // outposts: what was actually paid when it was placed (recorded from R6.6 on); older ones are worked out from outpostCost() now
++  function outpostPaid66(o){return o&&o.paid66?{...o.paid66}:outpostCost();}
++  const recPaid=(fnName)=>{try{const f=window[fnName];if(typeof f!=='function')return;const w=function(id){const c=outpostCost(),before=(W().outposts||{})[id],r=f.apply(this,arguments);
++      try{const o=(W().outposts||{})[id];if(o&&o!==before)o.paid66=c;}catch(e){}return r;};window[fnName]=w;if(fnName==='placeOutpost')placeOutpost=w;}catch(e){}};
++  recPaid('placeOutpost');recPaid('placeSpecial15');
++  window.towerPaid66=towerPaid66;window.outpostPaid66=outpostPaid66;
++
++  // ---------- one demolish for every kind
++  function what66(hex){const w=W();const t=(w.towers||{})[hex],o=(w.outposts||{})[hex];
++    if(t)return{k:'tower',name:'Watchtower',lvl:t.level||1,paid:towerPaid66(t)};
++    if(o){const nm=o.kind==='home'?'Home Outpost':o.kind==='fwd'?'Forward Outpost':'Outpost';return{k:'op',name:nm,paid:outpostPaid66(o),o};}
++    return null;}
++  function troopsHome66(hex,why){try{const s=stationed()[hex];if(s&&s.n>0)sendHome25(hex,s.n,why);else if(s)delete stationed()[hex];}catch(e){console.warn('build66 home',e);}}
++  function finish66(txt,refund){try{if(window.supplyBust64)supplyBust64();}catch(e){}save();try{pushMember();}catch(e){}try{drawWorld();}catch(e){}
++    try{UI.closeModal();}catch(e){}try{UI.tab&&UI.render();}catch(e){}toast(`🧨 ${txt} demolished · refund ${resLine(refund)}`);}
++  async function demolish66(hex){const x=what66(hex);if(!x)return toast('Nothing of yours to demolish here');
++    const refund=refundHalf66(x.paid);
++    const what=x.k==='tower'?`your Lv${x.lvl} Watchtower`:`your ${x.name}${x.o&&x.o.state==='capturing'?' (still capturing: its hexes will not be claimed)':''}`;
++    const ok=await UI.ask(`Demolish ${x.name}?`,`Demolish ${what} at ${hexName(hex)}?\n\nRefund (50% of build + upgrades): ${resLine(refund)}\n\nYour hexes stay yours, but nothing guards them from here${x.k==='op'?' and some may fall out of pay range':''}. Your troops here march home. This can't be undone.`,'Demolish');
++    if(!ok)return;const y=what66(hex);if(!y||y.k!==x.k)return toast('It is already gone');
++    if(P.op15===hex){try{setOp15('gps');}catch(e){P.op15='gps';}}
++    troopsHome66(hex,'building demolished');
++    const w=W();if(x.k==='tower')delete w.towers[hex];else delete w.outposts[hex];
++    addRes(refund);
++    try{allianceLog(`🧨 ${P.name} demolished their ${x.name} at ${hexName(hex)}`);}catch(e){}
++    finish66(x.name,refund);}
++  window.demolish66=demolish66;
++  async function demolishPipe66(id){const p=pipes().find(q=>q.id===id);if(!p||p.own===false)return;const refund=refundHalf66(PIPE.cost);
++    const ok=await UI.ask('Demolish pipeline?',`Demolish the ${p.name} pipeline?\n\nRefund (50% of the build cost): ${resLine(refund)}\n\nThe ${p.res} slot is free again right away. Guards on the line march home. This can't be undone.`,'Demolish');
++    if(!ok)return;if(!pipes().some(q=>q.id===id))return toast('It is already gone');
++    removePipe(id);addRes(refund);try{allianceLog(`🧨 ${P.name} demolished the ${p.name} pipeline`);}catch(e){}save();try{UI.closeModal();}catch(e){}toast(`🧨 Pipeline demolished · refund ${resLine(refund)}`);}
++  window.demolishPipe66=demolishPipe66;
++  // one Demolish per card: the card's own button wins over the copy on the building stats box
++  const dbtn=hex=>`<button class="fight dm66b" onclick="demolish66('${hex}')">🧨 Demolish</button>`;
++  window.dmBtn66=dbtn;
++  const _info=UI.info;UI.info=function(){const r=_info.apply(this,arguments);try{const L=[...document.querySelectorAll('#modalBody .dm66b')];if(L.length>1){const keep=L.find(b=>b.closest('.ibtns'))||L[0];L.forEach(b=>{if(b!==keep)b.remove();});}}catch(e){}return r;};
++
++  // ---------- Move a built Alliance HQ
++  // PROPOSED — Jacob to confirm: 25% of HQ6.cost, floored per resource, not scaled by level.
++  HQ6.moveCost=Object.fromEntries(Object.entries(HQ6.cost).map(([k,v])=>[k,Math.floor(v*0.25)])); // = 375 scrap, 75 food, 75 water, 50 fuel, 37 parts
++  HQ6.moveProposed=true;
++  const H=()=>G.hq15||{},bld=()=>H().bld||null,hex6=()=>(H().hq&&H().hq.hex)||null,built=()=>!!(bld()&&bld().built);
++  window.hqBuilt66=built;
++  function moveWhy66(id){if(!isOfficer15())return'Only the leader or officers can move the HQ';if(id===hex6())return'The HQ is already here';
++    if(typeof factionAt==='function'&&factionAt(id))return'Raiders hold that hex';const w=hqSpaceWhy6(id);if(w)return w;
++    if(window.vaultLocked6&&vaultLocked6())return`The Vault is locked for ${fmtDur(vaultLockUntil6()-now())}`;return null;}
++  window.moveWhy66=moveWhy66;
++  async function moveBuiltHq6(id,name){const why=moveWhy66(id);if(why)return toast('🚫 '+why);const old=hex6(),nm=(String(name||'').replace(/[<>]/g,'').trim().slice(0,24))||(H().hq&&H().hq.name)||'HQ';
++    const label='🏛️ HQ moved to '+hexName(id);let ok=false;const t0=window.toast;
++    window.toast=function(m){if(m===label)ok=true;return t0.apply(this,arguments);};toast=window.toast;
++    try{await vaultTx6(HQ6.moveCost,cur=>({...cur,hq:{hex:id,name:nm,by:P.uid,byName:P.name,t:now()}}),label);} // `bld` and every other key ride along unchanged
++    finally{window.toast=t0;toast=t0;}
++    if(!ok)return false;G.pick15=null;
++    try{if(old&&stationed()[old])troopsHome66(old,'HQ moved');}catch(e){}
++    try{if(!P.tiles[id]&&!(G.terr[id]&&G.terr[id].uid&&!G.terr[id].ai))claimTile(id);}catch(e){}
++    try{UI.closeModal();drawHq15();drawWorld();}catch(e){}return true;}
++  window.moveBuiltHq6=moveBuiltHq6;
++  // setHq15 stays free for the unbuilt spot; a built HQ goes through the paid move (this replaces the R6 "can't be moved" block)
++  const _set=window.setHq15;window.setHq15=function(id,name){if(built())return moveBuiltHq6(id,name);return _set.apply(this,arguments);};
++  // the picker's confirm for a built HQ: checks first (nothing is paid when a hex is refused), then the cost
++  const _it=UI.infoTile;UI.infoTile=function(id){if(G.pick15==='hq'&&built()&&!(G.pick15At&&now()-G.pick15At>180e3)){const why=moveWhy66(id);if(why){toast('🚫 '+why);return;}
++      const h=H().hq||{},esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));const L=window.hqLvl6?hqLvl6():1,st=(()=>{try{return stationedAt(h.hex)||0;}catch(e){return 0;}})();
++      return UI.modal(`<h2>🏛️ Move the HQ here?</h2><p>${hexName(id)}. The HQ building moves with everything on it.</p>
++        <div class="dm66"><div class="r24"><span>Cost from the Vault <span class="prop66">PROPOSED — Jacob to confirm</span></span><b>${resLine(HQ6.moveCost)}</b></div>
++        <div class="r24"><span>Level</span><b>Lv${L} kept${bld().upEnd&&now()<bld().upEnd?' · upgrade continues':''}</b></div>
++        <div class="r24"><span>Troops on the old HQ hex</span><b>${st?n66(st)+' of yours march home':'march home'}</b></div></div>
++        <p class="tiny">Teammates' Strongholds stay where they are. Anyone more than ${(window.B15&&B15.hqMi)||5} mi away can use Play next to the crew to move theirs.</p>
++        <input id="hq15name" maxlength="24" placeholder="HQ name" value="${esc(h.name)}"><div class="btns24"><button class="red24" onclick="setHq15('${id}',$('#hq15name').value)">✅ Move HQ</button><button class="ghost24" onclick="G.pick15=null;UI.closeModal()">Cancel</button></div>`);}
++    return _it.apply(this,arguments);};
++
++  // ---------- your troops on a teammate's building or the HQ that is no longer there (hosting-only sweeper, your own phone)
++  //  Remembers which friendly building each of your garrisons sits on. When the HQ has moved, or a teammate's building has
++  //  been gone from their member summary for 5+ minutes, your troops there march home. Bare hexes are never touched.
++  function sweep66(){try{if(!P.world||!G.al||!G.al.members)return;const t=TP(),mem=t.bld66=t.bld66||{},S=stationed(),hq=hex6(),T=now();let ch=false;
++    for(const [h,s] of Object.entries(S)){if(!s||!(s.n>0)||P.tiles[h]||(s.at&&T<s.at))continue;
++      const b=typeof bldAt==='function'?bldAt(h):null;
++      if(b&&!b.own){mem[h]={k:'b',owner:b.owner,t:T};delete mem[h].gone;ch=true;continue;}
++      if(hq&&h===hq){mem[h]={k:'hq',t:T};ch=true;continue;}
++      const m=mem[h];if(!m)continue;
++      if(m.k==='hq'){if(G.hq15&&G.hq15.hq&&hq&&hq!==h){delete mem[h];ch=true;sendHome25(h,s.n,'HQ moved');}continue;}
++      if(!m.gone){m.gone=T;ch=true;continue;}
++      if(T-m.gone>=5*60e3){delete mem[h];ch=true;sendHome25(h,s.n,'building demolished');}}
++    for(const h of Object.keys(mem))if(!S[h]){delete mem[h];ch=true;}
++    if(ch)save();}catch(e){console.warn('build66 sweep',e);}}
++  window.sweep66=sweep66;setInterval(sweep66,30e3);setTimeout(sweep66,8000);
++})();

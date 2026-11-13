@@ -1,6 +1,6 @@
 const {chromium}=require('playwright');
 module.exports=async function(root,fn){
-const b=await chromium.launch();const c=await b.newContext({geolocation:{latitude:47.7796,longitude:-116.8923},permissions:['geolocation'],viewport:{width:430,height:900}});
+const b=await chromium.launch();const c=await b.newContext({geolocation:{latitude:47.7796,longitude:-116.8923},permissions:['geolocation'],viewport:{width:+process.env.VW||430,height:+process.env.VH||900}});
 await c.route(/googleapis|gstatic|firebase(io|app)\.com|identitytoolkit/,r=>r.abort());
 await c.route(/tile|openstreetmap|overpass|arcgis|carto/,r=>r.abort());
 const p=await c.newPage();const errs=[];

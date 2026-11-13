@@ -41,7 +41,7 @@
       const add=g=>{if(!seen.has(g.key)&&g.pow>0){seen.add(g.key);s.guards.push(g);}};const k=stationedAt(d.id);if(k>0)add({key:'me:'+d.id,uid:P.uid,hex:d.id,n:k,pow:k*T()});
       for(const g of allyGarAt(d.id))add({key:'al:'+g.uid+':'+g.hex,uid:g.uid,hex:g.hex,n:g.n,pow:g.power||g.n*T()});}}catch(e){}return s;};window.defSides25=defSides25;
   // ---------- the HQ area counts in the spacing rule (space4.others4 lists it with a 2-ring footprint; protection can grow past that)
-  function hqSpaceWhy6(h){const need=(o,r)=>2+r+(o?S4.enemyGap:S4.allyGap);
+  function hqSpaceWhy6(h){const G4=window.S4&&window.S4.allyGap!=null?window.S4:{allyGap:1,enemyGap:2};const need=(o,r)=>2+(+r||0)+(o?G4.enemyGap:G4.allyGap); // R6.6: stage4.js has its own global S4 (no gaps) that hid space4's
     for(const o of others4()){if(o.k==='ahq')continue;if(hexDist(h,o.hex)<need(o.enemy,o.r))return o.enemy?`Too close to ${o.who}'s base.`:`Too close to ${o.who}'s ${o.k==='sh'?'Stronghold':o.k==='tower'?'tower':'outpost'} area.`;}
     try{for(const d of ownDefStructs())if(d&&d.hex&&hexDist(h,d.hex)<need(false,+d.r||0))return'Too close to your own building area.';}catch(e){}return null;}
   window.hqSpaceWhy6=hqSpaceWhy6;
@@ -93,8 +93,8 @@
       if(Object.keys(back).length){try{addRes(back);save();toast(`🏦 The Vault is full: ${Object.entries(back).map(([k,v])=>v+' '+RES[k]).join(' ')} stayed with you`);}catch(e){}}
       if(Object.values(send).some(v=>v>0))return _bm(uid,name,send,kind);};}
   // decideReq15 (approve) and collect15 wait while the Vault is locked (rank15.js)
-  // the HQ can't be moved once it is built (it's a building now)
-  try{const _sh=window.setHq15;window.setHq15=function(){if(bld()&&bld().built)return toast('🚫 The HQ is built here. It can\'t be moved.');return _sh.apply(this,arguments);};}catch(e){}
+  // R6.6: a built HQ is moved by build66.moveBuiltHq6 (paid from the Vault through vaultTx6); setHq15 stays the free unbuilt-spot move
+  window.vaultTx6=vaultTx6;
   try{AT26.hoard.n='🏦 Vault';UI.SUBS.alliance=Object.entries(AT26).map(([k,v])=>[k,v.n]);}catch(e){}
   // ---------- officers: at most 2 (rank15.setRank15 refuses a 3rd; the security rules cap roles at 3 entries)
   // ---------- HQ tab: the building, the Vault, recent attacks

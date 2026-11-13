@@ -15,7 +15,7 @@ function cleanCard26(kind,ctx){const mb=$('#modalBody');if(!mb||mb.querySelector
   mb.querySelectorAll('.mreq22').forEach(e=>e.remove());
   const seenB=new Set();[...btnBox.querySelectorAll('button')].forEach(b=>{const t=b.textContent.trim();if(/^📌 Mark$/.test(t)){if(seenB.has(t))b.remove();seenB.add(t);}});
   if(kind==='tile'){const id=ctx,t=tileInfo(id),mine=!!P.tiles[id],b=typeof bldAt==='function'?bldAt(id):null;
-    if(b){const r=garrison26(id),lv=b.k==='sh'?strongholdLevel():b.k==='tower'?(b.o.level||1):1;bTitle=`${{sh:'🏰 Stronghold',tower:'🗼 Watchtower',op:'⛺ Outpost'}[b.k]||'Building'} Lv${lv}`;bSub=`${b.own?P.name+' (you)':esc24(b.owner||'Ally')} · ${hexName(id)}`;
+    if(b){const r=garrison26(id),lv=b.k==='sh'?strongholdLevel():b.k==='tower'?(b.o.level||1):1;bTitle=`${{sh:'Stronghold',tower:'Watchtower',op:'Outpost'}[b.k]||'Building'} Lv${lv}`;bSub=`${b.own?P.name+' (you)':esc24(b.owner||'Ally')} · ${hexName(id)}`;
       if(r){facts=[[nn26(r.D)+'⚔','damage'],[nn26(r.H)+'❤','troop HP'],[Math.round(r.walls*100)+'%','walls block']];
         const pk=Object.entries(r.perks).filter(([,v])=>v>0).map(([k])=>k.charAt(0).toUpperCase()+k.slice(1));
         extra=`<div class="sec26">GARRISON · ${r.nTypes} OF 5 TYPES</div>${r.players.map(p=>`<div class="pl26"><span>${(C26.types[p.type]||{}).ico||'🪖'}</span><div class="grow"><b>${esc24(p.name)}</b> · ${(CLASSES.list[p.type]||{}).name||p.type} · ${nn26(p.n)}</div><b>${nn26(p.dmg)}⚔</b></div>`).join('')||'<p class="tiny">No troops inside. The walls and fire still fight.</p>'}
@@ -168,7 +168,7 @@ const _ilPipe26=UI.infoLandmark;UI.infoLandmark=function(l){_ilPipe26.apply(this
   const small=box.querySelector('small');if(small)small.innerHTML=mine?`Your pipeline: ${pipeState(mine)}`
     :unlocked?`Unlocked · build from your Stronghold for +${PIPE.perHour[s.res]}${RES[s.res]}/hr and +${PIPE.tileBoost*100}% ${s.res} from your hexes. Cap: 1 ${s.res} line.${why?`<br>🔒 ${why}`:''}`
     :`Drive past this site to unlock it, then build in Base › Pipelines. Cap: 1 pipeline per resource type.`;
-  const btn=box.querySelector('button.btn-primary');if(btn&&!mine){btn.disabled=!!why;btn.textContent=unlocked?(why||`Build ${Object.entries(PIPE.cost).map(([k,v])=>v+RES[k]).join(' ')}`):'🔒 Drive past to unlock';}}catch(e){}};
+  const btn=box.querySelector('button.btn-primary');if(btn&&!mine){btn.disabled=!!why;btn.textContent=unlocked?`Build ${Object.entries(PIPE.cost).map(([k,v])=>v+RES[k]).join(' ')}`:'🔒 Drive past to unlock';}}catch(e){}};
 HOOK.render(function(){try{if(this.tab!=='base'||this.sub.base!=='pipes')return;const b=$('#sheetBody');if(!b)return;
   const h=b.querySelector('h2');if(h){const mine=pipes().filter(p=>pipeState(p)!=='expired');const by={};mine.forEach(p=>by[p.res]=1);h.innerHTML=`⛓️ Pipelines <small class="lv">${Object.keys(by).length} / ${pipeCap()} types</small>`;}
   const tip=b.querySelector('p.tiny');if(tip&&/drive to the pin|Drive mode/i.test(tip.textContent))tip.innerHTML=`Drive past a supply site to <b>unlock</b> it, then build here. No map pin. Online lines pay every hour and boost that resource from your hexes. <b>Cap: 1 pipeline per resource type</b> (fuel, water, food, scrap, parts). Upkeep ${PIPE.upkeep.parts}⚙️/day each. If the horde takes a hex on the route, the line is cut.`;

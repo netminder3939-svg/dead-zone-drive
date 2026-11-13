@@ -186,7 +186,7 @@
     if(h){const d=s?kmBetween(h.hex,s):null;x+=`<div class="row"><div class="grow"><b>${esc15(h.name)}</b><small>${hexName(h.hex)} · set by ${esc15(h.byName||'the leader')}${d!=null?` · your Stronghold is ${fmtMi(d)} away`:''}</small></div><button onclick="jumpHq15()">🧭 Jump</button></div>`;
       if(!s||d>B15.hqMi*MI/1000)x+=`<div class="row"><div class="grow"><b>Play next to the crew</b><small>Build your Stronghold within ${B15.hqMi} mi of the HQ. ${s?'Your current spot becomes your 🏡 Home Outpost so driving, pipelines and resources keep working there.':''}</small></div><button class="red24" onclick="jumpHq15();setTimeout(()=>pick15('sh'),300)">🏰 Pick a spot</button></div>`;}
     else x+=`<p class="tiny">No HQ yet.${isOfficer15()?'':' The leader or an officer places it.'}</p>`;
-    if(isOfficer15()&&!(G.hq15&&G.hq15.bld&&G.hq15.bld.built))x+=`<div class="btns24"><button onclick="pick15('hq')">🏛️ ${h?'Move':'Place'} HQ (tap the map)</button></div>`;
+    if(isOfficer15()){const b15=!!(G.hq15&&G.hq15.bld&&G.hq15.bld.built);x+=`<div class="btns24"><button onclick="pick15('hq')">🏛️ ${h?'Move':'Place'} HQ (tap the map)</button></div>${b15&&window.HQ6&&HQ6.moveCost?`<p class="tiny">Moving the built HQ costs ${Object.entries(HQ6.moveCost).map(([k,v])=>v+' '+RES[k]).join(' ')} from the Vault (proposed — Jacob to confirm). It keeps its level.</p>`:''}`;}
     const lu=leaderUid15(),lm=M[lu]||{};if(rk==='officer'&&lu&&Date.now()-(lm.lastActive||0)>=14*864e5)x+=`<button class="ghost24" onclick="takeOver15()">👑 Take over (leader inactive 14+ days)</button>`;
     // ranks
     const rows=Object.entries(M).sort((a,c)=>({leader:0,officer:1,member:2}[rankOf15(a[0])]-{leader:0,officer:1,member:2}[rankOf15(c[0])]));
@@ -212,7 +212,8 @@
       mb.insertAdjacentHTML('beforeend',`<div class="btns24 fw15"><button onclick="map.setView(hexCenter(...idQR('${d.hex}')),14);UI.closeModal();try{UI.close()}catch(e){}">🧭 Jump to their base</button><button ${ops15('fwd').length>=B15.fwdMax?'disabled':''} onclick="map.setView(hexCenter(...idQR('${d.hex}')),13);pick15('fwd')">🚩 Forward Outpost near them</button></div>`);}catch(e){}return r;};
   // outpost card: kind + troops + portal
   const _io15=UI.infoOutpost;UI.infoOutpost=function(id){const r=_io15.apply(this,arguments);try{const o=(W().outposts||{})[id];const mb=$('#modalBody');if(!o||!mb||mb.querySelector('.op15'))return r;
-      mb.insertAdjacentHTML('afterbegin',`<div class="op15"><b>${baseLabel15(id)}</b> · 🪖 ${poolOf15(id).toLocaleString()} troops here${o.state==='up'?`<div class="btns24"><button onclick="UI.portal15('${id}')">🌀 Portal troops here</button>${opHex15()===id?'':`<button onclick="setOp15('${id}')">Operate from here</button>`}</div>`:''}</div>`);}catch(e){}return r;};
+      const nm15=o.kind==='home'?'Home Outpost':o.kind==='fwd'?'Forward Outpost':'Outpost',th15=(window.thumb65&&window.opArt65&&thumb65(opArt65(o.kind||'other')))||'';
+      mb.insertAdjacentHTML('afterbegin',`<div class="op15"><b>${th15?th15+' ':baseLabel15(id).split(' ')[0]+' '}${nm15}</b> · 🪖 ${poolOf15(id).toLocaleString()} troops here${o.state==='up'?`<div class="btns24"><button onclick="UI.portal15('${id}')">🌀 Portal troops here</button>${opHex15()===id?'':`<button onclick="setOp15('${id}')">Operate from here</button>`}</div>`:''}</div>`);}catch(e){}return r;};
 
   // ---------- operating bar ----------
   function bar15(force){let el=document.getElementById('op15');const L=myBases15();if(!P.name||!L.length){if(el)el.remove();return;}

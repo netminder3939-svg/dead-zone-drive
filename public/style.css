@@ -603,3 +603,13 @@ body.night .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) grayscale(.55)
 /* (#mode, #status and the base rail are placed under the real bottom of the top bar by terr15.js layout15) */
 /* 12i QA: long toasts were one line and ran off both sides of a phone screen. */
 #toast div{white-space:normal;max-width:min(560px,calc(100vw - 24px));text-align:center;line-height:1.3;box-sizing:border-box}
+/* R6.6: the landmark Supply site row is a full-width card row, even in a narrow flex context or with a long button label */
+.row.pipesite{width:100%;min-width:0;box-sizing:border-box;flex-wrap:wrap;align-items:flex-start;flex:1 1 100%}
+.row.pipesite>.grow{flex:1 1 12rem;min-width:0}
+.row.pipesite>button{flex:1 1 8rem;min-width:0;max-width:100%;white-space:normal;text-align:center}
+/* R6.6: kit drawings inside the teal building box on a marker stats card */
+.bi24 img.p65,.bi24 img.th65{width:44px;height:44px;object-fit:contain;margin:0}
+/* R6.6: demolish / move confirm lines */
+.dm66{margin:8px 0 0}.dm66 .r24 b{white-space:nowrap}
+.prop66{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;color:#ffcf5a;border:1px solid #ffcf5a66;border-radius:6px;padding:1px 6px;margin-left:4px}
+#kitModal p{white-space:pre-line}
