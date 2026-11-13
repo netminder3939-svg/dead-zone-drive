@@ -77,7 +77,7 @@
 - `tests/h.js` accepts `VW`/`VH` for the viewport (the default is still 430×900).
 
 ## Tests
-- **`tests/r6-6-fixes.js`, 390×844, 41 checks:**
+- **`tests/r6-6-fixes.js`, 390×844, 40 checks:**
   - §1: full width, Build label, reason once, no toast, an unblocked site is enabled, art kept.
   - §2: Home, Forward and plain outposts show the right drawing in the big image and teal box with a plain title. Tower and Stronghold have no emoji titles. One Demolish per card; none on the Stronghold.
   - §3: Lv4 and Lv1 tower refunds; cancel changes nothing; troops go on a Returning march; the slot is freed; outposts refund 50%, return you to GPS, redraw the pay range and keep the hex; a capturing outpost records what was paid and claims nothing; a pipeline refunds 50% and frees its slot; a teammate's card has no Demolish.
